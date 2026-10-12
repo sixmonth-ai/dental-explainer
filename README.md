@@ -1,0 +1,132 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
+    <img alt="dental-explainer: describe a dental concept, get an interactive 3D figure" src=".github/assets/banner-light.svg" width="100%">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="#install"><img alt="Agent Skill" src="https://img.shields.io/badge/Agent_Skill-SKILL.md-2563eb?style=flat-square&labelColor=000000"></a>
+  <a href="#install"><img alt="Works with" src="https://img.shields.io/badge/works_with-Claude_·_ChatGPT_·_Codex_·_Cursor-1e3a8a?style=flat-square&labelColor=000000"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-404040?style=flat-square&labelColor=000000"></a>
+  <a href="https://sixmonth.ai"><img alt="by Sixmonth" src="https://img.shields.io/badge/by-Sixmonth-000000?style=flat-square&labelColor=2563eb"></a>
+</p>
+
+<p align="center">
+  <b>An open agent skill that turns any dental concept into an interactive 3D figure.</b><br>
+  Rotate it, explode it, cut through it, and hover any part for a sourced fact.<br>
+  Built from real millimetre dimensions and checked against a verified dental facts file.
+</p>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#gallery">Gallery</a> ·
+  <a href="#why-it-exists">Why</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="https://sixmonth.ai/offchair">Newsletter</a>
+</p>
+
+<br>
+
+## Install
+
+`dental-explainer` follows the open [Agent Skills](https://agentskills.io) format: a folder with a `SKILL.md` at its root. Any agent that reads skills can use it.
+
+| Where | How |
+|---|---|
+| **Claude** (web & desktop) | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)**. Turn on code execution in **Settings → Capabilities**, then **Skills → Upload a skill**. |
+| **ChatGPT** (plans with Skills) | Download the same ZIP, then **Skills → Create → Upload from your computer**. |
+| **Claude Code, Codex, Cursor, OpenCode, Copilot, Gemini CLI** | `npx skills add sixmonth-ai/dental-explainer` |
+| **Manual** | `git clone https://github.com/sixmonth-ai/dental-explainer.git ~/.claude/skills/dental-explainer` |
+
+Then ask for a dental visual in plain words. You can also call it by name: `/dental-explainer` in Claude, `$dental-explainer` in Codex.
+
+```text
+Show an exploded view of an implant replacing 36
+Why does MB2 get missed in upper first molars? Cut through the tooth
+Healthy lower molar vs periodontitis, with furcation involvement
+Root-filled premolar with fibre post, core and crown, for patients
+```
+
+<br>
+
+## Gallery
+
+Every figure below was made by the skill. Each one is a single HTML page you can open, share, or put in slides. The pages are in [`examples/`](examples).
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-implant-dark.png"><img alt="Exploded implant with abutment, screw and zirconia crown above a sectioned bone block" src=".github/assets/fig-implant-light.png"></picture>
+      <br><b>Implant replacing 36</b><br><sub>Exploded stack and a CBCT-style cut. Readouts check ≥1.5 mm to the neighbouring roots and ≥2 mm above the canal.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-molar-dark.png"><img alt="Lower first molar in mesio-distal section showing enamel, dentin, pulp and PDL in bone" src=".github/assets/fig-molar-light.png"></picture>
+      <br><b>First molar in section</b><br><sub>Slide the cut bucco-lingually to find the MB and ML canals of the mesial root.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-dentition-dark.png"><img alt="Fourteen permanent teeth labelled with FDI and Universal numbers" src=".github/assets/fig-dentition-light.png"></picture>
+      <br><b>Permanent teeth, left side</b><br><sub>Built to Wheeler averages, labelled FDI with Universal below. Three roots upper, two roots lower.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-restorative-dark.png"><img alt="Sectioned premolar with root filling, fibre post, core, ferrule and crown" src=".github/assets/fig-restorative-light.png"></picture>
+      <br><b>Root filling, post, core, crown</b><br><sub>What each layer does, with a 2 mm ferrule and ≥4 mm apical seal checked in the readout.</sub>
+    </td>
+  </tr>
+</table>
+
+<br>
+
+## Why it exists
+
+AI models are fluent about dentistry and often wrong about it. `dental-explainer` gives the agent a verified [facts file](references/dental-facts.md) to work from, plus a checklist it runs before every figure.
+
+| Models often… | The skill knows |
+|---|---|
+| say adults have 28 teeth | 32 permanent teeth including third molars; 20 primary teeth, no primary premolars |
+| treat FDI 36 and Universal 36 as the same tooth | FDI 36 = Universal 19, and Universal stops at 32 |
+| draw every molar with three roots | maxillary molars have 3 roots, mandibular molars 2 |
+| give the upper first molar three canals | MB2 is present in about 57–74% of upper first molars |
+| say enamel grows back | enamel is acellular; only early lesions remineralise |
+| quote one torque for all implants | torque is manufacturer-specific |
+
+Values carry their sources. Anything not yet checked against a source is tagged **[U]**.
+
+<br>
+
+## How it works
+
+1. **Teaching point.** The agent pins down the one idea the figure must show.
+2. **Facts.** It looks up the numbers in the facts file instead of guessing.
+3. **Plan.** It lists parts with real sizes in millimetres, insertion order, and the cut planes.
+4. **Build.** It writes a short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position, implants, crowns, posts, bone and gingiva.
+5. **Verify.** Where a browser is available, it screenshots the figure, looks at it, and fixes what's wrong.
+
+```
+dental-explainer/
+├── SKILL.md                 the workflow the agent follows
+├── references/
+│   ├── dental-facts.md      verified values and sources: the correction layer
+│   └── kit-api.md           drawing-kit reference
+├── assets/dentkit.js        3D kit (three.js r128 bundled in assets/vendor)
+├── examples/                four finished figures, .js source and .html pages
+└── scripts/                 build.py (assemble a page) · check.py (screenshot and error check)
+```
+
+<br>
+
+## Limits
+
+- Figures use population-average anatomy. They are not patient-specific: no CBCT or STL import.
+- Implants are generic (correct diameter, length and connection type). No brand geometry.
+- For education and communication only, not for diagnosis or treatment planning.
+
+<br>
+
+## Stay up to date
+
+`dental-explainer` is made by **[Sixmonth](https://sixmonth.ai)**. Get a weekly briefing on AI in dentistry at **[sixmonth.ai/offchair](https://sixmonth.ai/offchair)**.
+
+<sub>MIT licensed. Concept inspired by the open-source <a href="https://github.com/wheresryan22/anatomy">Anatomy</a> skill by @wheresryan22; the dental kit, facts file and figures here are original work. three.js © its authors, MIT.</sub>

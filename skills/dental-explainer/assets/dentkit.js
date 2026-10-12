@@ -196,38 +196,89 @@
   /* ---------- teeth ---------- */
   // Crown surface: superellipse rings from cervix (y=0) to occlusal; relief(xn,zn) adds cusps/edges.
   const CROWN_COLS = 96;
-  function crownGeometry(c, inset, open) {
+  // inset: {side, top, reliefScale, topScale, taperIn}. taperIn makes the side inset vanish at the cervix (the dentino-enamel
+  // junction: enamel is a knife edge at the CEJ); without it the inset is uniform (a crown preparation).
+  const CROWN_ROWS = 56;
+  function crownRingFn(c, inset) { // (t, th) → [x, y, z] on the crown surface, t: 0 cervix → 1 occlusal
     inset = inset || { side: 0, top: 0, reliefScale: 1, topScale: 1 };
-    const rows = 56, cols = CROWN_COLS, H = c.crownL - inset.top;
-    const aC = c.mdC / 2 - inset.side * 0.4, bC = c.blC / 2 - inset.side * 0.4;
-    const aM = c.md / 2 - inset.side, bM = c.bl / 2 - inset.side;
-    const n = c.squareness || 2.4;
-    return gridGeometry(rows, cols, (i, j) => {
-      const t = i / rows, th = j / cols * Math.PI * 2;
+    const H = c.crownL - inset.top, n = c.squareness || 2.4, grooves = c.sideGrooves || [];
+    return (t, th) => {
+      const sideIn = inset.side * (inset.taperIn ? Math.pow(smooth(0, 0.32, t), 0.8) : 1);
+      const aC = c.mdC / 2 - sideIn * 0.4, bC = c.blC / 2 - sideIn * 0.4, aM = c.md / 2 - sideIn, bM = c.bl / 2 - sideIn;
       let a, b, y;
       const side = 0.72;
       if (t <= side) {
-        const s = t / side, bul = Math.sin(Math.min(1, s / (c.contourAt || 0.75)) * Math.PI / 2);
-        a = lerp(aC, aM, bul); b = lerp(bC, bM, Math.sin(Math.min(1, s / (c.blContourAt || 0.45)) * Math.PI / 2));
-        if (c.incisal) b = lerp(b, c.incisalBL || 0.7, smooth(0.35, 1, s));
-        y = s * H * (c.incisal ? 0.97 : 0.78);
+        const sN = t / side, bul = Math.sin(Math.min(1, sN / (c.contourAt || 0.75)) * Math.PI / 2);
+        a = lerp(aC, aM, bul); b = lerp(bC, bM, Math.sin(Math.min(1, sN / (c.blContourAt || 0.45)) * Math.PI / 2));
+        if (c.incisal) b = lerp(b, c.incisalBL || 0.7, smooth(0.35, 1, sN));
+        y = sN * H * (c.incisal ? 0.97 : 0.78);
       } else {
-        const s = (t - side) / (1 - side);
-        const k = Math.cos(s * Math.PI / 2);
-        a = aM * (c.incisal ? lerp(1, 0.94, s) : k); b = (c.incisal ? lerp(c.incisalBL || 0.7, 0.05, s) : bM * k);
-        y = c.incisal ? H * (0.97 + 0.03 * Math.sin(s * Math.PI / 2)) : H * (0.78 + 0.22 * Math.sin(s * Math.PI / 2) * (inset.topScale ?? 1));
+        const sN = (t - side) / (1 - side);
+        // occlusal third converges toward the table: steeper than a cosine so cusps stand proud of the outline from the side
+        const k = c.incisal ? 1 : Math.cos(sN * Math.PI / 2) * (1 - 0.22 * Math.pow(sN, 1.5));
+        a = aM * (c.incisal ? lerp(1, 0.94, sN) : k); b = (c.incisal ? lerp(c.incisalBL || 0.7, 0.05, sN) : bM * k);
+        y = c.incisal ? H * (0.97 + 0.03 * Math.sin(sN * Math.PI / 2)) : H * (0.78 + 0.22 * Math.sin(sN * Math.PI / 2) * (inset.topScale ?? 1));
       }
       a = Math.max(a, 0.05); b = Math.max(b, 0.03);
-      const x = a * se(Math.cos(th), n), z = b * se(Math.sin(th), n);
+      let x = a * se(Math.cos(th), n), z = b * se(Math.sin(th), n);
+      // developmental grooves running down the facial / lingual surfaces: shallow valleys that fade cervically
+      if (grooves.length && !c.incisal) {
+        const xn = x / (c.md / 2), zs = Math.sign(z); let f = 1;
+        grooves.forEach(g => { if (zs === g.z) f -= (g.depth || 0.18) * Math.exp(-Math.pow((xn - g.x) / (g.w || 0.09), 2)) * smooth(0.35, 0.75, t); });
+        z *= f;
+      }
       if (c.relief && !c.incisal) {
         const w = smooth(0.45, 0.95, t);
         y += w * c.relief(x / (c.md / 2), z / (c.bl / 2)) * (inset.reliefScale ?? 1);
       }
       if (c.incisal && c.incisalCurve) y += smooth(0.6, 1, t) * c.incisalCurve(x / (c.md / 2));
       return [x, y, z];
-    }, null, open ? null : [0, 0, 0]);
+    };
+  }
+  function crownGeometry(c, inset, open) {
+    const rows = CROWN_ROWS, cols = CROWN_COLS, base = c.baseRound || 0, baseRows = base ? 6 : 0, n = c.squareness || 2.4, ring = crownRingFn(c, inset);
+    return gridGeometry(rows + baseRows, cols, (i, j) => {
+      const th = j / cols * Math.PI * 2;
+      if (i < baseRows) { // rounded base (pulp-chamber floor): a quarter-ellipse down to a point `base` mm below y = 0
+        const u = i / baseRows, k = Math.sqrt(1 - (1 - u) * (1 - u));
+        return [(c.mdC / 2) * k * se(Math.cos(th), n), -base * (1 - u), (c.blC / 2) * k * se(Math.sin(th), n)];
+      }
+      return ring((i - baseRows) / rows, th);
+    }, null, open ? null : [0, -base, 0]);
   }
   DK.crownGeometry = crownGeometry;
+  // Closed shell between two open crown surfaces (outer A, inner B), joined at their cervical rings: enamel over the DEJ, a crown over its prep.
+  function shellGeometry(A, B) {
+    const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = CROWN_COLS;
+    const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia), uv = Array.from(A.attributes.uv.array).concat(Array.from(B.attributes.uv.array));
+    for (let i = 0; i < ib.length; i += 3) idx.push(ib[i] + off, ib[i + 2] + off, ib[i + 1] + off); // inner surface faces inward
+    for (let j = 0; j < cols; j++) { const o0 = j, o1 = j + 1, i0 = off + j, i1 = off + j + 1; idx.push(o0, o1, i0, o1, i1, i0); } // margin ring (row 0 of each surface)
+    const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    return geo;
+  }
+  const DEJ = { side: 1.1, top: 1.9, reliefScale: 0.75, taperIn: true };   // enamel thickness: knife edge at the CEJ, ~1 mm on the sides, ~2 mm over cusps
+  // Continuous dentin: root (single-rooted) or furcation dome + root trunk (multi-rooted) flowing into the crown dentin under
+  // the DEJ — one closed surface, so a cut shows no seam at the CEJ.
+  function dentinBodyGeometry(s) {
+    const cols = CROWN_COLS, ring = crownRingFn(s, DEJ), n = s.squareness || 2.4, single = s.roots.length === 1;
+    if (single) {
+      const r = s.roots[0], rootRows = 48, L = r.len, sc = { k: 1, add: 0, minR: 0.05 };
+      return gridGeometry(rootRows + CROWN_ROWS, cols, (i, j) => { const th = j / cols * Math.PI * 2; return i <= rootRows ? rootRing(r, 1 - i / rootRows, th, sc, L) : ring((i - rootRows) / CROWN_ROWS, th); }, null, null);
+    }
+    const trunk = s.trunk || 3, domeRows = 6, trunkRows = 10, yRim = -trunk + 0.6, domeH = 0.9;
+    return gridGeometry(domeRows + trunkRows + CROWN_ROWS, cols, (i, j) => {
+      const th = j / cols * Math.PI * 2;
+      if (i < domeRows) { // furcation roof: rounded, lowest point 0.3 mm below the documented trunk depth
+        const u = i / domeRows, k = 0.72 * Math.sqrt(1 - (1 - u) * (1 - u));
+        return [(s.mdC / 2) * k * se(Math.cos(th), n), yRim - domeH * (1 - u), (s.blC / 2) * k * se(Math.sin(th), n)];
+      }
+      if (i <= domeRows + trunkRows) { // trunk narrows from the cervix to the furcation; roots emerge from inside it
+        const t = (i - domeRows) / trunkRows, k = lerp(0.72, 1, Math.pow(t, 0.7)), n2 = lerp(2.3, n, t);
+        return [(s.mdC / 2) * k * se(Math.cos(th), n2), yRim * (1 - t), (s.blC / 2) * k * se(Math.sin(th), n2)];
+      }
+      return ring((i - domeRows - trunkRows) / CROWN_ROWS, th);
+    }, null, [0, yRim - domeH, 0]);
+  }
 
   // Centre line of a root (or of a canal inside it) at depth y below the CEJ — shared by root, canal, PDL and helpers.
   function rootCenter(r, y) {
@@ -235,22 +286,39 @@
     return [r.x + (r.apex ? r.apex[0] : 0) * u * u + (r.flare ? r.flare[0] * Math.sin(u * Math.PI) : 0),
             r.z + (r.apex ? r.apex[1] : 0) * u * u + (r.flare ? r.flare[1] * Math.sin(u * Math.PI) : 0)];
   }
-  function rootGeometry(r, scale) { // r: {x,z,len,ra,rb,apex:[dx,dz],start}; scale shrinks radii (canal / pdl)
-    scale = scale || { k: 1, add: 0, minR: 0.05, endShort: 0 };
-    const rows = 48, cols = 48, start = r.start ?? 0.6, L = r.len - (scale.endShort || 0);
-    return gridGeometry(rows, cols, (i, j) => {
-      const t = 1 - i / rows, th = j / cols * Math.PI * 2; // i=0 apex → i=rows top (outward normals)
-      const tip = Math.sqrt(Math.max(0, 1 - Math.pow(t, r.tipSharp || 9)));
-      const taper = (1 - (r.taper ?? 0.55) * Math.pow(t, 0.85)) * tip;
-      const n = lerp(r.n0 || 2, 2, t);
-      const ra = Math.max(r.ra * taper * scale.k + scale.add * tip, scale.minR * tip);
-      const rb = Math.max(r.rb * taper * scale.k + scale.add * tip, scale.minR * tip);
-      const y = start - t * (L + start);
-      const [cx, cz] = rootCenter(r, y); // depends on depth only, so root, canal and PDL share one path
-      return [cx + ra * se(Math.cos(th), n), y, cz + rb * se(Math.sin(th), n)];
-    }, [r.x, (r.start ?? 0.6) + 0.01, r.z], null);
+  // One ring of a root at parameter t (0 = top/start, 1 = apex): [x, y, z] for angle th. scale: {k, add, minR, endShort, flare}
+  // r.concave: [{ang, depth, w}] longitudinal concavities (furcation-facing surfaces, the mesial groove of an upper first premolar).
+  function rootRing(r, t, th, scale, L) {
+    const start = r.start ?? 0.6;
+    const tip = Math.sqrt(Math.max(0, 1 - Math.pow(t, r.tipSharp || 9)));
+    const taper = (1 - (r.taper ?? 0.55) * Math.pow(t, 0.85)) * tip;
+    const n = lerp(r.n0 || 2, 2, t);
+    let ra = Math.max(r.ra * taper * scale.k + scale.add * tip, scale.minR * tip);
+    let rb = Math.max(r.rb * taper * scale.k + scale.add * tip, scale.minR * tip);
+    if (scale.flare) { const f = lerp(1, scale.flare, Math.pow(smooth(0.12, 0, t), 2)); ra *= f; rb *= f; }   // orifice funnel (coronal ~1.5 mm)
+    const y = start - t * (L + start);
+    const [cx, cz] = rootCenter(r, y);
+    let px = ra * se(Math.cos(th), n), pz = rb * se(Math.sin(th), n);
+    if (r.concave && scale.k === 1 && !scale.add) {
+      let f = 1; r.concave.forEach(g => { const d = Math.abs(((th - g.ang) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI); f -= (g.depth || 0.12) * Math.exp(-Math.pow(d / (g.w || 0.55), 2)) * Math.sin(Math.PI * clamp(t * 1.15, 0, 1)); });
+      px *= f; pz *= f;
+    }
+    return [cx + px, y, cz + pz];
   }
-  DK.rootGeometry = rootGeometry;
+  function rootGeometry(r, scale) { // r: {x,z,len,ra,rb,apex:[dx,dz],start}; scale shrinks radii (canal / pdl); scale.dome rounds the top instead of a flat disc
+    scale = scale || { k: 1, add: 0, minR: 0.05, endShort: 0 };
+    const rows = 48, cols = 48, start = r.start ?? 0.6, L = r.len - (scale.endShort || 0), domeRows = scale.dome ? 8 : 0;
+    const rTop = Math.max(0.05, Math.min(r.ra, r.rb) * scale.k + (scale.add || 0)) * 0.9;
+    return gridGeometry(rows + domeRows, cols, (i, j) => {
+      const th = j / cols * Math.PI * 2;
+      if (i > rows) { // dome: the top ring shrinks along a quarter ellipse rTop mm high (hidden inside the trunk / chamber)
+        const u = (i - rows) / domeRows, k = Math.sqrt(Math.max(0, 1 - u * u)), pt = rootRing(r, 0, th, scale, L), [cx, cz] = rootCenter(r, start);
+        return [cx + (pt[0] - cx) * k, start + rTop * u, cz + (pt[2] - cz) * k];
+      }
+      return rootRing(r, 1 - i / rows, th, scale, L); // i=0 apex → i=rows top (outward normals)
+    }, scale.dome ? null : [r.x, start + 0.01, r.z], null);
+  }
+  DK.rootGeometry = rootGeometry; DK.rootRing = rootRing;
 
   // Occlusal relief from a cusp list [{x,z,h,w}] (normalized coords) + central fossa depth
   // grooves: [[x1,z1,x2,z2,depth?], ...] narrow valleys (central, buccal, lingual grooves) in normalized coords
@@ -273,13 +341,13 @@
   P.maxLateral = Object.assign({}, P.maxCentral, { name: 'Maxillary lateral incisor', crownL: 9, rootL: 13, md: 6.5, mdC: 5, bl: 6, blC: 5, roots: [{ x: 0, z: 0, len: 13, ra: 2.5, rb: 2.4, taper: 0.62, apex: [-1.0, -0.3] }] });
   P.maxCanine = { name: 'Maxillary canine', crownL: 10, rootL: 17, md: 7.5, mdC: 5.5, bl: 8, blC: 7, squareness: 2.1, contourAt: 0.7, blContourAt: 0.3,
     relief: DK.cuspRelief([{ x: 0, z: 0.05, h: 2.2, w: 0.42 }], 0), roots: [{ x: 0, z: 0, len: 17, ra: 2.7, rb: 3.4, taper: 0.62, apex: [-0.8, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.6 }], coneTip: true };
-  P.maxPM1 = { name: 'Maxillary first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 9, blC: 8, squareness: 2.3, contourAt: 0.7,
+  P.maxPM1 = { name: 'Maxillary first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 9, blC: 8, squareness: 2.3, contourAt: 0.7,   // mesial developmental groove on crown and roots
     relief: DK.cuspRelief([{ x: 0, z: 0.5, h: 2.2, w: 0.34 }, { x: 0, z: -0.5, h: 1.6, w: 0.32 }], 0.3, [[0.6, 0, -0.6, 0]]),
-    roots: [{ x: 0, z: 1.9, len: 14, ra: 2.1, rb: 1.6, apex: [-0.5, 0.4], start: -0.5 }, { x: 0, z: -1.9, len: 13.5, ra: 2.0, rb: 1.5, apex: [-0.5, -0.4], start: -0.5 }],
+    roots: [{ x: 0, z: 1.9, len: 14, ra: 2.1, rb: 1.6, apex: [-0.5, 0.4], start: -0.5, concave: [{ ang: 0, depth: 0.14, w: 0.5 }, { ang: -Math.PI / 2, depth: 0.1, w: 0.6 }] }, { x: 0, z: -1.9, len: 13.5, ra: 2.0, rb: 1.5, apex: [-0.5, -0.4], start: -0.5, concave: [{ ang: 0, depth: 0.12, w: 0.5 }, { ang: Math.PI / 2, depth: 0.1, w: 0.6 }] }],
     trunk: 4.5, canals: [{ root: 0, dx: 0, dz: 0, r: 0.4 }, { root: 1, dx: 0, dz: 0, r: 0.4 }] };
   P.maxPM2 = Object.assign({}, P.maxPM1, { name: 'Maxillary second premolar', relief: DK.cuspRelief([{ x: 0, z: 0.5, h: 1.8, w: 0.34 }, { x: 0, z: -0.5, h: 1.7, w: 0.32 }], 0.3, [[0.6, 0, -0.6, 0]]),
-    roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.6, apex: [-0.6, 0] }], trunk: 0, canals: [{ root: 0, dx: 0, dz: 0, r: 0.45, rbk: 0.5 }] });
-  P.maxM1 = { name: 'Maxillary first molar', crownL: 7.5, rootL: 13, md: 10, mdC: 8, bl: 11, blC: 10, squareness: 2.7, contourAt: 0.65,
+    roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.6, apex: [-0.6, 0], concave: [{ ang: 0, depth: 0.09, w: 0.5 }, { ang: Math.PI, depth: 0.06, w: 0.5 }] }], trunk: 0, canals: [{ root: 0, dx: 0, dz: 0, r: 0.45, rbk: 0.5 }] });
+  P.maxM1 = { name: 'Maxillary first molar', crownL: 7.5, rootL: 13, md: 10, mdC: 8, bl: 11, blC: 10, squareness: 2.7, contourAt: 0.65, sideGrooves: [{ x: 0.05, z: 1, depth: 0.16 }, { x: -0.3, z: -1, depth: 0.14 }],   // buccal groove; distolingual groove
     relief: DK.cuspRelief([{ x: 0.42, z: 0.48, h: 1.7 }, { x: -0.42, z: 0.48, h: 1.5 }, { x: 0.35, z: -0.42, h: 2.0, w: 0.34 }, { x: -0.48, z: -0.48, h: 1.3, w: 0.24 }, { x: 0.55, z: -0.8, h: 0.6, w: 0.15 }], 0.5, [[0.65, 0.05, -0.1, 0.1], [-0.1, 0.1, -0.55, -0.35], [-0.1, 0.1, -0.05, 0.85], [0.1, -0.05, 0.7, -0.6, 0.25]]),
     roots: [{ x: 2.2, z: 2.4, len: 12, ra: 1.9, rb: 2.7, taper: 0.5, apex: [-1.4, 0.6], flare: [0.4, 0.3], start: -0.5 }, { x: -2.4, z: 2.5, len: 11.5, ra: 1.75, rb: 1.9, taper: 0.5, apex: [-0.6, 0.6], flare: [-0.5, 0.3], start: -0.5 },
       { x: 0, z: -2.5, len: 13, ra: 2.4, rb: 2.2, taper: 0.5, apex: [0, -1.6], flare: [0, -0.8], start: -0.5 }],
@@ -294,11 +362,11 @@
   P.mandPM2 = Object.assign({}, P.mandPM1, { name: 'Mandibular second premolar', crownL: 8, rootL: 14.5, bl: 8, blC: 7,
     relief: DK.cuspRelief([{ x: 0, z: 0.35, h: 1.9, w: 0.4 }, { x: 0.3, z: -0.5, h: 1.3, w: 0.28 }, { x: -0.3, z: -0.5, h: 1.1, w: 0.26 }], 0.4),
     roots: [{ x: 0, z: 0, len: 14.5, ra: 2.4, rb: 3.2, apex: [-0.6, 0] }] });
-  P.mandM1 = { name: 'Mandibular first molar', crownL: 7.5, rootL: 14, md: 11, mdC: 9, bl: 10.5, blC: 9, squareness: 2.7, contourAt: 0.7,
+  P.mandM1 = { name: 'Mandibular first molar', crownL: 7.5, rootL: 14, md: 11, mdC: 9, bl: 10.5, blC: 9, squareness: 2.7, contourAt: 0.7, sideGrooves: [{ x: 0.22, z: 1, depth: 0.17 }, { x: -0.38, z: 1, depth: 0.12 }, { x: 0.05, z: -1, depth: 0.1 }],   // mesiobuccal + distobuccal grooves; lingual groove
     relief: DK.cuspRelief([{ x: 0.5, z: 0.45, h: 1.5 }, { x: -0.05, z: 0.5, h: 1.4 }, { x: -0.62, z: 0.3, h: 1.1, w: 0.22 }, { x: 0.45, z: -0.45, h: 1.9 }, { x: -0.38, z: -0.45, h: 1.8 }], 0.45, [[0.75, 0, -0.75, 0.02], [0.22, 0, 0.25, 0.9], [-0.35, 0.02, -0.4, 0.85], [0.05, 0, 0.05, -0.9]]),
     roots: [{ x: 2.25, z: 0, len: 14, ra: 1.85, rb: 3.7, apex: [-1.4, 0], start: -0.5 }, { x: -2.3, z: 0, len: 13, ra: 1.85, rb: 3.4, apex: [-0.9, 0], start: -0.5 }],
     trunk: 3, canals: [{ root: 0, dx: 0, dz: 1.5, r: 0.35, name: 'MB' }, { root: 0, dx: 0, dz: -1.5, r: 0.35, name: 'ML' }, { root: 1, dx: 0, dz: 0, r: 0.38, rbk: 1.6, name: 'D' }] };
-  P.mandM2 = Object.assign({}, P.mandM1, { name: 'Mandibular second molar', crownL: 7, rootL: 13, md: 10.5, mdC: 8, bl: 10, blC: 9,
+  P.mandM2 = Object.assign({}, P.mandM1, { name: 'Mandibular second molar', crownL: 7, rootL: 13, md: 10.5, mdC: 8, bl: 10, blC: 9, sideGrooves: [{ x: 0, z: 1, depth: 0.16 }, { x: 0, z: -1, depth: 0.1 }],
     relief: DK.cuspRelief([{ x: 0.45, z: 0.45, h: 1.4 }, { x: -0.45, z: 0.45, h: 1.3 }, { x: 0.45, z: -0.45, h: 1.7 }, { x: -0.45, z: -0.45, h: 1.6 }], 0.45, [[0.75, 0, -0.75, 0], [0, 0, 0, 0.9], [0, 0, 0, -0.9]]),
     roots: [{ x: 1.95, z: 0, len: 13, ra: 1.75, rb: 3.5, apex: [-1.6, 0], start: -0.5 }, { x: -2.0, z: 0, len: 12.5, ra: 1.75, rb: 3.3, apex: [-1.3, 0], start: -0.5 }] });
   P.maxM2 = Object.assign({}, P.maxM1, { name: 'Maxillary second molar', crownL: 7, md: 9, mdC: 7, bl: 11, blC: 10 });
@@ -335,34 +403,43 @@
     const g = new T.Group(); g.name = s.name;
     const mats = { enamel: DK.mat('enamel'), dentin: DK.mat('dentin'), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
     mats.enamel.userData.capColor = DK.COLORS.enamelCap; mats.pulp.userData.capColor = DK.COLORS.pulpCap;
-    const enamel = new T.Mesh(crownGeometry(s), mats.enamel); enamel.name = 'Enamel';
-    const dentinCrown = new T.Mesh(crownGeometry(s, { side: 1.1, top: 1.9, reliefScale: 0.75 }), mats.dentin); dentinCrown.name = 'Dentin';
-    const rootGroup = new T.Group(); rootGroup.name = 'Root';
-    // Single-rooted teeth: the root grows straight out of the cervical outline (no ledge at the CEJ).
-    // Multi-rooted teeth: a root trunk narrows from the cervix to the furcation, roots emerge from inside it.
+    const omit = opts.omit || [];   // e.g. ['enamel','dentin'] for a crown-less root, ['pulp'] for an obturated tooth
     const single = s.roots.length === 1;
-    if (single) s.roots = s.roots.map(r => Object.assign({}, r, { ra: s.mdC / 2, rb: s.blC / 2, n0: 2.3, start: 0.5 }));
-    s.roots.forEach(r => rootGroup.add(new T.Mesh(rootGeometry(r), mats.root)));
-    if (!single) {
-      const trunkDepth = s.trunk || 3;
-      const tg = gridGeometry(10, 48, (i, j) => {
-        const t = i / 10, th = j / 48 * Math.PI * 2, k = lerp(0.72, 1, Math.pow(t, 0.7)), n = 2.3;
-        return [(s.mdC / 2) * k * se(Math.cos(th), n), -trunkDepth * (1 - t) + 0.3 * t, (s.blC / 2) * k * se(Math.sin(th), n)];
-      }, [0, 0.3, 0], [0, -trunkDepth - 0.35, 0]);
-      rootGroup.add(new T.Mesh(tg, mats.root));
+    // Single-rooted teeth: the root grows straight out of the cervical outline. Multi-rooted: roots emerge from a root trunk.
+    // Root concavities (unless the preset sets them): single roots have shallow proximal grooves; roots of multi-rooted teeth are
+    // concave on the surface facing the furcation (the distal surface of a lower molar's mesial root, and so on).
+    if (single) s.roots = s.roots.map(r => Object.assign({ concave: [{ ang: 0, depth: 0.06, w: 0.5 }, { ang: Math.PI, depth: 0.06, w: 0.5 }] }, r, { ra: s.mdC / 2, rb: s.blC / 2, n0: s.squareness || 2.3, start: 0.5 }));
+    else s.roots = s.roots.map(r => r.concave ? r : Object.assign({}, r, { concave: [{ ang: Math.atan2(-r.z, -r.x), depth: 0.14, w: 0.65 }] }));
+    // enamel: a closed shell between the crown surface and the DEJ
+    const enamel = new T.Mesh(shellGeometry(crownGeometry(s, null, true), crownGeometry(s, DEJ, true)), mats.enamel); enamel.name = 'Enamel';
+    const rootGroup = new T.Group(); rootGroup.name = 'Root';
+    let dentinCrown;
+    if (!omit.includes('dentin')) { // dentin: one continuous body (root or trunk → crown); extra roots of multi-rooted teeth with domed tops hidden in the trunk
+      dentinCrown = new T.Mesh(dentinBodyGeometry(s), mats.dentin); dentinCrown.name = 'Dentin';
+      if (!single) s.roots.forEach(r => rootGroup.add(new T.Mesh(rootGeometry(r, { k: 1, add: 0, minR: 0.05, endShort: 0, dome: true }), mats.root)));
+    } else { // crown lost (post & core, extraction figures): roots and trunk alone, flat-topped at the cervix
+      dentinCrown = new T.Group(); dentinCrown.name = 'Dentin';
+      s.roots.forEach(r => rootGroup.add(new T.Mesh(rootGeometry(r), mats.root)));
+      if (!single) {
+        const trunkDepth = s.trunk || 3;
+        const tg = gridGeometry(10, 48, (i, j) => {
+          const t = i / 10, th = j / 48 * Math.PI * 2, k = lerp(0.72, 1, Math.pow(t, 0.7)), n = 2.3;
+          return [(s.mdC / 2) * k * se(Math.cos(th), n), -trunkDepth * (1 - t) + 0.3 * t, (s.blC / 2) * k * se(Math.sin(th), n)];
+        }, [0, 0.3, 0], [0, -trunkDepth - 0.35, 0]);
+        rootGroup.add(new T.Mesh(tg, mats.root));
+      }
     }
-    // pulp: chamber + canals
+    // pulp: chamber (floor at the orifice level, widest just above it, horns under the cusps) + canals funnelling into the floor
     const pulp = new T.Group(); pulp.name = 'Pulp';
-    const ch = { md: s.mdC * 0.55, mdC: s.mdC * 0.42, bl: s.blC * 0.5, blC: s.blC * 0.4, crownL: s.crownL * (s.incisal ? 0.62 : 0.42), squareness: 2.4, incisal: s.incisal, incisalBL: 0.35, contourAt: 0.6,
+    const ch = { md: s.mdC * 0.66, mdC: s.mdC * 0.62, bl: s.blC * 0.54, blC: s.blC * 0.5, crownL: s.crownL * (s.incisal ? 0.62 : 0.42), squareness: 2.4, incisal: s.incisal, incisalBL: 0.35, contourAt: 0.3, blContourAt: 0.3, baseRound: 0.3,
       relief: s.relief ? ((xn, zn) => s.relief(xn, zn) * 0.9) : null };
     const chamber = new T.Mesh(crownGeometry(ch), mats.pulp); chamber.position.y = -(s.trunk ? 1.2 : 0.4); pulp.add(chamber);
     const canals = {};
     (s.canals || []).forEach((c, i) => {
-      const cm = new T.Mesh(rootGeometry(canalSpec(s, c), { k: 1, add: 0, minR: 0.08, endShort: (c.short || 0) + 0.4 }), mats.pulp);
+      const cm = new T.Mesh(rootGeometry(canalSpec(s, c), { k: 1, add: 0, minR: 0.08, endShort: (c.short || 0) + 0.4, dome: true, flare: 1.4 }), mats.pulp);
       cm.name = c.name || ('Canal ' + (i + 1)); canals[cm.name] = cm; pulp.add(cm);
     });
     pulp.userData.chamber = chamber; pulp.userData.canals = canals;
-    const omit = opts.omit || [];   // e.g. ['enamel','dentin'] for a crown-less root, ['pulp'] for an obturated tooth
     const layers = { enamel, dentin: dentinCrown, root: rootGroup, pulp };
     Object.keys(layers).forEach(n => { if (!omit.includes(n)) g.add(layers[n]); });
     g.userData.spec = s; g.userData.layers = layers;
@@ -606,7 +683,7 @@
   .dk-foot a{color:var(--muted);text-decoration:none;white-space:nowrap}.dk-foot a b{color:var(--ink);font-weight:600}.dk-foot a:hover,.dk-foot a:focus-visible{color:var(--accent)}
   .dk-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 0 0}
   .dk-actions .dk-btn{border:1px solid var(--line)}
-  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-psteps{width:100%;justify-content:center}.dk-psteps:not(:empty)+.dk-pmain:not(:empty){border-left:0;padding-left:0;margin-left:0}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:min(62vh,520px);min-height:320px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
+  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-psteps{width:100%;justify-content:center}.dk-psteps:not(:empty)+.dk-pmain:not(:empty){border-left:0;padding-left:0;margin-left:0}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:clamp(300px,105vw,460px);min-height:300px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
 
   // A soft studio as an environment map: warm overhead softbox, cool side strip, dim floor. No image files needed.
   function studioEnvironment(renderer) {
@@ -921,11 +998,15 @@
         p.lx = clamp(p.lx, p.w / 2 + 8, W - p.w / 2 - 8);
         if (p.vis && p.front) placed.push(p);
       });
-      [-1, 1].forEach(side => { // push apart vertically, keep order
-        const col = placed.filter(p => p.side === side).sort((a, b) => a.ly - b.ly);
-        for (let k = 1; k < col.length; k++) { const a = col[k - 1], b = col[k]; const need = (a.h + b.h) / 2 + 6; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) b.ly = a.ly + need; }
-        for (let k = col.length - 2; k >= 0; k--) { const a = col[k], b = col[k + 1]; const over = b.ly + b.h / 2 - (H - (still ? 74 : 6)); if (k === col.length - 2 && over > 0) b.ly -= over; const need = (a.h + b.h) / 2 + 6; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) a.ly = b.ly - need; }
-      });
+      // push overlapping labels apart vertically (keeping their order), on each side and then across all of them — narrow
+      // screens put both columns within reach of each other
+      const overlapX = (a, b) => Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 + 4;
+      const settle = col => {
+        for (let k = 1; k < col.length; k++) { const b = col[k]; for (let m = 0; m < k; m++) { const a = col[m]; const need = (a.h + b.h) / 2 + 6; if (overlapX(a, b) && b.ly - a.ly < need) b.ly = a.ly + need; } }
+        for (let k = col.length - 2; k >= 0; k--) { const a = col[k], b = col[k + 1]; const over = b.ly + b.h / 2 - (H - (still ? 74 : 6)); if (k === col.length - 2 && over > 0) b.ly -= over; const need = (a.h + b.h) / 2 + 6; if (overlapX(a, b) && b.ly - a.ly < need) a.ly = b.ly - need; }
+      };
+      [-1, 1].forEach(side => settle(placed.filter(p => p.side === side).sort((a, b) => a.ly - b.ly)));
+      if (W < 700) settle(placed.slice().sort((a, b) => a.ly - b.ly));
       const fade = reduce ? 1 : Math.min(1, dt * 9);
       // framed layouts keep labels clear of the title (top) and caption + footer (bottom)
       const safeTop = still ? 58 : 6, safeBottom = still ? 74 : 6;
@@ -1231,7 +1312,8 @@
     o = Object.assign({ hollow: true }, o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
     let geo;
     if (!o.hollow) geo = crownGeometry(s);
-    else {
+    else geo = shellGeometry(crownGeometry(s, null, true), crownGeometry(s, prepInset(o), true));
+    if (false) {
       const A = crownGeometry(s, null, true), B = crownGeometry(s, prepInset(o), true);
       const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = CROWN_COLS;
       const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia), uv = Array.from(A.attributes.uv.array).concat(Array.from(B.attributes.uv.array));

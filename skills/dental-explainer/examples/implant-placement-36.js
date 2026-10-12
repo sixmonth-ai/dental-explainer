@@ -72,7 +72,7 @@ fig.enableSection([0, 0, 1], [
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [lumen], color: 0xf0dcc4 }, { objects: [nerve], color: DK.COLORS.nerve },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [hole2], color: 0x5b2a25 }, { objects: [hole1], color: 0x5b2a25 },
+  { objects: [hole2], color: 0x6f645c }, { objects: [hole1], color: 0x6f645c },
   { objects: [t35.layers.enamel, t37.layers.enamel], color: DK.COLORS.enamelCap },
   { objects: [t35.layers.root, t35.layers.dentin, t37.layers.root, t37.layers.dentin], color: DK.COLORS.dentinCap },
   { objects: [t35.layers.pulp, t37.layers.pulp], color: DK.COLORS.pulpCap }
@@ -80,24 +80,30 @@ fig.enableSection([0, 0, 1], [
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-4, 4], offset: 0 } });
 
 const D = IMPLANT.length;
+// Each step is a few shots: the camera settles where the step's action is, the tool or part moves, the label lands.
 fig.procedure([
   { label: 'Healed site', caption: 'The healed site of 36, between 35 and 37.', beats: [
-    { dur: 0, hold: 1.6, section: true, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'] }] },
+    { dur: 0, hold: 1.0, theta: 0.55, phi: 1.25, zoom: 1.05, section: false, labels: [] },
+    { dur: 0, hold: 0, section: true, offset: 7 },
+    { dur: 2.4, hold: 1.6, theta: 0, phi: 1.45, zoom: 1, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'], key: true }] },
   { label: 'Pilot drill', caption: `Pilot drill to ${D} mm: position, angle, depth.`, beats: [
-    { dur: 1.0, hold: 0.2, zoom: 0.9, set: { pilot: 0 }, labels: ['Pilot drill'] },
-    { dur: 1.8, hold: 0.6, set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
+    { dur: 1.2, hold: 0.2, zoom: 0.78, focus: [0, -4, 0], set: { pilot: 0 }, labels: ['Pilot drill'] },
+    { dur: 2.0, hold: 0.8, set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
     { dur: 0.9, hold: 0.2, set: { pilot: -20 }, labels: [] }] },
   { label: 'Final drill', caption: 'Wider drills shape the bed to the implant.', beats: [
-    { dur: 1.0, hold: 0.2, set: { final: 0 }, labels: ['Final drill'] },
-    { dur: 1.8, hold: 0.6, set: { final: D, bed2: D }, key: true },
+    { dur: 1.0, hold: 0.2, theta: 0.12, set: { final: 0 }, labels: ['Final drill'] },
+    { dur: 2.0, hold: 0.8, set: { final: D, bed2: D }, key: true },
     { dur: 0.9, hold: 0.2, set: { final: -20 }, labels: [] }] },
   { label: 'Implant', caption: `Implant threaded in, ${clearance.toFixed(1)} mm above the canal.`, beats: [
-    { dur: 0.8, hold: 0.1, set: { implant: 0.05 }, labels: ['Implant'] },
-    { dur: 2.6, hold: 1.4, set: { implant: 1 }, labels: ['Implant', 'Inferior alveolar canal'] }] },
+    { dur: 0.8, hold: 0.1, theta: 0, set: { implant: 0.05 }, labels: ['Implant'] },
+    { dur: 2.8, hold: 0.4, set: { implant: 1 }, labels: ['Implant'] },
+    { dur: 1.6, hold: 1.6, zoom: 0.62, focus: [0, -11, 0], labels: ['Implant', 'Inferior alveolar canal'], key: true }] },
   { label: 'Healing', caption: 'Healing abutment: 3–6 months to integrate.', beats: [
-    { dur: 1.0, hold: 1.8, set: { heal: 1 }, labels: ['Healing abutment'] }] },
+    { dur: 1.6, hold: 0.2, zoom: 0.85, focus: [0, -2, 0], theta: 0.25, phi: 1.3, labels: [] },
+    { dur: 1.2, hold: 1.8, set: { heal: 1 }, labels: ['Healing abutment'], key: true }] },
   { label: 'Crown', caption: 'Abutment and crown restore the tooth.', beats: [
     { dur: 0.6, hold: 0.1, set: { heal: 0 }, labels: [] },
-    { dur: 1.6, hold: 2.2, zoom: 1, set: { crown: 1 }, labels: ['Abutment', 'Crown', 'Implant'] }] }
+    { dur: 1.8, hold: 0.4, set: { crown: 1 }, labels: ['Abutment', 'Crown'] },
+    { dur: 2.2, hold: 2.4, zoom: 1, focus: 'auto', theta: 0.5, phi: 1.2, labels: ['Crown', 'Implant'], key: true }] }
 ]);
 fig.start();

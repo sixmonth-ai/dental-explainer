@@ -55,12 +55,17 @@ fig.view('Orifices', ORIFICES);
 fig.view('Radiograph', { theta: 0, phi: 1.5, zoom: 1.1, section: false, xray: 1 });
 fig.xray([L.enamel, L.dentin, L.root], false);
 
+// story (a short film): the tooth → turn to the buccal view and fade to a radiograph → tilt over the occlusal surface
+// as the cut sinks to the chamber floor → push in on the three obvious orifices → then on the one that hides
+const mb2 = at('MB2', CUT);
 fig.story([
-  { dur: 0, hold: 1.6, xray: 1, zoom: 1.25, labels: [], caption: 'On a buccal radiograph the MB root shows one canal.' },
-  { dur: 1.8, hold: 0.4, theta: ORIFICES.theta, phi: ORIFICES.phi, zoom: ORIFICES.zoom, xray: 0, section: true, offset: s.crownL, caption: '' },
-  { dur: 1.4, hold: 0.3, offset: CUT },
-  { dur: 0.5, hold: 1.6, labels: ['MB1', 'DB', 'P'], caption: 'A triangular access finds three canals.' },
-  { dur: 0.5, hold: 2.2, labels: ['MB1', 'DB', 'P', 'MB2'], caption: 'MB2 opens just palatal to MB1, outside the triangle.' }
+  { dur: 0, hold: 1.4, theta: 0.55, phi: 1.2, zoom: 1.05, labels: [], caption: 'An upper first molar: three roots, usually four canals.' },
+  { dur: 2.2, hold: 2.0, theta: 0, phi: 1.5, zoom: 1.15, xray: 1, labels: [], caption: 'On a buccal radiograph the mesiobuccal root shows one canal.' },
+  { dur: 0, hold: 0, section: true, offset: s.crownL + 0.5 },
+  { dur: 2.6, hold: 0.3, theta: ORIFICES.theta, phi: ORIFICES.phi, zoom: 0.9, xray: 0, offset: CUT, caption: 'Cut down to the floor of the pulp chamber.' },
+  { dur: 1.4, hold: 2.0, zoom: 0.72, focus: [0, CUT, 0], labels: ['MB1', 'DB', 'P'], caption: 'A triangular access finds three canals.' },
+  { dur: 1.4, hold: 2.6, zoom: 0.5, focus: [mb2.x - 0.6, CUT, mb2.z], labels: ['MB1', 'DB', 'P', 'MB2'], caption: `MB2 opens ${gap.toFixed(1)} mm palatal to MB1, outside the triangle.` },
+  { dur: 2.0, hold: 2.0, zoom: 0.95, focus: 'auto', theta: 0.5, phi: 0.75, labels: ['MB2'], caption: 'Look for it under the dentin shelf, palatal to MB1.' }
 ]);
 
 fig.onFrame(() => {

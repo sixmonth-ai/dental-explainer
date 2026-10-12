@@ -708,7 +708,9 @@
   }
 
   const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
-  const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray'];
+  const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray', 'focusX', 'focusY', 'focusZ'];
+  // easing for camera and state moves: smootherstep by default (zero velocity and acceleration at both ends → no visible kick)
+  const EASES = { inOut: t => t * t * t * (t * (t * 6 - 15) + 10), out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, linear: t => t };
 
   DK.figure = function (o) {
     o = Object.assign({ title: 'Untitled figure', subtitle: '', footer: 'Population-average anatomy. Not for diagnosis or treatment planning.' }, o);
@@ -767,6 +769,7 @@
     // orbit; auto-rotate is opt-in (it fights precise views)
     const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: !still && !!o.autoRotate, zoom: 1 };
     const home = Object.assign({}, orbit, { target: orbit.target.clone() });
+    const focusOff = new T.Vector3();   // story focus: offset of the orbit target from the auto-fitted centre
     function placeCam() { const { theta, phi, dist, target } = orbit; camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta)); camera.lookAt(target); }
     // inertia: the model keeps turning a little after a flick, then settles
     let drag = null, vel = { th: 0, ph: 0 };
@@ -912,40 +915,58 @@
     }
 
     /* ----- story: one list of shots drives the intro (interactive), the loop (video) and the final frame (image) -----
-       step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, labels:[names]|'all', caption }
-       Unset keys carry over from the previous step. */
+       step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, focus:[x,y,z]|'auto', ease, drift, labels:[names]|'all', caption }
+       Unset keys carry over from the previous step. Think of each step as a shot: `dur` is the camera move, `hold` the time it
+       rests. The move eases (smootherstep; `ease: 'out' | 'in' | 'linear'` to change it), the hold drifts very slightly
+       (`drift: 0` to pin it), labels land as the move settles and captions fade in on their beat. `focus` pushes the orbit
+       centre to a point of the figure (world mm) for close-ups; 'auto' returns to the fitted centre. */
     let story = null, player = null, labelFilter = null;
     const params = {};   // named numbers a story can animate (drill depth, insertion, bone level…): fig.param(name, value, fn)
     const keys = () => STORY_KEYS.concat(Object.keys(params).map(n => '$' + n));
-    function snapshot() { const o2 = { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
-    function homeState() { return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, labels: null }; }
+    const autoFocus = () => fits ? [fits[0].c.x, fits[0].c.y, fits[0].c.z] : [0, 0, 0];
+    function snapshot() { const f = autoFocus(), o2 = { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, focusX: f[0] + focusOff.x, focusY: f[1] + focusOff.y, focusZ: f[2] + focusOff.z, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
+    function homeState() { const f = autoFocus(); return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, focusX: f[0], focusY: f[1], focusZ: f[2], labels: null }; }
     function compile(steps, from) {
       let t = 0, prev = Object.assign({}, from); const segs = [];
-      steps.forEach(s => {
+      steps.forEach((s, i) => {
         const to = Object.assign({}, prev); STORY_KEYS.forEach(k => { if (s[k] !== undefined) to[k] = typeof s[k] === 'boolean' ? +s[k] : s[k]; });
+        if (s.focus) { const f = s.focus === 'auto' ? autoFocus() : s.focus; to.focusX = f[0]; to.focusY = f[1]; to.focusZ = f[2]; }
         if (s.set) Object.keys(s.set).forEach(n => { to['$' + n] = +s.set[n]; });
         if (s.section !== undefined) to.section = s.section; if (s.labels !== undefined) to.labels = s.labels === 'all' ? null : s.labels; to.caption = s.caption !== undefined ? s.caption : '';
         const dur = s.dur ?? 1.2, hold = s.hold ?? 0.6;
-        segs.push({ t0: t, t1: t + dur, t2: t + dur + hold, from: prev, to }); t += dur + hold; prev = to;
+        // a resting camera is never dead still: a few hundredths of a radian of orbit and a whisper of push-in over the hold
+        const drift = s.drift !== undefined ? s.drift : (hold >= 0.8 && !reduce ? 0.03 : 0), push = drift ? 0.985 : 1;
+        segs.push({ t0: t, t1: t + dur, t2: t + dur + hold, from: prev, to, ease: EASES[s.ease] || EASES.inOut, drift, push, i });
+        t += dur + hold; prev = Object.assign({}, to, { theta: to.theta + drift, zoom: to.zoom * push });
       });
       return { segs, total: t, end: prev };
     }
     function stateAt(c, t) {
       const s = c.segs.find(g => t < g.t2) || c.segs[c.segs.length - 1];
-      const k = s.t1 > s.t0 ? ease(clamp((t - s.t0) / (s.t1 - s.t0), 0, 1)) : 1, out = {};
-      keys().forEach(n => { out[n] = s.from[n] === undefined ? s.to[n] : lerp(s.from[n], s.to[n], k); });
-      out.section = s.to.section; out.labels = s.to.labels; out.caption = s.to.caption;
+      const k = s.t1 > s.t0 ? s.ease(clamp((t - s.t0) / (s.t1 - s.t0), 0, 1)) : 1, out = {};
+      keys().forEach(n => { out[n] = s.from[n] === undefined ? s.to[n] : (s.to[n] === undefined ? s.from[n] : lerp(s.from[n], s.to[n], k)); });
+      const h = s.t2 > s.t1 ? clamp((t - s.t1) / (s.t2 - s.t1), 0, 1) : (t >= s.t1 ? 1 : 0);   // progress through the hold
+      out.theta += s.drift * h; out.zoom *= lerp(1, s.push, h);
+      out.section = s.to.section; out.caption = s.to.caption;
       if (s.to.section && !s.from.section) out.offset = s.to.offset; // cut appears in place, then moves in later steps
+      // labels land as the camera settles: during the move only those already on screen stay
+      const settling = t < s.t1 - 0.3 && s.t1 > s.t0, F = s.from.labels, L = s.to.labels;
+      out.labels = settling && L && F ? L.filter(n => F.includes(n)) : L;
+      // captions fade on their beat (deterministic, so frame-stepped video matches real time)
+      let ca = 1;
+      if (s.to.caption) { if (s.from.caption !== s.to.caption) ca = Math.min(ca, clamp((t - s.t0) / 0.45, 0, 1)); const nx = c.segs[s.i + 1]; if (nx && nx.to.caption !== s.to.caption) ca = Math.min(ca, clamp((s.t2 - t) / 0.35, 0, 1)); }
+      out.captionAlpha = ca;
       return out;
     }
     function apply(sv) {
       orbit.theta = sv.theta; orbit.phi = sv.phi; zoomTarget = sv.zoom; if (fits) orbit.zoom = sv.zoom;
+      if (fits && sv.focusX !== undefined) { const f = autoFocus(); focusOff.set(sv.focusX - f[0], sv.focusY - f[1], sv.focusZ - f[2]); }
       explodeTarget = explodeT = sv.explode; if (fig.explodeSlider) fig.explodeSlider.value = sv.explode;
       if (section && (section.enabled !== !!sv.section || Math.abs(section.offset - sv.offset) > 1e-4)) section.set(!!sv.section, sv.offset);
       if (Math.abs(xrayAmt - sv.xray) > 1e-3) { applyXray(sv.xray); fig.xrayOn = sv.xray > 0.5; }
       labelFilter = sv.labels;
       Object.keys(params).forEach(n => { const v = sv['$' + n]; if (v !== undefined && Math.abs(v - params[n].v) > 1e-6) { params[n].v = v; params[n].fn(v); } });
-      if (caption) { const c = mode === 'video' ? sv.caption : ''; if (c) caption.textContent = c; caption.style.opacity = c ? 1 : 0; }  // captions narrate motion: video only
+      if (caption) { const c = mode === 'video' ? sv.caption : '', a = c ? (sv.captionAlpha ?? 1) : 0; if (c) caption.textContent = c; caption.style.opacity = a; caption.style.transform = `translateY(${((1 - a) * 8).toFixed(2)}px)`; }  // captions narrate motion: video only
     }
     function play(steps, opts) {
       opts = opts || {}; const c = compile(steps, Object.assign(snapshot(), opts.from || {}));
@@ -976,7 +997,7 @@
       const e = ease(clamp(explodeT, 0, 1));
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
       frameHooks.forEach(f => f(dt, e));
-      if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
+      if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e).add(focusOff); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
       fitCenter.copy(orbit.target);
       placeCam();
       renderFrame();
@@ -1037,8 +1058,8 @@
     }
 
     /* ----- export: composite the WebGL canvas and the HTML overlays into one 2D canvas ----- */
-    let heldScale = null;   // storyboard / recording keep the renderer at the export scale for the whole batch
     function setRenderScale(pr) { renderer.setPixelRatio(pr); renderer.setSize(stage.clientWidth, stage.clientHeight, false); }
+    function restoreScale() { if (Math.abs(renderer.getPixelRatio() - pixelRatio) > 1e-3) { setRenderScale(pixelRatio); if (!frozen) renderFrame(); } }
     function composite(scale) {
       scale = scale || pixelRatio;
       const W = stage.clientWidth, H = stage.clientHeight, cv = document.createElement('canvas');
@@ -1047,10 +1068,11 @@
       const vg = g.createRadialGradient(W / 2, H * 0.46, 0, W / 2, H * 0.46, Math.hypot(W * 0.75, H * 0.7) / 1.35); vg.addColorStop(0, css('--stage-hi')); vg.addColorStop(1, css('--stage'));
       g.fillStyle = vg; g.fillRect(0, 0, W, H);
       // export at the export scale (not an upscaled screen render): re-render at that pixel ratio, then restore
-      const pr = Math.min(scale, 8192 / Math.max(W, H)), re = Math.abs(pr - renderer.getPixelRatio()) > 1e-3;
-      if (re) { setRenderScale(pr); renderFrame(); }
+      // render at the export scale (not an upscaled screen buffer). The renderer stays at that scale so frame-by-frame video
+      // costs one render per frame; one-off exports restore the live scale afterwards (restoreScale).
+      const pr = Math.min(scale, 8192 / Math.max(W, H));
+      if (Math.abs(pr - renderer.getPixelRatio()) > 1e-3) { setRenderScale(pr); renderFrame(); }
       g.drawImage(renderer.domElement, 0, 0, W, H);
-      if (re && heldScale === null) { setRenderScale(pixelRatio); renderFrame(); }
       const sr = stage.getBoundingClientRect();
       const text = (el, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillText(el, x, y); };
       const fontOf = el => { const s = getComputedStyle(el); return `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`; };
@@ -1167,7 +1189,7 @@
         const cv = document.createElement('canvas'); cv.width = cols * pw + (cols - 1) * gut; cv.height = head + rows * ph + (rows - 1) * gut + foot;
         const g = cv.getContext('2d'); g.fillStyle = css('--line'); g.fillRect(0, 0, cv.width, cv.height);
         g.fillStyle = css('--stage'); g.fillRect(0, 0, cv.width, head); g.fillRect(0, cv.height - foot, cv.width, foot);
-        const wasFrozen = frozen; frozen = true; player = null; heldScale = scale;
+        const wasFrozen = frozen; frozen = true; player = null;
         const font = (w, px) => `${w} ${px * scale}px "Instrument Sans", ui-sans-serif, system-ui, sans-serif`;
         proc.forEach((st, i) => {
           apply(c.segs[st.shot].to);
@@ -1183,13 +1205,14 @@
         g.textBaseline = 'middle'; g.font = font(600, 22); g.fillStyle = css('--ink'); g.fillText(o.title, 20 * scale, head / 2 + 4 * scale);
         g.font = font(400, 12); g.fillStyle = css('--muted'); g.fillText(o.footer, 20 * scale, cv.height - foot / 2);
         g.textAlign = 'right'; g.fillText('Made with dental-explainer by Sixmonth', cv.width - 20 * scale, cv.height - foot / 2); g.textAlign = 'left';
-        ovs.forEach(e => { e.style.visibility = ''; }); heldScale = null; setRenderScale(pixelRatio); apply(c.end); update(0); frozen = wasFrozen;
+        ovs.forEach(e => { e.style.visibility = ''; }); setRenderScale(pixelRatio); apply(c.end); update(0); frozen = wasFrozen;
         return cv;
       },
       get duration() { return story ? compile(story, startState || homeState()).total : 0; },
       seek, composite,
-      exportPNG(scale) { return (proc && mode === 'image' ? fig.storyboard() : composite(scale || 2)).toDataURL('image/png'); },
-      savePNG() { (proc && mode === 'image' ? fig.storyboard() : composite(2)).toBlob(b => download(b, slug() + '.png'), 'image/png'); },
+      exportPNG(scale) { const cv = proc && mode === 'image' ? fig.storyboard() : composite(scale || 2); restoreScale(); return cv.toDataURL('image/png'); },
+      savePNG() { const cv = proc && mode === 'image' ? fig.storyboard() : composite(2); restoreScale(); cv.toBlob(b => download(b, slug() + '.png'), 'image/png'); },
+      restoreScale,
       recordVideo(opts) { // real-time capture of one pass of the story, in the viewer's browser
         opts = opts || {}; const type = videoType(); if (!type || !story) return Promise.reject(new Error('Video recording is not supported in this browser.'));
         const scale = opts.scale || Math.max(pixelRatio, 1920 / stage.clientWidth);
@@ -1198,7 +1221,7 @@
         const rec = new MediaRecorder(out.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 }), chunks = [];
         rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
         return new Promise(resolve => {
-          rec.onstop = () => resolve(new Blob(chunks, { type: type.split(';')[0] }));
+          rec.onstop = () => { restoreScale(); resolve(new Blob(chunks, { type: type.split(';')[0] })); };
           seek(0); frozen = false; play(story, { from: startState });
           const total = player.c.total; rec.start();
           const t0 = performance.now(); (function tick() { g.drawImage(composite(scale), 0, 0); if ((performance.now() - t0) / 1000 < total + 0.2) requestAnimationFrame(tick); else rec.stop(); })();
@@ -1232,7 +1255,7 @@
       },
       // test hook: jump state instantly (used by verification screenshots)
       setState(s) {
-        player = null; introOff = true; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; }
+        player = null; introOff = true; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
         if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; }
         if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi;
         if (s.dist !== undefined) { if (fits) orbit.zoom = zoomTarget = s.dist; else orbit.dist = s.dist; }
@@ -1293,7 +1316,7 @@
   // Prepared implant bed: a closed cylinder (top at y = 0) to put in a section group after the bone, so the cut
   // face shows the hole. osteotomy.set(radius, depth) resizes it; depth 0 hides it.
   DK.osteotomy = function (o) {
-    o = Object.assign({ color: 0x5f4a44 }, o);
+    o = Object.assign({ color: 0x6f645c }, o);
     const g = new T.CylinderGeometry(1, 1, 1, 40); g.translate(0, -0.5, 0);
     const m = new T.Mesh(g, DK.mat('pdl', { color: o.color, cap: o.color })); m.name = 'Osteotomy';
     m.set = (radius, depth) => { m.visible = depth > 0.02; m.scale.set(Math.max(radius, 0.01), Math.max(depth, 0.01), Math.max(radius, 0.01)); };
@@ -1427,7 +1450,7 @@ fig.enableSection([0, 0, 1], [
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [lumen], color: 0xf0dcc4 }, { objects: [nerve], color: DK.COLORS.nerve },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [hole2], color: 0x5b2a25 }, { objects: [hole1], color: 0x5b2a25 },
+  { objects: [hole2], color: 0x6f645c }, { objects: [hole1], color: 0x6f645c },
   { objects: [t35.layers.enamel, t37.layers.enamel], color: DK.COLORS.enamelCap },
   { objects: [t35.layers.root, t35.layers.dentin, t37.layers.root, t37.layers.dentin], color: DK.COLORS.dentinCap },
   { objects: [t35.layers.pulp, t37.layers.pulp], color: DK.COLORS.pulpCap }
@@ -1435,25 +1458,31 @@ fig.enableSection([0, 0, 1], [
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-4, 4], offset: 0 } });
 
 const D = IMPLANT.length;
+// Each step is a few shots: the camera settles where the step's action is, the tool or part moves, the label lands.
 fig.procedure([
   { label: 'Healed site', caption: 'The healed site of 36, between 35 and 37.', beats: [
-    { dur: 0, hold: 1.6, section: true, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'] }] },
+    { dur: 0, hold: 1.0, theta: 0.55, phi: 1.25, zoom: 1.05, section: false, labels: [] },
+    { dur: 0, hold: 0, section: true, offset: 7 },
+    { dur: 2.4, hold: 1.6, theta: 0, phi: 1.45, zoom: 1, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'], key: true }] },
   { label: 'Pilot drill', caption: `Pilot drill to ${D} mm: position, angle, depth.`, beats: [
-    { dur: 1.0, hold: 0.2, zoom: 0.9, set: { pilot: 0 }, labels: ['Pilot drill'] },
-    { dur: 1.8, hold: 0.6, set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
+    { dur: 1.2, hold: 0.2, zoom: 0.78, focus: [0, -4, 0], set: { pilot: 0 }, labels: ['Pilot drill'] },
+    { dur: 2.0, hold: 0.8, set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
     { dur: 0.9, hold: 0.2, set: { pilot: -20 }, labels: [] }] },
   { label: 'Final drill', caption: 'Wider drills shape the bed to the implant.', beats: [
-    { dur: 1.0, hold: 0.2, set: { final: 0 }, labels: ['Final drill'] },
-    { dur: 1.8, hold: 0.6, set: { final: D, bed2: D }, key: true },
+    { dur: 1.0, hold: 0.2, theta: 0.12, set: { final: 0 }, labels: ['Final drill'] },
+    { dur: 2.0, hold: 0.8, set: { final: D, bed2: D }, key: true },
     { dur: 0.9, hold: 0.2, set: { final: -20 }, labels: [] }] },
   { label: 'Implant', caption: `Implant threaded in, ${clearance.toFixed(1)} mm above the canal.`, beats: [
-    { dur: 0.8, hold: 0.1, set: { implant: 0.05 }, labels: ['Implant'] },
-    { dur: 2.6, hold: 1.4, set: { implant: 1 }, labels: ['Implant', 'Inferior alveolar canal'] }] },
+    { dur: 0.8, hold: 0.1, theta: 0, set: { implant: 0.05 }, labels: ['Implant'] },
+    { dur: 2.8, hold: 0.4, set: { implant: 1 }, labels: ['Implant'] },
+    { dur: 1.6, hold: 1.6, zoom: 0.62, focus: [0, -11, 0], labels: ['Implant', 'Inferior alveolar canal'], key: true }] },
   { label: 'Healing', caption: 'Healing abutment: 3–6 months to integrate.', beats: [
-    { dur: 1.0, hold: 1.8, set: { heal: 1 }, labels: ['Healing abutment'] }] },
+    { dur: 1.6, hold: 0.2, zoom: 0.85, focus: [0, -2, 0], theta: 0.25, phi: 1.3, labels: [] },
+    { dur: 1.2, hold: 1.8, set: { heal: 1 }, labels: ['Healing abutment'], key: true }] },
   { label: 'Crown', caption: 'Abutment and crown restore the tooth.', beats: [
     { dur: 0.6, hold: 0.1, set: { heal: 0 }, labels: [] },
-    { dur: 1.6, hold: 2.2, zoom: 1, set: { crown: 1 }, labels: ['Abutment', 'Crown', 'Implant'] }] }
+    { dur: 1.8, hold: 0.4, set: { crown: 1 }, labels: ['Abutment', 'Crown'] },
+    { dur: 2.2, hold: 2.4, zoom: 1, focus: 'auto', theta: 0.5, phi: 1.2, labels: ['Crown', 'Implant'], key: true }] }
 ]);
 fig.start();
 

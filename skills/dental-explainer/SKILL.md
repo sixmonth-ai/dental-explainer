@@ -80,15 +80,15 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - `fig.xrayToggle(...)` only if hidden parts matter and no view button already covers it.
 - No Labels toggle and no auto-rotate unless there's a reason.
 
-**Motion** (`fig.story`): beats of `{ dur, hold, theta, phi, zoom, explode, section, offset, xray, labels, caption }`. Unset keys carry over.
-- 3–5 beats; a video lasts 6–15 s in total. Moves take 0.8–1.8 s; the beat that makes the point holds ≥ 1.5 s, and the last beat holds ≥ 2 s.
-- Move one thing at a time where you can (camera, *then* cut, *then* labels). Labels arrive last, on the beat they explain.
+**Motion** (`fig.story`): shots of `{ dur, hold, theta, phi, zoom, focus, explode, section, offset, xray, labels, caption }`. Unset keys carry over.
+- Direct it like a short film, 5–7 shots, 14–22 s: an **establishing shot** (whole figure, three-quarter view, `hold` ≥ 1.2 s), then purposeful moves — a slow orbit that reveals, the cut **sweeping** in (turn `section` on outside the figure in a `dur: 0` shot, then move `offset`), a **push-in** on the detail (`focus: [x,y,z]` + `zoom` 0.55–0.75), then an ease out to the **hero shot** that answers the question. Vary angle and framing per shot; moves take 1.8–2.6 s, holds 1.8–2.6 s where the point is made.
+- One idea per shot. Labels land as the camera settles and captions fade in on their beat, so give each shot only the labels and the one sentence it explains. Never cut hard between views; never move the camera and the explode and the cut all at once.
 - End on the teaching shot. For interactive pages the story plays once on load and stops at the first touch.
 
 **Procedures** (`fig.param` + `fig.procedure`): for anything that happens in steps.
 - Every moving thing is a number: `fig.param('pilot', -20, d => …)` moves the drill tip to depth `d`, `fig.param('bed', 0, d => osteotomy.set(r, d))` deepens the bed. Beats animate them with `set: { pilot: 10, bed: 10 }`. Tie things that move together to the same beat so they stay in sync (drill tip and bed depth).
 - Objects that params move go in `fig.world` and get `inPlace: true` labels; regular parts are reset by explode.
-- Steps: `fig.procedure([{ label: 'Pilot drill', caption, beats: [...] }, …])`. Labels are 1–2 words. Mark the beat that best shows each step with `key: true` (the storyboard panel uses it; default is the step's last beat). Tools leave between steps (move them back up and hide them), so each step starts clean.
+- Steps: `fig.procedure([{ label: 'Pilot drill', caption, beats: [...] }, …])`. Give each step a camera too: settle (`zoom`, `focus`, a few degrees of `theta`) on where the action is in its first beat, act in the middle beat, let the tool leave in the last. Labels are 1–2 words. Mark the beat that best shows each step with `key: true` (the storyboard panel uses it; default is the step's last beat). Tools leave between steps (move them back up and hide them), so each step starts clean.
 - One mode each: interactive shows a stepper (‹ 2/6 Pilot drill › ▶) and plays step 1 on load; video plays every step with its caption (a procedure video may run 15–25 s); image becomes a numbered storyboard of all steps.
 - Clinical sequence and sizes come from the facts file. Anything system-specific (drill sizes, torque) is labelled as such, never presented as universal.
 

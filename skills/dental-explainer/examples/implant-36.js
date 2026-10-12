@@ -59,15 +59,6 @@ fig.enableSection([1, 0, 0], [
 fig.standardControls({ section: { label: 'Cut', range: [-4, 6], offset: 0 } });
 fig.xrayToggle([bone, gum, lumen], 'X-ray', false);
 
-// story: assemble → lift the parts in insertion order → back together → CBCT-style cut (the safety check)
-const STACK = ['Crown', 'Abutment screw', 'Abutment', 'Implant body'];
-fig.story([
-  { dur: 0, hold: 0.8, labels: [] },
-  { dur: 1.6, hold: 2.0, explode: 0.75, labels: STACK, caption: 'Four parts, lifted in the order they go in.' },
-  { dur: 1.2, hold: 0.3, explode: 0, labels: [] },
-  { dur: 1.6, hold: 2.4, theta: 1.35, phi: 1.4, section: true, offset: 0, labels: ['Implant body', 'Inferior alveolar canal', 'Alveolar bone'], caption: 'Cut through the axis: ≥ 2 mm above the canal.' }
-]);
-
 // --- readout: every number is computed from the geometry above
 const R = IMPLANT.diameter / 2;
 const apexY = CREST - IMPLANT.length;
@@ -82,5 +73,17 @@ fig.setReadout([
   Object.assign({ k: 'To 37 root (≥1.5)' }, tag(to37v, 1.5)),
   Object.assign({ k: 'Apex → canal (≥2)' }, tag(toCanal, 2)),
   Object.assign({ k: 'Buccal bone at crest (≥1.5)' }, tag(buccal, 1.5))
+]);
+// story (a short film): establishing shot → the stack lifts as the camera orbits → push in on the screw → reassemble and
+// turn to the buccal side as the cut sweeps through the axis → push in on the apex and the nerve canal
+const STACK = ['Crown', 'Abutment screw', 'Abutment', 'Implant body'];
+fig.story([
+  { dur: 0, hold: 1.4, theta: 0.75, phi: 1.22, zoom: 1.05, labels: [], caption: 'A single implant replacing the lower first molar.' },
+  { dur: 2.4, hold: 2.2, theta: 1.0, phi: 1.15, explode: 0.75, labels: STACK, caption: 'Four parts, lifted in the order they go in.' },
+  { dur: 1.8, hold: 2.0, zoom: 0.6, focus: [0, 9, 0], labels: ['Abutment screw', 'Abutment'], caption: 'The screw clamps the abutment into the implant; the hex stops it turning.' },
+  { dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.3, phi: 1.38, explode: 0, labels: [] },
+  { dur: 0, hold: 0, section: true, offset: 7 },
+  { dur: 2.2, hold: 2.2, offset: 0, labels: ['Implant body', 'Inferior alveolar canal', 'Alveolar bone'], caption: 'Cut through the axis: the apex stays at least 2 mm above the nerve canal.' },
+  { dur: 1.8, hold: 2.6, zoom: 0.7, focus: [0, -6.5, 0], labels: ['Implant body', 'Inferior alveolar canal'], caption: `${DK.mm(toCanal)} of bone between the apex and the canal.` }
 ]);
 fig.start();

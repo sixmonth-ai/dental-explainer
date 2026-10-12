@@ -42,18 +42,21 @@ fig.enableSection([0, 0, 1], [
 ]);
 fig.standardControls({ section: { label: 'Cut', range: [-2.5, 2.5], offset: 0 } });
 
-// story: lift the layers in the order they go in → back together → cut to show the ferrule
-fig.story([
-  { dur: 0, hold: 0.8, labels: [] },
-  { dur: 1.6, hold: 2.0, explode: 0.8, labels: ['Crown', 'Core', 'Fibre post', 'Root filling'], caption: 'Four layers, lifted in the order they go in.' },
-  { dur: 1.2, hold: 0.3, explode: 0, labels: [] },
-  { dur: 1.4, hold: 2.4, theta: 0, phi: 1.45, section: true, offset: 0, labels: ['Ferrule', 'Fibre post', 'Root filling'], caption: 'The 2 mm ferrule, not the post, resists fracture.' }
-]);
-
 const seal = workingLen - POST_IN_ROOT - 0.2;
 const ok = (v, min) => ({ v: DK.mm(v) + (v >= min ? ' ✓' : ' ⚠'), cls: v >= min ? 'ok' : 'warn' });
 fig.setReadout([
   Object.assign({ k: 'Ferrule height (≥1.5)' }, ok(FERRULE, 1.5)),
   Object.assign({ k: `Apical seal (≥${GP_SEAL_MIN})` }, ok(seal, GP_SEAL_MIN))
+]);
+// story (a short film): establishing shot → the layers lift as the camera orbits → push in on the post and core →
+// reassemble and turn to the front as the cut sweeps in → the ferrule → push in on the apical seal
+fig.story([
+  { dur: 0, hold: 1.4, theta: 0.5, phi: 1.3, zoom: 1.05, labels: [], caption: 'A root-filled premolar, rebuilt with a post, a core and a crown.' },
+  { dur: 2.4, hold: 2.2, theta: 0.85, phi: 1.2, explode: 0.8, labels: ['Crown', 'Core', 'Fibre post', 'Root filling'], caption: 'Four layers, lifted in the order they go in.' },
+  { dur: 1.8, hold: 2.0, zoom: 0.55, focus: [0, 8, 0], labels: ['Fibre post', 'Core'], caption: 'The post only retains the core; it does not strengthen the root.' },
+  { dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 0.05, phi: 1.45, explode: 0, labels: [] },
+  { dur: 0, hold: 0, section: true, offset: 6 },
+  { dur: 2.0, hold: 2.2, offset: 0, labels: ['Ferrule', 'Fibre post', 'Root filling'], caption: 'The 2 mm ferrule of own dentin, not the post, resists fracture.' },
+  { dur: 1.8, hold: 2.6, zoom: 0.6, focus: [0, -10, 0], labels: ['Root filling'], caption: `${DK.mm(seal)} of root filling stays apically to keep the seal.` }
 ]);
 fig.start();

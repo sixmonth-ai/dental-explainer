@@ -41,10 +41,15 @@ const sec = fig.enableSection([0, 0, 1], [
 ]);
 fig.standardControls({ explode: false, section: { label: 'Cut', on: false, range: [-3.5, 3.5], offset: 1.5 } });
 
-// story: whole tooth in bone → cut through the MB canal → slide lingually to the ML canal
+// story (a short film): establishing shot in the socket → orbit round as the cut sweeps in → push in on the pulp →
+// tilt down and slide the cut lingually to the second canal → ease out to the hero shot
 fig.story([
-  { dur: 0, hold: 0.8, labels: ['Alveolar bone', 'Gingiva'] },
-  { dur: 1.4, hold: 1.8, section: true, offset: 1.5, theta: 0, phi: 1.45, labels: ['Enamel', 'Dentin', 'Pulp chamber', 'Mesial root', 'PDL'], caption: 'Enamel over dentin, pulp in the middle.' },
-  { dur: 1.6, hold: 2.2, offset: -1.5, labels: ['Mesial root', 'Pulp chamber'], caption: 'Slide lingually: the mesial root has a second canal.' }
+  { dur: 0, hold: 1.4, theta: 0.8, phi: 1.18, zoom: 1.08, labels: ['Alveolar bone', 'Gingiva'], caption: 'A lower first molar, seated in its socket.' },
+  { dur: 2.4, hold: 0.2, theta: 0.1, phi: 1.42, zoom: 1, labels: [], caption: '' },
+  { dur: 0, hold: 0, section: true, offset: 6.5 },
+  { dur: 2.2, hold: 1.8, offset: 1.5, labels: ['Enamel', 'Dentin', 'Pulp chamber'], caption: 'Cut through the mesial root: enamel over dentin, pulp at the core.' },
+  { dur: 1.8, hold: 2.0, zoom: 0.62, focus: [0, 3.2, 0], caption: 'Pulp horns reach up under the cusps. Dentin is alive; enamel is not.' },
+  { dur: 2.0, hold: 2.2, zoom: 0.8, phi: 1.5, focus: [0, -6, 0], offset: -1.5, labels: ['Mesial root', 'PDL'], caption: 'Slide lingually: the mesial root carries a second canal.' },
+  { dur: 2.2, hold: 2.4, zoom: 1, focus: 'auto', theta: 0.35, phi: 1.3, offset: 0.8, labels: ['Enamel', 'Pulp chamber', 'Mesial root', 'PDL', 'Alveolar bone'], caption: '' }
 ]);
 fig.start();

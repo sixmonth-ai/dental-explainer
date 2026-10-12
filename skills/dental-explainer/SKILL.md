@@ -12,6 +12,7 @@ Files in this skill:
 - `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read it every time.
 - `examples/*.js`: finished figures. Copy their structure:
   - `mb2-16.js`: axial cut at the canal orifices, a story that ends on the teaching shot, view buttons, markers that follow the cut.
+  - `implant-placement-36.js`: a **procedure**: pilot and final drills, osteotomy, implant threading in, healing abutment, crown, driven by `fig.param` + `fig.procedure`.
   - `implant-36.js`: exploded implant stack, CBCT-style section, X-ray toggle, computed safety readouts.
   - `molar-36-section.js`: tissue layers in section with a movable cut.
   - `left-side-dentition.js`: a row of teeth with FDI and Universal numbering and mirrored maxillary teeth.
@@ -50,7 +51,7 @@ Never ask about things you can decide yourself (colours, camera angles, which pr
    - **Assembly figures** (implants, restorations, ortho appliances): each part with its material, size in mm, position in the tooth frame (CEJ at y = 0, +x mesial, +z buccal), explode vector, and insertion order. Bone and gingiva drop away (−y) on explode.
    - **Section figures** (anatomy, endo, perio): the cut plane and range, the layers in section-group order, and what each label points at.
    - **Comparison figures**: two independent sets side by side, cut by one shared section.
-4. **Plan the story.** Every figure gets a `fig.story([...])`: 3–5 beats that end on **the teaching shot**, the single frame that answers the question. The same story is the intro of an interactive page, the whole of a video, and (its last frame) the image. See "Motion" below.
+4. **Plan the story.** If the request is about *doing* something (placing an implant, shaping a canal, preparing a crown, bone loss over time), make it a **procedure**: 3–7 named clinical steps (see "Procedures" below). Otherwise every figure gets a `fig.story([...])`: 3–5 beats that end on **the teaching shot**, the single frame that answers the question. The same story is the intro of an interactive page, the whole of a video, and (its last frame) the image. See "Motion" below.
 5. **Review the text** (next section) before writing code.
 
 ## 3. Text review (every figure, before building)
@@ -84,6 +85,13 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - Move one thing at a time where you can (camera, *then* cut, *then* labels). Labels arrive last, on the beat they explain.
 - End on the teaching shot. For interactive pages the story plays once on load and stops at the first touch.
 
+**Procedures** (`fig.param` + `fig.procedure`): for anything that happens in steps.
+- Every moving thing is a number: `fig.param('pilot', -20, d => …)` moves the drill tip to depth `d`, `fig.param('bed', 0, d => osteotomy.set(r, d))` deepens the bed. Beats animate them with `set: { pilot: 10, bed: 10 }`. Tie things that move together to the same beat so they stay in sync (drill tip and bed depth).
+- Objects that params move go in `fig.world` and get `inPlace: true` labels; regular parts are reset by explode.
+- Steps: `fig.procedure([{ label: 'Pilot drill', caption, beats: [...] }, …])`. Labels are 1–2 words. Mark the beat that best shows each step with `key: true` (the storyboard panel uses it; default is the step's last beat). Tools leave between steps (move them back up and hide them), so each step starts clean.
+- One mode each: interactive shows a stepper (‹ 2/6 Pilot drill › ▶) and plays step 1 on load; video plays every step with its caption (a procedure video may run 15–25 s); image becomes a numbered storyboard of all steps.
+- Clinical sequence and sizes come from the facts file. Anything system-specific (drill sizes, torque) is labelled as such, never presented as universal.
+
 **Assemble the page**: `python3 scripts/build.py figure.js -o <name>.html --mode <image|video|interactive> [--aspect 16:9|1:1|4:5|9:16] --title "<title>"`.
 Without code execution, write the HTML yourself: `<!doctype html>…<body>`, then `<script>window.DK_MODE = 'image';</script>` (the chosen mode), then `<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>`, then a `<script>` holding **the full, unmodified contents of `assets/dentkit.js`**, then a `<script>` with your figure code. Never abridge the kit.
 
@@ -96,7 +104,7 @@ Without code execution, write the HTML yourself: `<!doctype html>…<body>`, the
 
 ## 6. Deliver
 
-- **Image:** `python3 scripts/render.py <name>.html -o <name>.png` and give the PNG. If it prints `SKIP`, give the HTML page: it shows the still with a **Download PNG** button.
+- **Image:** `python3 scripts/render.py <name>.html -o <name>.png` and give the PNG (a storyboard for procedures). If it prints `SKIP`, give the HTML page: it shows the still with a **Download PNG** button.
 - **Video:** `python3 scripts/render.py <name>.html -o <name>.mp4` and give the MP4 (WebM if there's no ffmpeg). If it prints `SKIP`, give the HTML page: it loops the clip with a **Download video** button.
 - **Interactive:** give the page as an HTML artifact or file.
 

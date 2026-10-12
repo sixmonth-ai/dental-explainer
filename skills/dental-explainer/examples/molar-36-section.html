@@ -413,8 +413,10 @@
   .dk-ov-foot{left:22px;right:22px;bottom:14px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted)}
   .dk-ov-foot b{color:var(--ink);font-weight:600}
   .dk-panel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border-radius:12px}
-  .dk-panel:not(:has(.dk-btn,.dk-ctrl)){display:none}.dk-panel::-webkit-scrollbar{display:none}
-  .dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-pmain:not(:empty)+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
+  .dk-panel:not(:has(.dk-btn,.dk-ctrl,.dk-step)){display:none}.dk-panel::-webkit-scrollbar{display:none}
+  .dk-psteps,.dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-psteps:not(:empty)+.dk-pmain:not(:empty),.dk-pmain:not(:empty)+.dk-pend:not(:empty),.dk-psteps:not(:empty)+.dk-pmain:empty+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
+  .dk-step{flex:none;min-width:150px;padding:0 6px;font-size:13px;font-weight:600;white-space:nowrap;text-align:center}.dk-step small{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;margin-right:6px}
+  .dk-board{display:block;width:100%;height:auto}.dk-frame.board .dk-stage{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
   .dk-sep{width:1px;align-self:stretch;margin:4px 3px;background:var(--line);flex:none}
   .dk-btn{flex:none;font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;transition:background-color .15s ease,color .15s ease}
   .dk-btn:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
@@ -434,7 +436,7 @@
   .dk-foot a{color:var(--muted);text-decoration:none;white-space:nowrap}.dk-foot a b{color:var(--ink);font-weight:600}.dk-foot a:hover,.dk-foot a:focus-visible{color:var(--accent)}
   .dk-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 0 0}
   .dk-actions .dk-btn{border:1px solid var(--line)}
-  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:min(62vh,520px);min-height:320px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
+  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-psteps{width:100%;justify-content:center}.dk-psteps:not(:empty)+.dk-pmain:not(:empty){border-left:0;padding-left:0;margin-left:0}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:min(62vh,520px);min-height:320px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
 
   const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
   const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray'];
@@ -456,7 +458,7 @@
           <div class="dk-ov dk-ov-foot"><span class="dk-ov-disc"></span><span>${credit}</span></div></div></div>
          <div class="dk-actions"></div>`
       : `<div class="dk-head"><h1 class="dk-title"></h1>${o.subtitle ? '<p class="dk-sub"></p>' : ''}</div>
-         <div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div><div class="dk-info" role="status"></div></div><div class="dk-panel" role="toolbar" aria-label="Figure controls"><span class="dk-pmain"></span><span class="dk-pend"></span></div></div>
+         <div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div><div class="dk-info" role="status"></div></div><div class="dk-panel" role="toolbar" aria-label="Figure controls"><span class="dk-psteps"></span><span class="dk-pmain"></span><span class="dk-pend"></span></div></div>
          <div class="dk-readout"></div><div class="dk-foot"><span class="dk-disc"></span><a href="https://sixmonth.ai" target="_blank" rel="noopener">${credit}</a></div>`;
     root.appendChild(card);
     const $ = s => card.querySelector(s);
@@ -628,12 +630,15 @@
        step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, labels:[names]|'all', caption }
        Unset keys carry over from the previous step. */
     let story = null, player = null, labelFilter = null;
-    function snapshot() { return { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, labels: labelFilter, caption: '' }; }
+    const params = {};   // named numbers a story can animate (drill depth, insertion, bone level…): fig.param(name, value, fn)
+    const keys = () => STORY_KEYS.concat(Object.keys(params).map(n => '$' + n));
+    function snapshot() { const o2 = { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
     function homeState() { return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, labels: null }; }
     function compile(steps, from) {
       let t = 0, prev = Object.assign({}, from); const segs = [];
       steps.forEach(s => {
         const to = Object.assign({}, prev); STORY_KEYS.forEach(k => { if (s[k] !== undefined) to[k] = typeof s[k] === 'boolean' ? +s[k] : s[k]; });
+        if (s.set) Object.keys(s.set).forEach(n => { to['$' + n] = +s.set[n]; });
         if (s.section !== undefined) to.section = s.section; if (s.labels !== undefined) to.labels = s.labels === 'all' ? null : s.labels; to.caption = s.caption !== undefined ? s.caption : '';
         const dur = s.dur ?? 1.2, hold = s.hold ?? 0.6;
         segs.push({ t0: t, t1: t + dur, t2: t + dur + hold, from: prev, to }); t += dur + hold; prev = to;
@@ -643,7 +648,7 @@
     function stateAt(c, t) {
       const s = c.segs.find(g => t < g.t2) || c.segs[c.segs.length - 1];
       const k = s.t1 > s.t0 ? ease(clamp((t - s.t0) / (s.t1 - s.t0), 0, 1)) : 1, out = {};
-      STORY_KEYS.forEach(n => { out[n] = lerp(s.from[n], s.to[n], k); });
+      keys().forEach(n => { out[n] = s.from[n] === undefined ? s.to[n] : lerp(s.from[n], s.to[n], k); });
       out.section = s.to.section; out.labels = s.to.labels; out.caption = s.to.caption;
       if (s.to.section && !s.from.section) out.offset = s.to.offset; // cut appears in place, then moves in later steps
       return out;
@@ -654,11 +659,12 @@
       if (section && (section.enabled !== !!sv.section || Math.abs(section.offset - sv.offset) > 1e-4)) section.set(!!sv.section, sv.offset);
       if (Math.abs(xrayAmt - sv.xray) > 1e-3) { applyXray(sv.xray); fig.xrayOn = sv.xray > 0.5; }
       labelFilter = sv.labels;
+      Object.keys(params).forEach(n => { const v = sv['$' + n]; if (v !== undefined && Math.abs(v - params[n].v) > 1e-6) { params[n].v = v; params[n].fn(v); } });
       if (caption) { const c = mode === 'video' ? sv.caption : ''; if (c) caption.textContent = c; caption.style.opacity = c ? 1 : 0; }  // captions narrate motion: video only
     }
     function play(steps, opts) {
       opts = opts || {}; const c = compile(steps, Object.assign(snapshot(), opts.from || {}));
-      player = { c, t: 0, loop: !!opts.loop, done: opts.done }; return c;
+      player = { c, t: 0, loop: !!opts.loop, done: opts.done, tick: opts.tick }; return c;
     }
 
     // resize & loop
@@ -675,7 +681,7 @@
       if (player) {
         player.t += dt;
         if (player.t >= player.c.total) { if (player.loop) player.t %= player.c.total || 1; else { apply(stateAt(player.c, player.c.total)); const d = player.done; player = null; if (d) d(); } }
-        if (player) apply(stateAt(player.c, player.t));
+        if (player) { apply(stateAt(player.c, player.t)); if (player.tick) player.tick(player.t); }
       } else {
         if (orbit.auto && !reduce) orbit.theta += dt * 0.15;
         if (!drag && (Math.abs(vel.th) > 0.01 || Math.abs(vel.ph) > 0.01)) { orbit.theta += vel.th * dt; orbit.phi = clamp(orbit.phi + vel.ph * dt, 0.06, Math.PI - 0.06); const k = Math.exp(-dt * 6); vel.th *= k; vel.ph *= k; }
@@ -766,7 +772,7 @@
       });
       g.globalAlpha = 1;
       card.querySelectorAll('.dk-ov').forEach(ov => {
-        const s = getComputedStyle(ov); if (+s.opacity < 0.02) return; g.globalAlpha = +s.opacity;
+        const s = getComputedStyle(ov); if (+s.opacity < 0.02 || s.visibility === 'hidden') return; g.globalAlpha = +s.opacity;
         const leafs = ov.children.length ? [...ov.children] : [ov];
         leafs.forEach(el => {
           const r = el.getBoundingClientRect(); if (!el.textContent.trim()) return;
@@ -797,6 +803,27 @@
     }
     let story0 = {}, startState = null;
 
+    /* ----- procedure: named clinical steps, each a few story beats -----
+       interactive: a stepper (‹ 2/6 Pilot drill › ▶) · video: every step, captioned · image: a storyboard of every step */
+    let proc = null, stepCur = 0, stepEl = null, prevB = null, nextB = null;
+    const paramsOf = st => { const o2 = {}; Object.keys(params).forEach(n => { if (st['$' + n] !== undefined) o2[n] = st['$' + n]; }); return o2; };
+    function stepEnds() { const c = compile(story, startState); return proc.map(st => c.segs[st.last].to); }
+    function stepAtTime(t) { const c = compile(story, startState); let i = 0; proc.forEach((st, k) => { if (t >= c.segs[st.first].t0 - 1e-6) i = k; }); return i; }
+    function showStep(i) {
+      stepCur = i; if (!stepEl) return;
+      stepEl.innerHTML = '<small></small><span></span>'; stepEl.firstChild.textContent = `${i + 1}/${proc.length}`; stepEl.lastChild.textContent = proc[i].label;
+      prevB.disabled = i === 0; nextB.disabled = i === proc.length - 1;
+    }
+    function goStep(i) {
+      i = clamp(i, 0, proc.length - 1); if (!startState || i === stepCur && player) return;
+      if (i === stepCur + 1 && !reduce) {   // forward: finish the previous step instantly (keep the viewer's camera), then animate this one
+        const from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget });
+        apply(from); play(proc[i].beats, { from });
+      }
+      else { const end = stepEnds()[i]; play([Object.assign({}, end, { dur: reduce ? 0 : 0.7, hold: 0, set: paramsOf(end), caption: '' })]); }
+      showStep(i);
+    }
+
     const fig = { T, scene, world, camera, renderer, orbit, stage, mode, part, parts, enableSection, slider, toggle, button, standardControls, setReadout,
       get section() { return section; },
       explode(v) { explodeTarget = v; if (fig.explodeSlider) fig.explodeSlider.value = v; },
@@ -809,10 +836,60 @@
       // a view button that eases the camera there: fig.view('Occlusal', {phi: 0.05, theta: 0})
       view(label, state, dur) { return button(label, () => fig.goTo(state, dur), { group: 'views' }); },
       story(steps, opts) { story = steps; story0 = opts || {}; return fig; },
+      // a number the story can animate; fn(v) updates the scene (move a drill, deepen an osteotomy, lower the bone)
+      param(name, value, fn) { params[name] = { v: value, fn: fn || (() => {}) }; params[name].fn(value); return fig; },
+      procedure(steps, opts) {
+        proc = []; const flat = [];
+        steps.forEach(st => {
+          const beats = (st.beats || [st]).map(b => Object.assign({}, b, { caption: b.caption !== undefined ? b.caption : (st.caption || '') }));
+          const k = beats.findIndex(b => b.key);   // the beat a storyboard panel shows (default: the step's last beat)
+          proc.push({ label: st.label, beats, first: flat.length, last: flat.length + beats.length - 1, shot: flat.length + (k < 0 ? beats.length - 1 : k) }); flat.push(...beats);
+        });
+        story = flat; story0 = opts || {};
+        if (panel) {
+          const box = panel.querySelector('.dk-psteps');
+          const mk = (txt, title, fn) => { const b = document.createElement('button'); b.className = 'dk-btn dk-icon'; b.textContent = txt; b.title = title; b.setAttribute('aria-label', title); b.addEventListener('click', () => { interrupt(); fn(); }); box.appendChild(b); return b; };
+          prevB = mk('‹', 'Previous step', () => goStep(stepCur - 1));
+          stepEl = document.createElement('span'); stepEl.className = 'dk-step'; stepEl.setAttribute('aria-live', 'polite'); box.appendChild(stepEl);
+          nextB = mk('›', 'Next step', () => goStep(stepCur + 1));
+          mk('▶', 'Play all steps', () => { showStep(0); play(story, { from: startState, tick: t => { const i = stepAtTime(t); if (i !== stepCur) showStep(i); } }); });
+          showStep(0);
+        }
+        return fig;
+      },
+      get step() { return stepCur; },
+      goStep,
+      storyboard(scale) {
+        const c = compile(story, startState), n = proc.length, cols = n <= 3 ? n : n === 4 ? 2 : 3, rows = Math.ceil(n / cols);
+        const W = stage.clientWidth, H = stage.clientHeight; scale = scale || Math.min(2, 2400 / (cols * W));
+        const ovs = [...card.querySelectorAll('.dk-ov')]; ovs.forEach(e => { e.style.visibility = 'hidden'; });
+        const pw = Math.round(W * scale), ph = Math.round(H * scale), gut = Math.round(2 * scale), head = Math.round(64 * scale), foot = Math.round(40 * scale);
+        const cv = document.createElement('canvas'); cv.width = cols * pw + (cols - 1) * gut; cv.height = head + rows * ph + (rows - 1) * gut + foot;
+        const g = cv.getContext('2d'); g.fillStyle = css('--line'); g.fillRect(0, 0, cv.width, cv.height);
+        g.fillStyle = css('--stage'); g.fillRect(0, 0, cv.width, head); g.fillRect(0, cv.height - foot, cv.width, foot);
+        const wasFrozen = frozen; frozen = true; player = null;
+        const font = (w, px) => `${w} ${px * scale}px "Instrument Sans", ui-sans-serif, system-ui, sans-serif`;
+        proc.forEach((st, i) => {
+          apply(c.segs[st.shot].to);
+          parts.forEach(p => { p.alpha = 0; }); for (let k = 0; k < 6; k++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
+          update(0);
+          const x = (i % cols) * (pw + gut), y = head + Math.floor(i / cols) * (ph + gut);
+          if (i >= cols) { g.fillStyle = css('--stage'); }
+          g.drawImage(composite(scale), x, y, pw, ph);
+          g.textBaseline = 'top'; g.font = font(600, 15); g.fillStyle = css('--accent'); g.fillText(String(i + 1), x + 20 * scale, y + 18 * scale);
+          g.fillStyle = css('--ink'); g.fillText(st.label, x + 20 * scale + g.measureText(String(i + 1)).width + 8 * scale, y + 18 * scale);
+        });
+        for (let i = n; i < rows * cols; i++) { g.fillStyle = css('--stage'); g.fillRect((i % cols) * (pw + gut), head + Math.floor(i / cols) * (ph + gut), pw, ph); }
+        g.textBaseline = 'middle'; g.font = font(600, 22); g.fillStyle = css('--ink'); g.fillText(o.title, 20 * scale, head / 2 + 4 * scale);
+        g.font = font(400, 12); g.fillStyle = css('--muted'); g.fillText(o.footer, 20 * scale, cv.height - foot / 2);
+        g.textAlign = 'right'; g.fillText('Made with dental-explainer by Sixmonth', cv.width - 20 * scale, cv.height - foot / 2); g.textAlign = 'left';
+        ovs.forEach(e => { e.style.visibility = ''; }); apply(c.end); update(0); frozen = wasFrozen;
+        return cv;
+      },
       get duration() { return story ? compile(story, startState || homeState()).total : 0; },
       seek, composite,
-      exportPNG(scale) { return composite(scale || 2).toDataURL('image/png'); },
-      savePNG() { composite(2).toBlob(b => download(b, slug() + '.png'), 'image/png'); },
+      exportPNG(scale) { return (proc && mode === 'image' ? fig.storyboard() : composite(scale || 2)).toDataURL('image/png'); },
+      savePNG() { (proc && mode === 'image' ? fig.storyboard() : composite(2)).toBlob(b => download(b, slug() + '.png'), 'image/png'); },
       recordVideo(opts) { // real-time capture of one pass of the story, in the viewer's browser
         opts = opts || {}; const type = videoType(); if (!type || !story) return Promise.reject(new Error('Video recording is not supported in this browser.'));
         const scale = opts.scale || Math.max(pixelRatio, 1920 / stage.clientWidth);
@@ -834,6 +911,11 @@
         startState = Object.assign(snapshot(), homeState(), { section: section ? section.enabled : false, offset: section ? section.offset : 0, xray: xrayAmt }, story0);
         if (mode === 'image') {
           if (story) { const c = compile(story, startState); apply(c.end); }
+          if (proc) { // show the storyboard image in place of the single frame
+            const frame = card.querySelector('.dk-frame'); stage.style.width = stage.clientWidth + 'px'; stage.style.height = stage.clientHeight + 'px'; frame.classList.add('board');
+            const img = document.createElement('img'); img.className = 'dk-board'; img.alt = o.title; frame.appendChild(img);
+            (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => requestAnimationFrame(() => { img.src = fig.storyboard().toDataURL('image/png'); }));
+          }
           actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download PNG'; b.onclick = () => fig.savePNG(); actions.appendChild(b);
         } else if (mode === 'video') {
           if (story) { apply(stateAt(compile(story, startState), 0)); if (!reduce) play(story, { loop: true, from: startState }); else apply(compile(story, startState).end); }
@@ -841,9 +923,10 @@
           b.onclick = () => { b.disabled = true; b.textContent = 'Recording…'; fig.recordVideo().then(bl => { download(bl, slug() + (bl.type.includes('mp4') ? '.mp4' : '.webm')); }).catch(err => alert(err.message)).finally(() => { b.disabled = false; b.textContent = 'Download video'; play(story, { loop: true, from: startState }); }); };
           actions.appendChild(b);
         } else if (story && !reduce) {
-          apply(stateAt(compile(story, startState), 0));
-          setTimeout(() => { if (!introOff) play(story, { from: startState }); }, o.introDelay ?? 500);
-        } else if (story) apply(compile(story, startState).end);
+          const intro = proc ? proc[0].beats : story;   // procedures: play step 1, then the viewer steps through
+          apply(stateAt(compile(intro, startState), 0));
+          setTimeout(() => { if (!introOff) play(intro, { from: startState }); }, o.introDelay ?? 500);
+        } else if (story) apply(compile(proc ? proc[0].beats : story, startState).end);
         else if (o.introExplode && !reduce) setTimeout(() => fig.explode(o.introExplode), 700);
         requestAnimationFrame(frame); window.__dkReady = true; return fig;
       },
@@ -895,6 +978,26 @@
     grp.add(new T.Mesh(DK.threaded({ length: o.length - o.headHeight, coreRadius: o.diameter / 2 - 0.18, threadDepth: 0.18, pitch: o.pitch, collar: 1.2, collarRadius: o.diameter / 2 - 0.12, apexTaper: 0.08, starts: 1, cols: 40 }), m));
     const head = DK.lathe([[0, 0], [o.diameter / 2, 0], [o.headDiameter / 2, 0.3], [o.headDiameter / 2, o.headHeight - 0.2], [o.headDiameter / 2 - 0.2, o.headHeight], [0.55, o.headHeight], [0.55, o.headHeight - 0.6], [0, o.headHeight - 0.6]], 40, m);
     grp.add(head); return grp;
+  };
+  // Surgical twist drill: fluted cutting part from y = 0 down to the tip at y = -length, shank above y = 0.
+  // Place it with the tip at depth d below the crest: drill.position.y = crestY - d + length.
+  DK.drill = function (o) {
+    o = Object.assign({ diameter: 2.0, length: 14, shank: 12, bands: [8, 10, 12] }, o);
+    const r = o.diameter / 2, grp = new T.Group(); grp.name = 'Drill';
+    const steel = DK.mat('steel', { cap: 0x9ea4aa }), dark = DK.mat('titaniumDark');
+    grp.add(new T.Mesh(DK.threaded({ length: o.length, coreRadius: r * 0.72, threadDepth: r * 0.28, pitch: Math.max(1.6, o.diameter * 1.4), collar: 0, apexTaper: 0.08, starts: 2, cols: 48 }), steel));
+    grp.add(DK.lathe([[r, 0], [r, 1.2], [1.2, 2.4], [1.2, o.shank]], 32, steel));
+    o.bands.filter(b => b < o.length).forEach(b => { const ring = new T.Mesh(new T.CylinderGeometry(r * 1.01, r * 1.01, 0.25, 32, 1, true), dark); ring.position.y = -o.length + b; grp.add(ring); }); // depth marks from the tip
+    grp.userData.spec = o; return grp;
+  };
+  // Prepared implant bed: a closed cylinder (top at y = 0) to put in a section group after the bone, so the cut
+  // face shows the hole. osteotomy.set(radius, depth) resizes it; depth 0 hides it.
+  DK.osteotomy = function (o) {
+    o = Object.assign({ color: 0x5b2a25 }, o);
+    const g = new T.CylinderGeometry(1, 1, 1, 40); g.translate(0, -0.5, 0);
+    const m = new T.Mesh(g, DK.mat('pdl', { color: o.color, cap: o.color })); m.name = 'Osteotomy';
+    m.set = (radius, depth) => { m.visible = depth > 0.02; m.scale.set(Math.max(radius, 0.01), Math.max(depth, 0.01), Math.max(radius, 0.01)); };
+    m.set(0, 0); return m;
   };
   /* ---------- restorative & endodontic parts ---------- */
   const PREP = { axial: 1.2, occlusal: 1.8 };

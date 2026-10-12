@@ -185,6 +185,7 @@ The eruption sequence for primary teeth is central incisor, lateral incisor, **1
   - Implant to implant: **≥3 mm** (Tarnow, Cho & Wallace 2000: interimplant crestal bone loss when <3 mm; based on external-hex implants without platform switching, but still recommended).
   - Buccal bone: **about 1.8-2 mm** often recommended (Spray et al. 2000). A 2014 review found no validated minimum, and 1 mm is also cited.
   - Inferior alveolar canal: **2 mm safety margin** is the conventional rule. Tüfekçioğlu 2017 found no significant difference in neurosensory complications at <2 vs >2 mm, but paresthesia occurred when the implant touched the canal.
+- **Osteotomy (implant bed)** [U, standard surgical teaching]: prepared with a pilot drill, then sequentially wider drills to the planned depth, under irrigation. The drill sequence, the final drill diameter (usually somewhat narrower than the implant, varying with bone density) and the drill lengths are **manufacturer-specific**. Do not present one sequence as universal.
 - **Loading protocols** (ITI, 2003 definitions) [V]: immediate means within 48 h. Early means 48 h to 3 months. **Conventional means a 3-6 month healing period.** Classic Brånemark practice was about 3 months in the mandible and about 6 months in the maxilla [U].
 
 ---

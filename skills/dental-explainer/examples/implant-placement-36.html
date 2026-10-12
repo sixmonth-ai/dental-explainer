@@ -1,0 +1,1160 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Placing an implant in 36</title></head>
+<body>
+<script>window.DK_MODE = 'interactive'; window.DK_ASPECT = '16:9';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* dentkit.js — drawing kit for interactive dental figures (three.js r128, global THREE).
+   Units: millimetres. Tooth local frame: y up = coronal (CEJ at y=0), +x = mesial, +z = buccal/labial. */
+(function () {
+  const T = THREE;
+  const DK = {};
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  DK.util = { clamp, lerp, smooth, ease };
+
+  /* ---------- palette & materials ---------- */
+  DK.COLORS = {
+    enamel: 0xf2f0ea, enamelCap: 0xe9edf2, dentin: 0xe2c27e, dentinCap: 0xd9a95a,
+    cementum: 0xdcc08a, pulp: 0xd9534f, pulpCap: 0xc0392b, nerve: 0xf2c94c, artery: 0xc0392b, vein: 0x3c6fb4,
+    pdl: 0xb5566a, gingiva: 0xe58f9a, gingivaCap: 0xd46a78, cortical: 0xeee6d3, corticalCap: 0xe8dcc0,
+    cancellous: 0xd8b98a, titanium: 0xa9adb3, titaniumDark: 0x7d828a, zirconia: 0xf6f3ec, ceramic: 0xf1ede2,
+    gold: 0xd4a843, steel: 0xc3c7cc, nickelTi: 0x9aa0a6, gutta: 0xe07b39, composite: 0xf0e7d0, rubberDam: 0x2f80ed, caries: 0x6b4a2b
+  };
+  const MAT_PRESETS = {
+    enamel: { color: 'enamel', roughness: 0.4, metalness: 0, clearcoat: 0.6 },
+    dentin: { color: 'dentin', roughness: 0.6 },
+    root: { color: 'cementum', roughness: 0.7 },
+    pulp: { color: 'pulp', roughness: 0.5 },
+    gingiva: { color: 'gingiva', roughness: 0.55 },
+    bone: { color: 'cortical', roughness: 0.8 },
+    titanium: { color: 'titanium', roughness: 0.32, metalness: 0.85 },
+    titaniumDark: { color: 'titaniumDark', roughness: 0.35, metalness: 0.85 },
+    gold: { color: 'gold', roughness: 0.3, metalness: 0.9 },
+    steel: { color: 'steel', roughness: 0.25, metalness: 0.9 },
+    zirconia: { color: 'zirconia', roughness: 0.3 },
+    ceramic: { color: 'ceramic', roughness: 0.25, clearcoat: 0.8 },
+    nerve: { color: 'nerve', roughness: 0.5 },
+    artery: { color: 'artery', roughness: 0.45 },
+    vein: { color: 'vein', roughness: 0.45 },
+    pdl: { color: 'pdl', roughness: 0.6 },
+    gutta: { color: 'gutta', roughness: 0.5 },
+    composite: { color: 'composite', roughness: 0.35 },
+    caries: { color: 'caries', roughness: 0.8 },
+    rubberDam: { color: 'rubberDam', roughness: 0.5 },
+    fiber: { color: 0xeeeadc, roughness: 0.35 },
+    cement: { color: 0xd9e4ea, roughness: 0.6 }
+  };
+  DK.mat = function (name, extra) {
+    const p = Object.assign({}, MAT_PRESETS[name] || { color: name }, extra || {});
+    const c = typeof p.color === 'string' ? (DK.COLORS[p.color] !== undefined ? DK.COLORS[p.color] : p.color) : p.color;
+    const Mat = p.clearcoat ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
+    const m = new Mat({ color: c, roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.35 } : {}), transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
+    m.userData.capColor = p.cap !== undefined ? p.cap : c;
+    return m;
+  };
+
+  /* ---------- geometry helpers ---------- */
+  function gridGeometry(rows, cols, fn, closeTop, closeBottom) {
+    // fn(i,j) -> [x,y,z]; rows along meridian (0..rows), cols around (0..cols-1, wraps)
+    const pos = [], idx = [];
+    for (let i = 0; i <= rows; i++) for (let j = 0; j < cols; j++) pos.push(...fn(i, j));
+    const at = (i, j) => i * cols + (j % cols);
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
+      idx.push(a, b, d, b, c, d);
+    }
+    const addCap = (row, pt, flip) => {
+      const ci = pos.length / 3; pos.push(...pt);
+      for (let j = 0; j < cols; j++) { const a = at(row, j), b = at(row, j + 1); flip ? idx.push(ci, b, a) : idx.push(ci, a, b); }
+    };
+    if (closeBottom) addCap(0, closeBottom, false);
+    if (closeTop) addCap(rows, closeTop, true);
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  }
+  DK.gridGeometry = gridGeometry;
+  const se = (v, n) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n); // superellipse component
+
+  DK.lathe = function (profile, segments, mat) { // profile: [[r,y],...] bottom→top
+    const g = new T.LatheGeometry(profile.map(p => new T.Vector2(p[0], p[1])), segments || 48);
+    g.computeVertexNormals();
+    return mat ? new T.Mesh(g, mat) : g;
+  };
+  DK.tube = function (points, radius, mat, opts) {
+    opts = opts || {};
+    const curve = new T.CatmullRomCurve3(points.map(p => new T.Vector3(...p)));
+    const g = new T.TubeGeometry(curve, opts.segments || 64, radius, opts.radial || 16, false);
+    if (opts.taper) { // radius scale along length: taper(t)
+      const pa = g.attributes.position, n = opts.segments || 64, r = opts.radial || 16, v = new T.Vector3();
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, c = curve.getPointAt(t), s = opts.taper(t);
+        for (let j = 0; j <= r; j++) { const k = i * (r + 1) + j; v.fromBufferAttribute(pa, k).sub(c).multiplyScalar(s).add(c); pa.setXYZ(k, v.x, v.y, v.z); }
+      }
+      g.computeVertexNormals();
+    }
+    const m = new T.Mesh(g, mat);
+    if (opts.caps !== false) { // close ends with spheres so section caps work
+      [0, 1].forEach(t => { const s = new T.Mesh(new T.SphereGeometry(radius * (opts.taper ? opts.taper(t) : 1), 16, 12), mat); s.position.copy(curve.getPointAt(t)); m.add(s); });
+    }
+    return m;
+  };
+
+  /* ---------- threaded bodies (implants, screws) ---------- */
+  // Helical thread on a core. y from 0 (top) to -length.
+  DK.threaded = function (o) {
+    const L = o.length, rc = o.coreRadius, d = o.threadDepth, p = o.pitch, starts = o.starts || 1;
+    const collar = o.collar ?? 0.8, apexTaper = o.apexTaper ?? 0.3, taper = o.bodyTaper ?? 0;
+    const rows = o.rows || Math.ceil(L / p * 14), cols = o.cols || 72;
+    const prof = u => { const f = u - Math.floor(u); return o.profile === 'square' ? (f < 0.5 ? 1 : 0.15) : (f < 0.5 ? f * 2 : (1 - f) * 2); };
+    return gridGeometry(rows, cols, (i, j) => {
+      const t = i / rows, y = -L * (1 - t), depthFromTop = L * (1 - t); // i=0 bottom (apex)
+      const th = j / cols * Math.PI * 2;
+      const apex = smooth(0, apexTaper * L, depthFromTop * 0 + (L - depthFromTop)); // 0 at apex → 1 above taper zone
+      let core = (o.collarRadius && depthFromTop < collar) ? o.collarRadius : rc * (1 - taper * (depthFromTop / L));
+      core *= lerp(0.55, 1, apex);
+      const thread = depthFromTop < collar ? 0 : d * smooth(collar, collar + p, depthFromTop) * lerp(0.4, 1, apex);
+      const r = core + thread * prof(depthFromTop / p * starts + th / (2 * Math.PI) * starts) - (o.round && t < 0.04 ? (0.04 - t) * 20 * core : 0);
+      return [Math.cos(th) * Math.max(r, 0.02), y, Math.sin(th) * Math.max(r, 0.02)];
+    }, [0, 0, 0], [0, -L - Math.min(rc * 0.25, 0.4), 0]);
+  };
+
+  /* ---------- teeth ---------- */
+  // Crown surface: superellipse rings from cervix (y=0) to occlusal; relief(xn,zn) adds cusps/edges.
+  function crownGeometry(c, inset, open) {
+    inset = inset || { side: 0, top: 0, reliefScale: 1, topScale: 1 };
+    const rows = 40, cols = 64, H = c.crownL - inset.top;
+    const aC = c.mdC / 2 - inset.side * 0.4, bC = c.blC / 2 - inset.side * 0.4;
+    const aM = c.md / 2 - inset.side, bM = c.bl / 2 - inset.side;
+    const n = c.squareness || 2.4;
+    return gridGeometry(rows, cols, (i, j) => {
+      const t = i / rows, th = j / cols * Math.PI * 2;
+      let a, b, y;
+      const side = 0.72;
+      if (t <= side) {
+        const s = t / side, bul = Math.sin(Math.min(1, s / (c.contourAt || 0.75)) * Math.PI / 2);
+        a = lerp(aC, aM, bul); b = lerp(bC, bM, Math.sin(Math.min(1, s / (c.blContourAt || 0.45)) * Math.PI / 2));
+        if (c.incisal) b = lerp(b, c.incisalBL || 0.7, smooth(0.35, 1, s));
+        y = s * H * (c.incisal ? 0.97 : 0.78);
+      } else {
+        const s = (t - side) / (1 - side);
+        const k = Math.cos(s * Math.PI / 2);
+        a = aM * (c.incisal ? lerp(1, 0.94, s) : k); b = (c.incisal ? lerp(c.incisalBL || 0.7, 0.05, s) : bM * k);
+        y = c.incisal ? H * (0.97 + 0.03 * Math.sin(s * Math.PI / 2)) : H * (0.78 + 0.22 * Math.sin(s * Math.PI / 2) * (inset.topScale ?? 1));
+      }
+      a = Math.max(a, 0.05); b = Math.max(b, 0.03);
+      const x = a * se(Math.cos(th), n), z = b * se(Math.sin(th), n);
+      if (c.relief && !c.incisal) {
+        const w = smooth(0.45, 0.95, t);
+        y += w * c.relief(x / (c.md / 2), z / (c.bl / 2)) * (inset.reliefScale ?? 1);
+      }
+      if (c.incisal && c.incisalCurve) y += smooth(0.6, 1, t) * c.incisalCurve(x / (c.md / 2));
+      return [x, y, z];
+    }, null, open ? null : [0, 0, 0]);
+  }
+  DK.crownGeometry = crownGeometry;
+
+  // Centre line of a root (or of a canal inside it) at depth y below the CEJ — shared by root, canal, PDL and helpers.
+  function rootCenter(r, y) {
+    const u = clamp(-y / r.len, 0, 1);
+    return [r.x + (r.apex ? r.apex[0] : 0) * u * u + (r.flare ? r.flare[0] * Math.sin(u * Math.PI) : 0),
+            r.z + (r.apex ? r.apex[1] : 0) * u * u + (r.flare ? r.flare[1] * Math.sin(u * Math.PI) : 0)];
+  }
+  function rootGeometry(r, scale) { // r: {x,z,len,ra,rb,apex:[dx,dz],start}; scale shrinks radii (canal / pdl)
+    scale = scale || { k: 1, add: 0, minR: 0.05, endShort: 0 };
+    const rows = 36, cols = 32, start = r.start ?? 0.6, L = r.len - (scale.endShort || 0);
+    return gridGeometry(rows, cols, (i, j) => {
+      const t = 1 - i / rows, th = j / cols * Math.PI * 2; // i=0 apex → i=rows top (outward normals)
+      const tip = Math.sqrt(Math.max(0, 1 - Math.pow(t, r.tipSharp || 9)));
+      const taper = (1 - (r.taper ?? 0.55) * Math.pow(t, 0.85)) * tip;
+      const n = lerp(r.n0 || 2, 2, t);
+      const ra = Math.max(r.ra * taper * scale.k + scale.add * tip, scale.minR * tip);
+      const rb = Math.max(r.rb * taper * scale.k + scale.add * tip, scale.minR * tip);
+      const y = start - t * (L + start);
+      const [cx, cz] = rootCenter(r, y); // depends on depth only, so root, canal and PDL share one path
+      return [cx + ra * se(Math.cos(th), n), y, cz + rb * se(Math.sin(th), n)];
+    }, [r.x, (r.start ?? 0.6) + 0.01, r.z], null);
+  }
+  DK.rootGeometry = rootGeometry;
+
+  // Occlusal relief from a cusp list [{x,z,h,w}] (normalized coords) + central fossa depth
+  // grooves: [[x1,z1,x2,z2,depth?], ...] narrow valleys (central, buccal, lingual grooves) in normalized coords
+  DK.cuspRelief = function (cusps, fossa, grooves) {
+    const segD2 = (x, z, g) => { const dx = g[2] - g[0], dz = g[3] - g[1], L2 = dx * dx + dz * dz || 1e-6; const t = clamp(((x - g[0]) * dx + (z - g[1]) * dz) / L2, 0, 1); return (x - g[0] - t * dx) ** 2 + (z - g[1] - t * dz) ** 2; };
+    return (xn, zn) => {
+      let v = 0;
+      cusps.forEach(c => { const d2 = (xn - c.x) ** 2 + (zn - c.z) ** 2; v += c.h * Math.exp(-d2 / (2 * (c.w || 0.26) ** 2)); });
+      v = Math.min(v, Math.max(...cusps.map(c => c.h)) * 1.05);
+      v -= (fossa || 0) * Math.exp(-(xn * xn + zn * zn) / 0.12);
+      (grooves || []).forEach(g => { v -= (g[4] ?? 0.45) * Math.exp(-segD2(xn, zn, g) / 0.006); });
+      return v;
+    };
+  };
+
+  /* Tooth presets (Wheeler averages, mm). Local frame: +x mesial, +z facial, crown up. */
+  const P = {};
+  P.maxCentral = { name: 'Maxillary central incisor', crownL: 10.5, rootL: 13, md: 8.5, mdC: 7, bl: 7, blC: 6, incisal: true, incisalBL: 0.9, squareness: 2.6, contourAt: 0.85, blContourAt: 0.25,
+    roots: [{ x: 0, z: 0, len: 13, ra: 3.3, rb: 2.9, taper: 0.62, apex: [-0.6, -0.4] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.55 }], pulpHorns: 3 };
+  P.maxLateral = Object.assign({}, P.maxCentral, { name: 'Maxillary lateral incisor', crownL: 9, rootL: 13, md: 6.5, mdC: 5, bl: 6, blC: 5, roots: [{ x: 0, z: 0, len: 13, ra: 2.5, rb: 2.4, taper: 0.62, apex: [-1.0, -0.3] }] });
+  P.maxCanine = { name: 'Maxillary canine', crownL: 10, rootL: 17, md: 7.5, mdC: 5.5, bl: 8, blC: 7, squareness: 2.1, contourAt: 0.7, blContourAt: 0.3,
+    relief: DK.cuspRelief([{ x: 0, z: 0.05, h: 2.2, w: 0.42 }], 0), roots: [{ x: 0, z: 0, len: 17, ra: 2.7, rb: 3.4, taper: 0.62, apex: [-0.8, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.6 }], coneTip: true };
+  P.maxPM1 = { name: 'Maxillary first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 9, blC: 8, squareness: 2.3, contourAt: 0.7,
+    relief: DK.cuspRelief([{ x: 0, z: 0.5, h: 2.2, w: 0.34 }, { x: 0, z: -0.5, h: 1.6, w: 0.32 }], 0.3, [[0.6, 0, -0.6, 0]]),
+    roots: [{ x: 0, z: 1.9, len: 14, ra: 2.1, rb: 1.6, apex: [-0.5, 0.4], start: -0.5 }, { x: 0, z: -1.9, len: 13.5, ra: 2.0, rb: 1.5, apex: [-0.5, -0.4], start: -0.5 }],
+    trunk: 4.5, canals: [{ root: 0, dx: 0, dz: 0, r: 0.4 }, { root: 1, dx: 0, dz: 0, r: 0.4 }] };
+  P.maxPM2 = Object.assign({}, P.maxPM1, { name: 'Maxillary second premolar', relief: DK.cuspRelief([{ x: 0, z: 0.5, h: 1.8, w: 0.34 }, { x: 0, z: -0.5, h: 1.7, w: 0.32 }], 0.3, [[0.6, 0, -0.6, 0]]),
+    roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.6, apex: [-0.6, 0] }], trunk: 0, canals: [{ root: 0, dx: 0, dz: 0, r: 0.45, rbk: 0.5 }] });
+  P.maxM1 = { name: 'Maxillary first molar', crownL: 7.5, rootL: 13, md: 10, mdC: 8, bl: 11, blC: 10, squareness: 2.7, contourAt: 0.65,
+    relief: DK.cuspRelief([{ x: 0.42, z: 0.48, h: 1.7 }, { x: -0.42, z: 0.48, h: 1.5 }, { x: 0.35, z: -0.42, h: 2.0, w: 0.34 }, { x: -0.48, z: -0.48, h: 1.3, w: 0.24 }, { x: 0.55, z: -0.8, h: 0.6, w: 0.15 }], 0.5, [[0.65, 0.05, -0.1, 0.1], [-0.1, 0.1, -0.55, -0.35], [-0.1, 0.1, -0.05, 0.85], [0.1, -0.05, 0.7, -0.6, 0.25]]),
+    roots: [{ x: 2.2, z: 2.4, len: 12, ra: 1.9, rb: 2.7, taper: 0.5, apex: [-1.4, 0.6], flare: [0.4, 0.3], start: -0.5 }, { x: -2.4, z: 2.5, len: 11.5, ra: 1.75, rb: 1.9, taper: 0.5, apex: [-0.6, 0.6], flare: [-0.5, 0.3], start: -0.5 },
+      { x: 0, z: -2.5, len: 13, ra: 2.4, rb: 2.2, taper: 0.5, apex: [0, -1.6], flare: [0, -0.8], start: -0.5 }],
+    trunk: 4, canals: [{ root: 0, dx: -0.2, dz: 0.9, r: 0.38, name: 'MB1' }, { root: 0, dx: 0.15, dz: -0.95, r: 0.3, name: 'MB2', short: 1.5 }, { root: 1, dx: 0, dz: 0, r: 0.35, name: 'DB' }, { root: 2, dx: 0, dz: 0, r: 0.5, name: 'P' }] };
+  P.mandCentral = { name: 'Mandibular central incisor', crownL: 9, rootL: 12.5, md: 5, mdC: 3.5, bl: 6, blC: 5.3, incisal: true, incisalBL: 0.8, squareness: 2.3, contourAt: 0.9, blContourAt: 0.2,
+    roots: [{ x: 0, z: 0, len: 12.5, ra: 1.75, rb: 2.6, taper: 0.62, apex: [-0.3, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.38, rbk: 0.7 }] };
+  P.mandLateral = Object.assign({}, P.mandCentral, { name: 'Mandibular lateral incisor', crownL: 9.5, rootL: 14, md: 5.5, mdC: 4, bl: 6.5, blC: 5.8, roots: [{ x: 0, z: 0, len: 14, ra: 1.95, rb: 2.9, taper: 0.62, apex: [-0.5, 0] }] });
+  P.mandCanine = Object.assign({}, P.maxCanine, { name: 'Mandibular canine', crownL: 11, rootL: 16, md: 7, mdC: 5.5, bl: 7.5, blC: 7, roots: [{ x: 0, z: 0, len: 16, ra: 2.6, rb: 3.4, taper: 0.62, apex: [-0.4, 0] }] });
+  P.mandPM1 = { name: 'Mandibular first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 7.5, blC: 6.5, squareness: 2.2, contourAt: 0.7,
+    relief: DK.cuspRelief([{ x: 0, z: 0.35, h: 2.4, w: 0.42 }, { x: 0, z: -0.6, h: 0.7, w: 0.3 }], 0.2),
+    roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.0, apex: [-0.6, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.45 }] };
+  P.mandPM2 = Object.assign({}, P.mandPM1, { name: 'Mandibular second premolar', crownL: 8, rootL: 14.5, bl: 8, blC: 7,
+    relief: DK.cuspRelief([{ x: 0, z: 0.35, h: 1.9, w: 0.4 }, { x: 0.3, z: -0.5, h: 1.3, w: 0.28 }, { x: -0.3, z: -0.5, h: 1.1, w: 0.26 }], 0.4),
+    roots: [{ x: 0, z: 0, len: 14.5, ra: 2.4, rb: 3.2, apex: [-0.6, 0] }] });
+  P.mandM1 = { name: 'Mandibular first molar', crownL: 7.5, rootL: 14, md: 11, mdC: 9, bl: 10.5, blC: 9, squareness: 2.7, contourAt: 0.7,
+    relief: DK.cuspRelief([{ x: 0.5, z: 0.45, h: 1.5 }, { x: -0.05, z: 0.5, h: 1.4 }, { x: -0.62, z: 0.3, h: 1.1, w: 0.22 }, { x: 0.45, z: -0.45, h: 1.9 }, { x: -0.38, z: -0.45, h: 1.8 }], 0.45, [[0.75, 0, -0.75, 0.02], [0.22, 0, 0.25, 0.9], [-0.35, 0.02, -0.4, 0.85], [0.05, 0, 0.05, -0.9]]),
+    roots: [{ x: 2.25, z: 0, len: 14, ra: 1.85, rb: 3.7, apex: [-1.4, 0], start: -0.5 }, { x: -2.3, z: 0, len: 13, ra: 1.85, rb: 3.4, apex: [-0.9, 0], start: -0.5 }],
+    trunk: 3, canals: [{ root: 0, dx: 0, dz: 1.5, r: 0.35, name: 'MB' }, { root: 0, dx: 0, dz: -1.5, r: 0.35, name: 'ML' }, { root: 1, dx: 0, dz: 0, r: 0.38, rbk: 1.6, name: 'D' }] };
+  P.mandM2 = Object.assign({}, P.mandM1, { name: 'Mandibular second molar', crownL: 7, rootL: 13, md: 10.5, mdC: 8, bl: 10, blC: 9,
+    relief: DK.cuspRelief([{ x: 0.45, z: 0.45, h: 1.4 }, { x: -0.45, z: 0.45, h: 1.3 }, { x: 0.45, z: -0.45, h: 1.7 }, { x: -0.45, z: -0.45, h: 1.6 }], 0.45, [[0.75, 0, -0.75, 0], [0, 0, 0, 0.9], [0, 0, 0, -0.9]]),
+    roots: [{ x: 1.95, z: 0, len: 13, ra: 1.75, rb: 3.5, apex: [-1.6, 0], start: -0.5 }, { x: -2.0, z: 0, len: 12.5, ra: 1.75, rb: 3.3, apex: [-1.3, 0], start: -0.5 }] });
+  P.maxM2 = Object.assign({}, P.maxM1, { name: 'Maxillary second molar', crownL: 7, md: 9, mdC: 7, bl: 11, blC: 10 });
+  DK.PRESETS = P;
+  const POS = { 1: 'Central', 2: 'Lateral', 3: 'Canine', 4: 'PM1', 5: 'PM2', 6: 'M1', 7: 'M2', 8: 'M2' };
+  // FDI two-digit → preset (permanent teeth only). Third molars approximated by second molars (flagged).
+  DK.toothPreset = function (fdi) {
+    const q = Math.floor(fdi / 10), p = fdi % 10;
+    if (q < 1 || q > 4 || p < 1 || p > 8) throw new Error('FDI permanent tooth number expected (11–48), got ' + fdi);
+    const key = (q <= 2 ? 'max' : 'mand') + POS[p];
+    const spec = Object.assign({}, P[key]);
+    spec.fdi = fdi; spec.maxillary = q <= 2; spec.approx = p === 8;
+    return spec;
+  };
+
+  // Build a tooth group. Returns {group, layers:{enamel,dentin,root,pulp}, spec}. Crown up; for maxillary teeth in the mouth set group.scale.y = -1 (mirror). opts.omit: layers to leave out.
+  function canalSpec(s, c) {
+    const r = s.roots[c.root];
+    return Object.assign({}, r, { x: r.x + c.dx, z: r.z + c.dz, ra: c.r, rb: c.rbk || c.r, taper: 0.7, start: (s.trunk ? -0.8 : 0.2), apex: r.apex });
+  }
+  function findCanal(s, which) { const list = s.canals || []; const c = typeof which === 'number' ? list[which] : list.find(c => c.name === which); if (!c) throw new Error('No canal ' + which + ' on ' + s.name); return c; }
+  // Canal centre at depth y (mm, negative below CEJ): {x, z, r} in the tooth frame. Use for labels, orifice markers, files, gutta-percha.
+  DK.canalAt = function (spec, which, y) { const c = findCanal(spec, which), cs = canalSpec(spec, c); const [x, z] = rootCenter(cs, y); const u = clamp(-y / cs.len, 0, 1); return { x, z, r: c.r * (1 - 0.7 * Math.pow(u, 0.85)) }; };
+  // Canal centre line as points from `from` (default canal start) down to `to` (default working length ≈ 0.5 mm short of the apex).
+  DK.canalPath = function (spec, which, opts) {
+    opts = opts || {}; const c = findCanal(spec, which), cs = canalSpec(spec, c);
+    const y0 = opts.from ?? cs.start, y1 = opts.to ?? -(cs.len - 0.5 - (c.short || 0)), n = opts.n || 24, pts = [];
+    for (let i = 0; i <= n; i++) { const y = lerp(y0, y1, i / n), [x, z] = rootCenter(cs, y); pts.push([x, y, z]); }
+    return pts;
+  };
+  DK.tooth = function (specOrFdi, opts) {
+    opts = opts || {};
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    const g = new T.Group(); g.name = s.name;
+    const mats = { enamel: DK.mat('enamel'), dentin: DK.mat('dentin'), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
+    mats.enamel.userData.capColor = DK.COLORS.enamelCap; mats.pulp.userData.capColor = DK.COLORS.pulpCap;
+    const enamel = new T.Mesh(crownGeometry(s), mats.enamel); enamel.name = 'Enamel';
+    const dentinCrown = new T.Mesh(crownGeometry(s, { side: 1.1, top: 1.9, reliefScale: 0.75 }), mats.dentin); dentinCrown.name = 'Dentin';
+    const rootGroup = new T.Group(); rootGroup.name = 'Root';
+    // Single-rooted teeth: the root grows straight out of the cervical outline (no ledge at the CEJ).
+    // Multi-rooted teeth: a root trunk narrows from the cervix to the furcation, roots emerge from inside it.
+    const single = s.roots.length === 1;
+    if (single) s.roots = s.roots.map(r => Object.assign({}, r, { ra: s.mdC / 2, rb: s.blC / 2, n0: 2.3, start: 0.5 }));
+    s.roots.forEach(r => rootGroup.add(new T.Mesh(rootGeometry(r), mats.root)));
+    if (!single) {
+      const trunkDepth = s.trunk || 3;
+      const tg = gridGeometry(10, 48, (i, j) => {
+        const t = i / 10, th = j / 48 * Math.PI * 2, k = lerp(0.72, 1, Math.pow(t, 0.7)), n = 2.3;
+        return [(s.mdC / 2) * k * se(Math.cos(th), n), -trunkDepth * (1 - t) + 0.3 * t, (s.blC / 2) * k * se(Math.sin(th), n)];
+      }, [0, 0.3, 0], [0, -trunkDepth - 0.35, 0]);
+      rootGroup.add(new T.Mesh(tg, mats.root));
+    }
+    // pulp: chamber + canals
+    const pulp = new T.Group(); pulp.name = 'Pulp';
+    const ch = { md: s.mdC * 0.55, mdC: s.mdC * 0.42, bl: s.blC * 0.5, blC: s.blC * 0.4, crownL: s.crownL * (s.incisal ? 0.62 : 0.42), squareness: 2.4, incisal: s.incisal, incisalBL: 0.35, contourAt: 0.6,
+      relief: s.relief ? ((xn, zn) => s.relief(xn, zn) * 0.9) : null };
+    const chamber = new T.Mesh(crownGeometry(ch), mats.pulp); chamber.position.y = -(s.trunk ? 1.2 : 0.4); pulp.add(chamber);
+    const canals = {};
+    (s.canals || []).forEach((c, i) => {
+      const cm = new T.Mesh(rootGeometry(canalSpec(s, c), { k: 1, add: 0, minR: 0.08, endShort: (c.short || 0) + 0.4 }), mats.pulp);
+      cm.name = c.name || ('Canal ' + (i + 1)); canals[cm.name] = cm; pulp.add(cm);
+    });
+    pulp.userData.chamber = chamber; pulp.userData.canals = canals;
+    const omit = opts.omit || [];   // e.g. ['enamel','dentin'] for a crown-less root, ['pulp'] for an obturated tooth
+    const layers = { enamel, dentin: dentinCrown, root: rootGroup, pulp };
+    Object.keys(layers).forEach(n => { if (!omit.includes(n)) g.add(layers[n]); });
+    g.userData.spec = s; g.userData.layers = layers;
+    return { group: g, layers, spec: s, mats };
+  };
+
+  // Periodontal ligament + socket shell (slightly larger copies of the roots) — put in a figure under bone.
+  DK.pdl = function (spec, gap, top) { // top: y where the PDL starts (= bone crest), default −1.4
+    gap = gap ?? 0.2; top = top ?? -1.4;
+    const grp = new T.Group(); grp.name = 'PDL';
+    const m = DK.mat('pdl');
+    spec.roots.forEach(r => grp.add(new T.Mesh(rootGeometry(Object.assign({}, r, { start: Math.min(r.start ?? 0.6, top) }), { k: 1, add: gap, minR: gap, endShort: -gap }), m)));
+    return grp;
+  };
+
+  /* ---------- bone & soft tissue blocks ---------- */
+  function trabecularTexture(colA, colB) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d');
+    x.fillStyle = '#' + new T.Color(colB).getHexString(); x.fillRect(0, 0, 256, 256); // marrow spaces
+    x.strokeStyle = '#' + new T.Color(colA).getHexString(); x.lineCap = 'round';      // trabeculae
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let k = 0; k < 220; k++) { x.lineWidth = 3 + rnd() * 6; x.beginPath(); const px = rnd() * 256, py = rnd() * 256, a = rnd() * 6.28, l = 10 + rnd() * 30; x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a + 1) * l, py + Math.sin(a + 1) * l, px + Math.cos(a) * l * 1.6, py + Math.sin(a) * l * 1.6); x.stroke(); }
+    const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(50, 50); t.encoding = T.sRGBEncoding; return t; // cap plane is 400 mm → 8 mm tiles
+  }
+  function blockGeometry(w, h, d, crestCurve, topScallop) { // centered x,z; top at y=0 with rounded crest
+    const g = new T.BoxGeometry(w, h, d, 40, 12, 24); const p = g.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+      const top = (y + h / 2) / h; // 0 bottom → 1 top
+      const zc = z / (d / 2);
+      y = y - h / 2; // top at 0
+      y -= Math.pow(Math.abs(zc), 2.2) * crestCurve * top; // rounded ridge crest
+      if (topScallop) y += topScallop(x, z) * top;
+      z *= lerp(1, 0.86, Math.pow(top, 3)); // narrower toward crest
+      p.setXYZ(i, x, y, z);
+    }
+    g.computeVertexNormals(); return g;
+  }
+  // Alveolar bone block: cortical shell + cancellous core. Top (crest) at y=0.
+  DK.bone = function (o) {
+    o = Object.assign({ width: 24, height: 22, depth: 11, cortical: 1.2, crest: 1.5, scallop: null }, o);
+    const grp = new T.Group(); grp.name = 'Alveolar bone';
+    const cort = DK.mat('bone', { cap: DK.COLORS.corticalCap });
+    const canc = DK.mat('bone', { color: DK.COLORS.cancellous });
+    const outer = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop), cort); outer.name = 'Cortical bone';
+    const inner = new T.Mesh(blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, o.scallop), canc); inner.name = 'Cancellous bone';
+    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xf1e6cc, 0xc9925f);
+    inner.material.visible = false; // only seen in section
+    grp.add(outer, inner); grp.userData.layers = { cortical: outer, cancellous: inner };
+    return grp;
+  };
+  DK.gingiva = function (o) {
+    o = Object.assign({ width: 24, height: 4, depth: 12, crest: 1.6, scallop: null }, o);
+    const m = DK.mat('gingiva', { cap: o.capColor ?? DK.COLORS.gingivaCap, color: o.color ?? DK.COLORS.gingiva }); // inflamed: color 0xd0606f
+    const mesh = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop), m); mesh.name = 'Gingiva';
+    return mesh;
+  };
+
+  /* ---------- section (clipping with solid stencil caps) ---------- */
+  // removeToward: direction of the half that is cut away (camera should look from that side). Cut sits at coordinate `pos` along it.
+  // capGroups: ordered outermost → innermost: [{objects:[Object3D...], color, texture}]
+  function makeSection(fig, removeToward, capGroups) {
+    const dir = new T.Vector3(...removeToward).normalize();
+    const plane = new T.Plane(dir.clone().negate(), 1e5);
+    const caps = [];
+    let order = 1;
+    capGroups.forEach((cg, k) => {
+      const base = order; order += 3;
+      cg.objects.forEach(obj => obj.traverse(m => {
+        if (!m.isMesh || m.userData.isStencil) return;
+        m.material = m.material.clone(); m.material.clippingPlanes = [plane]; m.material.clipShadows = true;
+        const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; return s; };
+        m.add(mk(T.BackSide, T.IncrementWrapStencilOp), mk(T.FrontSide, T.DecrementWrapStencilOp));
+      }));
+      const capMat = new T.MeshBasicMaterial({ color: cg.color, toneMapped: false, map: cg.texture || null, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k });
+      const cap = new T.Mesh(new T.PlaneGeometry(400, 400), capMat); cap.renderOrder = base + 1; cap.onAfterRender = r => r.clearStencil();
+      cap.userData.isStencil = true; fig.scene.add(cap); caps.push(cap);
+    });
+    const api = {
+      plane, caps, enabled: false, offset: 0,
+      set(enabled, offset) {
+        api.enabled = enabled; if (offset !== undefined) api.offset = offset;
+        plane.constant = enabled ? api.offset : 1e5;
+        const pt = dir.clone().multiplyScalar(api.offset);
+        caps.forEach(c => { c.visible = enabled; c.position.copy(pt); c.lookAt(pt.clone().add(plane.normal)); });
+        if (api.onChange) api.onChange();
+      }
+    };
+    api.set(false, 0);
+    return api;
+  }
+
+  /* ---------- figure: renderer, camera, orbit, parts, labels, story, export, UI ---------- */
+  // Sixmonth tokens: ink #0A0A08, blanc sale #F1EEE6, cream #F5F3EE, accent #0E3A5C (light) / #5A8FB8 (dark).
+  const FONT_URL = 'https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap';
+  const CSS = `
+  :root{--bg:#F1EEE6;--stage:#F7F5F0;--ink:#0A0A08;--muted:#6E6A62;--line:#DDD8CC;--accent:#0E3A5C;--panel:rgba(255,255,255,.82);--shadow:0 6px 24px rgba(10,10,8,.08),0 1px 2px rgba(10,10,8,.06)}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0A0A08;--stage:#121210;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}}
+  :root[data-theme="dark"]{--bg:#0A0A08;--stage:#121210;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}
+  *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  .dk{max-width:1120px;margin:0 auto;padding:20px 16px 14px}
+  .dk-head{padding:0 4px 12px}.dk-title{font-size:22px;line-height:1.2;font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
+  .dk-sub{color:var(--muted);margin:4px 0 0;max-width:68ch;text-wrap:pretty}
+  .dk-frame{position:relative;background:var(--stage);border-radius:16px;overflow:hidden}
+  .dk-stage{position:relative;width:100%;height:min(70vh,620px);min-height:380px;touch-action:none;cursor:grab}.dk-stage.drag{cursor:grabbing}
+  .dk-still .dk-stage{height:auto;min-height:0;cursor:default}
+  .dk-stage canvas{display:block;width:100%;height:100%}
+  .dk-labels{position:absolute;inset:0;pointer-events:none}.dk-labels svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .dk-label{position:absolute;transform:translate(-50%,-50%);font:600 12.5px/1.15 "Instrument Sans",ui-sans-serif,system-ui,sans-serif;color:var(--ink);background:var(--panel);box-shadow:var(--shadow);border-radius:7px;padding:4px 8px;white-space:nowrap;opacity:0}
+  .dk-label small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:1px}
+  .dk-label.hl{color:var(--accent)}
+  .dk-info{position:absolute;left:14px;top:14px;max-width:min(320px,62%);background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;opacity:0;transform:translateY(-4px);transition:opacity .18s ease,transform .18s ease;pointer-events:none}
+  .dk-info.on{opacity:1;transform:none}.dk-info b{display:block;margin-bottom:2px;font-weight:600}
+  .dk-ov{position:absolute;pointer-events:none;color:var(--ink)}
+  .dk-ov-title{left:22px;top:18px;font-size:20px;font-weight:600;letter-spacing:-.01em;max-width:60%;line-height:1.2}
+  .dk-ov-cap{left:22px;bottom:40px;font-size:16px;font-weight:500;max-width:60%}
+  .dk-ov-foot{left:22px;right:22px;bottom:14px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted)}
+  .dk-ov-foot b{color:var(--ink);font-weight:600}
+  .dk-panel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border-radius:12px}
+  .dk-panel:not(:has(.dk-btn,.dk-ctrl,.dk-step)){display:none}.dk-panel::-webkit-scrollbar{display:none}
+  .dk-psteps,.dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-psteps:not(:empty)+.dk-pmain:not(:empty),.dk-pmain:not(:empty)+.dk-pend:not(:empty),.dk-psteps:not(:empty)+.dk-pmain:empty+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
+  .dk-step{flex:none;min-width:150px;padding:0 6px;font-size:13px;font-weight:600;white-space:nowrap;text-align:center}.dk-step small{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;margin-right:6px}
+  .dk-board{display:block;width:100%;height:auto}.dk-frame.board .dk-stage{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
+  .dk-sep{width:1px;align-self:stretch;margin:4px 3px;background:var(--line);flex:none}
+  .dk-btn{flex:none;font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+  .dk-btn:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+  .dk-btn[aria-pressed=true]{background:var(--ink);color:var(--stage)}
+  .dk-btn:focus-visible,.dk-ctrl input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .dk-icon{width:32px;padding:6px 0;text-align:center;font-size:15px;line-height:1}
+  .dk-ctrl{flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
+  .dk-ctrl input[type=range]{-webkit-appearance:none;appearance:none;width:120px;height:20px;background:transparent;cursor:pointer}
+  .dk-ctrl input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  .dk-ctrl input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  .dk-ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5.5px;border-radius:50%;background:var(--ink);border:2px solid var(--stage);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .dk-ctrl input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ink);border:2px solid var(--stage)}
+  .dk-ctrl input:disabled{opacity:.35;cursor:default}
+  .dk-readout{display:flex;flex-wrap:wrap;gap:4px 22px;padding:12px 4px 0;font-size:13px;color:var(--muted)}
+  .dk-readout:empty{display:none}.dk-readout b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}.dk-readout .ok{color:var(--accent)}.dk-readout .warn{color:#B4541A}
+  .dk-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:12px 4px 0;font-size:11.5px;color:var(--muted)}
+  .dk-foot a{color:var(--muted);text-decoration:none;white-space:nowrap}.dk-foot a b{color:var(--ink);font-weight:600}.dk-foot a:hover,.dk-foot a:focus-visible{color:var(--accent)}
+  .dk-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 0 0}
+  .dk-actions .dk-btn{border:1px solid var(--line)}
+  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-psteps{width:100%;justify-content:center}.dk-psteps:not(:empty)+.dk-pmain:not(:empty){border-left:0;padding-left:0;margin-left:0}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:min(62vh,520px);min-height:320px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
+
+  const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
+  const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray'];
+
+  DK.figure = function (o) {
+    o = Object.assign({ title: 'Untitled figure', subtitle: '', footer: 'Population-average anatomy. Not for diagnosis or treatment planning.' }, o);
+    const qs = new URLSearchParams(location.search);
+    const mode = qs.get('mode') || window.DK_MODE || o.mode || 'interactive';   // 'interactive' | 'image' | 'video'
+    const still = mode !== 'interactive';
+    const aspect = ASPECTS[qs.get('aspect') || window.DK_ASPECT || o.aspect || '16:9'] || 16 / 9;
+    if (!document.querySelector('link[data-dk-font]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONT_URL; l.dataset.dkFont = '1'; document.head.appendChild(l); }
+    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    const root = o.mount || document.body;
+    const card = document.createElement('div'); card.className = 'dk' + (still ? ' dk-still' : ''); card.dataset.mode = mode;
+    const credit = 'Made with dental-explainer by <b>Sixmonth</b>';
+    card.innerHTML = still
+      ? `<div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div>
+          <div class="dk-ov dk-ov-title"></div><div class="dk-ov dk-ov-cap"></div>
+          <div class="dk-ov dk-ov-foot"><span class="dk-ov-disc"></span><span>${credit}</span></div></div></div>
+         <div class="dk-actions"></div>`
+      : `<div class="dk-head"><h1 class="dk-title"></h1>${o.subtitle ? '<p class="dk-sub"></p>' : ''}</div>
+         <div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div><div class="dk-info" role="status"></div></div><div class="dk-panel" role="toolbar" aria-label="Figure controls"><span class="dk-psteps"></span><span class="dk-pmain"></span><span class="dk-pend"></span></div></div>
+         <div class="dk-readout"></div><div class="dk-foot"><span class="dk-disc"></span><a href="https://sixmonth.ai" target="_blank" rel="noopener">${credit}</a></div>`;
+    root.appendChild(card);
+    const $ = s => card.querySelector(s);
+    if (still) { $('.dk-ov-title').textContent = o.title; $('.dk-ov-disc').textContent = o.footer; }
+    else { $('.dk-title').textContent = o.title; if (o.subtitle) $('.dk-sub').textContent = o.subtitle; $('.dk-disc').textContent = o.footer; }
+    document.title = document.title && document.title !== 'Dental figure' ? document.title : o.title;
+    const stage = $('.dk-stage'), labelLayer = $('.dk-labels'), svg = labelLayer.querySelector('svg');
+    const info = $('.dk-info'), panel = $('.dk-panel'), readout = $('.dk-readout'), caption = $('.dk-ov-cap'), actions = $('.dk-actions');
+    if (still) stage.style.aspectRatio = String(aspect);
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+    let renderer;
+    try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true, stencil: true, preserveDrawingBuffer: true }); }
+    catch (e) { stage.innerHTML = '<p style="padding:24px">This figure needs WebGL, which is not available in this viewer.</p>'; throw e; }
+    let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    renderer.autoClearStencil = true;
+    stage.insertBefore(renderer.domElement, labelLayer);
+    const scene = new T.Scene();
+    const camera = new T.PerspectiveCamera(26, 1, 0.5, 2000);
+    scene.add(new T.HemisphereLight(0xfffaf0, 0x6d6458, 0.55));
+    const key = new T.DirectionalLight(0xfff6ea, 1.25); key.position.set(45, 80, 60); scene.add(key);
+    const fill = new T.DirectionalLight(0xdce6f5, 0.4); fill.position.set(-70, 15, -10); scene.add(fill);
+    const rim = new T.DirectionalLight(0xffffff, 0.75); rim.position.set(-20, 40, -80); scene.add(rim);
+    const world = new T.Group(); scene.add(world);
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    // orbit; auto-rotate is opt-in (it fights precise views)
+    const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: !still && !!o.autoRotate, zoom: 1 };
+    const home = Object.assign({}, orbit, { target: orbit.target.clone() });
+    function placeCam() { const { theta, phi, dist, target } = orbit; camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta)); camera.lookAt(target); }
+    // inertia: the model keeps turning a little after a flick, then settles
+    let drag = null, vel = { th: 0, ph: 0 };
+    let introOff = false;
+    function interrupt() { player = null; introOff = true; orbit.auto = false; if (caption) caption.style.opacity = 0; }
+    if (!still) {
+      stage.addEventListener('pointerdown', e => { interrupt(); drag = { x: e.clientX, y: e.clientY, th: orbit.theta, ph: orbit.phi, t: performance.now() }; vel = { th: 0, ph: 0 }; stage.setPointerCapture(e.pointerId); stage.classList.add('drag'); });
+      stage.addEventListener('pointermove', e => {
+        if (drag) {
+          const th = drag.th - (e.clientX - drag.x) * 0.008, ph = clamp(drag.ph - (e.clientY - drag.y) * 0.008, 0.06, Math.PI - 0.06), now = performance.now(), dt = Math.max(1, now - drag.t) / 1000;
+          vel = { th: (th - orbit.theta) / dt, ph: (ph - orbit.phi) / dt }; drag.t = now; orbit.theta = th; orbit.phi = ph;
+        } else hover(e);
+      });
+      const end = () => { if (drag) { drag = null; stage.classList.remove('drag'); } };
+      stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+      stage.addEventListener('pointerleave', () => { setHover(null); });
+      stage.addEventListener('wheel', e => { e.preventDefault(); interrupt(); const k = Math.exp(Math.sign(e.deltaY) * 0.08); if (fits) zoomTarget = clamp(zoomTarget * k, 0.3, 3); else orbit.dist = clamp(orbit.dist * k, 15, 400); }, { passive: false });
+      stage.addEventListener('dblclick', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8));
+    }
+
+    // parts
+    const parts = [];
+    let explodeT = 0, explodeTarget = 0, zoomTarget = 1;
+    const noSection = { enabled: false, offset: 0 };
+    function part(obj, p) {
+      p = Object.assign({ name: obj.name || 'Part', info: '', explode: [0, 0, 0], label: true, anchor: [0, 0, 0], labelOffset: null }, p);
+      p.obj = obj; p.base = obj.position.clone(); p.ex = new T.Vector3(...p.explode); p.anchorFn = typeof p.anchor === 'function' ? p.anchor : null;
+      p.anchorV = new T.Vector3(...(p.anchorFn ? p.anchorFn(0, section || noSection) : p.anchor)); p.alpha = 0;
+      p.setAnchor = a => { if (typeof a === 'function') p.anchorFn = a; else { p.anchorFn = null; p.anchorV.set(...a); } };
+      obj.traverse(m => { if (m.isMesh) m.userData.part = p; });
+      if (!p.inPlace) world.add(obj); // inPlace: annotate a sub-object already in the scene (no explode motion)
+      if (p.label) {
+        p.el = document.createElement('div'); p.el.className = 'dk-label'; p.el.innerHTML = p.name + (p.sub ? `<small>${p.sub}</small>` : '');
+        labelLayer.appendChild(p.el);
+        p.line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); p.line.setAttribute('stroke-width', '1'); svg.appendChild(p.line);
+        p.dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); p.dot.setAttribute('r', '2.5'); svg.appendChild(p.dot);
+      }
+      parts.push(p); return p;
+    }
+
+    // hover (interactive only)
+    const ray = new T.Raycaster(), mouse = new T.Vector2(); let hovered = null, frameNo = 0;
+    function pickables() { const a = []; world.traverse(m => { if (m.isMesh && !m.userData.isStencil && m.userData.part && m.material.visible !== false && m.parent && isVisible(m)) a.push(m); }); return a; }
+    function isVisible(ob) { while (ob) { if (!ob.visible) return false; ob = ob.parent; } return true; }
+    // x-ray: context tissue fades to see-through; amount 0..1 so stories can tween it
+    const xrayObjs = []; let xrayAmt = 0;
+    function applyXray(a) {
+      xrayAmt = a;
+      xrayObjs.forEach(obj => obj.traverse(m => {
+        if (!m.isMesh || m.userData.isStencil) return;
+        if (m.userData.op === undefined) m.userData.op = m.material.opacity;
+        const op = lerp(m.userData.op, 0.2, a), tr = a > 0.001 || m.userData.op < 1;
+        if (m.material.transparent !== tr) m.material.needsUpdate = true;
+        m.material.transparent = tr; m.material.opacity = op; m.material.depthWrite = a < 0.5;
+      }));
+      if (fig.xrayButton) fig.xrayButton.setAttribute('aria-pressed', a > 0.5);
+    }
+    // camera fit: bounds over assembled and fully exploded states
+    const fitCenter = new T.Vector3();
+    let fits = null;
+    function fit(margin) {
+      const fov = camera.fov * Math.PI / 180, asp = Math.max(0.5, stage.clientWidth / stage.clientHeight);
+      fits = [0, 1].map(e => {
+        const box = new T.Box3();
+        parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); }); world.updateMatrixWorld(true);
+        parts.forEach(p => { if (!p.inPlace) box.expandByObject(p.obj); });
+        const size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
+        return { c, d: size.length() / 2 / Math.sin(Math.min(fov, fov * asp) / 2) * (margin || 0.85) * (still ? 1.15 : 1) };
+      });
+      parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base); });
+    }
+    function hover(e) {
+      const r = renderer.domElement.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+      ray.setFromCamera(mouse, camera);
+      let hits = ray.intersectObjects(pickables().filter(m => !m.material.transparent || m.material.opacity > 0.5), false);
+      if (section) hits = hits.filter(h => !section.enabled || !h.object.material.clippingPlanes || section.plane.distanceToPoint(h.point) >= -1e-3);
+      setHover(hits.length ? hits[0].object.userData.part : null);
+    }
+    function setHover(p) {
+      if (hovered === p || !info) return;
+      if (hovered) { hovered.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0); }); if (hovered.el) hovered.el.classList.remove('hl'); }
+      hovered = p;
+      if (p && p.info) { p.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0x14283a); }); if (p.el) p.el.classList.add('hl'); info.innerHTML = `<b></b><span></span>`; info.firstChild.textContent = p.name; info.lastChild.textContent = p.info; info.classList.add('on'); }
+      else { hovered = null; info.classList.remove('on'); }
+    }
+
+    // section
+    let section = null;
+    function enableSection(normal, capGroups) { section = makeSection(fig, normal, capGroups); return section; }
+
+    // panel builders: compact, grouped, only what the figure needs
+    function addToPanel(el) {
+      if (!panel) return el; const box = panel.querySelector(el.dataset.group === 'end' ? '.dk-pend' : '.dk-pmain');
+      if (box.children.length && el.dataset.group !== box.lastElementChild.dataset.group) { const s = document.createElement('span'); s.className = 'dk-sep'; box.appendChild(s); }
+      box.appendChild(el); return el;
+    }
+    let group = 0; const newGroup = () => ++group;
+    function slider(label, min, max, step, val, onInput) {
+      const w = document.createElement('label'); w.className = 'dk-ctrl'; w.dataset.group = group; w.innerHTML = `<span></span><input type=range min=${min} max=${max} step=${step} value=${val}>`;
+      w.firstChild.textContent = label; const inp = w.querySelector('input'); inp.setAttribute('aria-label', label);
+      inp.addEventListener('input', () => { interrupt(); onInput(+inp.value); }); addToPanel(w); return inp;
+    }
+    function toggle(label, val, onChange) {
+      const b = document.createElement('button'); b.className = 'dk-btn'; b.dataset.group = group; b.textContent = label; b.setAttribute('aria-pressed', val);
+      b.addEventListener('click', () => { interrupt(); const v = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', v); onChange(v); }); addToPanel(b); return b;
+    }
+    function button(label, onClick, opts) {
+      const b = document.createElement('button'); b.className = 'dk-btn' + (opts && opts.icon ? ' dk-icon' : ''); b.dataset.group = opts && opts.group !== undefined ? opts.group : group; b.textContent = label;
+      if (opts && opts.title) { b.title = opts.title; b.setAttribute('aria-label', opts.title); }
+      b.addEventListener('click', () => { interrupt(); onClick(); }); addToPanel(b); return b;
+    }
+    let labelsOn = true;
+    function standardControls(opts) {
+      opts = opts || {}; const out = {};
+      if (opts.explode !== false) { newGroup(); fig.explodeSlider = out.explode = slider(opts.explodeLabel || 'Explode', 0, 1, 0.01, 0, v => { explodeTarget = v; }); } else fig.noExplode = true;
+      if (opts.section && section) {
+        const sec = opts.section; newGroup();
+        out.section = toggle(sec.label || 'Cut', !!sec.on, v => { section.set(v); });
+        var secSl = out.cut = sec.range ? slider(sec.rangeLabel || '', sec.range[0], sec.range[1], 0.1, sec.offset || 0, v => section.set(section.enabled, v)) : null;
+        if (secSl && !sec.rangeLabel) { secSl.previousSibling.remove(); secSl.setAttribute('aria-label', 'Cut position'); }
+        section.set(!!sec.on, sec.offset || 0);
+        section.onChange = () => { out.section.setAttribute('aria-pressed', section.enabled); if (secSl) { secSl.disabled = !section.enabled; secSl.value = section.offset; } };
+        section.onChange();
+      }
+      newGroup();
+      if (opts.labels) out.labels = toggle('Labels', true, v => { labelsOn = v; });
+      out.reset = button('↺', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8), { icon: true, title: 'Reset view', group: 'end' });
+      return out;
+    }
+    function setReadout(items) { // v can be a string or [{v, cls}] segments (e.g. healthy ✓ · disease ⚠ in one row)
+      if (!readout) return;
+      const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const seg = i => Array.isArray(i.v) ? i.v.map(x => `<b class="${x.cls || ''}">${esc(x.v)}</b>`).join(' · ') : `<b class="${i.cls || ''}">${esc(i.v)}</b>`;
+      readout.innerHTML = items.map(i => `<span>${esc(i.k)} ${seg(i)}</span>`).join('');
+    }
+
+    /* ----- story: one list of shots drives the intro (interactive), the loop (video) and the final frame (image) -----
+       step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, labels:[names]|'all', caption }
+       Unset keys carry over from the previous step. */
+    let story = null, player = null, labelFilter = null;
+    const params = {};   // named numbers a story can animate (drill depth, insertion, bone level…): fig.param(name, value, fn)
+    const keys = () => STORY_KEYS.concat(Object.keys(params).map(n => '$' + n));
+    function snapshot() { const o2 = { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
+    function homeState() { return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, labels: null }; }
+    function compile(steps, from) {
+      let t = 0, prev = Object.assign({}, from); const segs = [];
+      steps.forEach(s => {
+        const to = Object.assign({}, prev); STORY_KEYS.forEach(k => { if (s[k] !== undefined) to[k] = typeof s[k] === 'boolean' ? +s[k] : s[k]; });
+        if (s.set) Object.keys(s.set).forEach(n => { to['$' + n] = +s.set[n]; });
+        if (s.section !== undefined) to.section = s.section; if (s.labels !== undefined) to.labels = s.labels === 'all' ? null : s.labels; to.caption = s.caption !== undefined ? s.caption : '';
+        const dur = s.dur ?? 1.2, hold = s.hold ?? 0.6;
+        segs.push({ t0: t, t1: t + dur, t2: t + dur + hold, from: prev, to }); t += dur + hold; prev = to;
+      });
+      return { segs, total: t, end: prev };
+    }
+    function stateAt(c, t) {
+      const s = c.segs.find(g => t < g.t2) || c.segs[c.segs.length - 1];
+      const k = s.t1 > s.t0 ? ease(clamp((t - s.t0) / (s.t1 - s.t0), 0, 1)) : 1, out = {};
+      keys().forEach(n => { out[n] = s.from[n] === undefined ? s.to[n] : lerp(s.from[n], s.to[n], k); });
+      out.section = s.to.section; out.labels = s.to.labels; out.caption = s.to.caption;
+      if (s.to.section && !s.from.section) out.offset = s.to.offset; // cut appears in place, then moves in later steps
+      return out;
+    }
+    function apply(sv) {
+      orbit.theta = sv.theta; orbit.phi = sv.phi; zoomTarget = sv.zoom; if (fits) orbit.zoom = sv.zoom;
+      explodeTarget = explodeT = sv.explode; if (fig.explodeSlider) fig.explodeSlider.value = sv.explode;
+      if (section && (section.enabled !== !!sv.section || Math.abs(section.offset - sv.offset) > 1e-4)) section.set(!!sv.section, sv.offset);
+      if (Math.abs(xrayAmt - sv.xray) > 1e-3) { applyXray(sv.xray); fig.xrayOn = sv.xray > 0.5; }
+      labelFilter = sv.labels;
+      Object.keys(params).forEach(n => { const v = sv['$' + n]; if (v !== undefined && Math.abs(v - params[n].v) > 1e-6) { params[n].v = v; params[n].fn(v); } });
+      if (caption) { const c = mode === 'video' ? sv.caption : ''; if (c) caption.textContent = c; caption.style.opacity = c ? 1 : 0; }  // captions narrate motion: video only
+    }
+    function play(steps, opts) {
+      opts = opts || {}; const c = compile(steps, Object.assign(snapshot(), opts.from || {}));
+      player = { c, t: 0, loop: !!opts.loop, done: opts.done, tick: opts.tick }; return c;
+    }
+
+    // resize & loop
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+      if (fits && !o.view?.dist) { const z = orbit.zoom; fit(o.view?.margin); orbit.zoom = z; }
+    }
+    window.addEventListener('resize', resize);
+    const tmp = new T.Vector3();
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let last = performance.now(), frameHooks = [], frozen = false;
+    function update(dt) {
+      if (player) {
+        player.t += dt;
+        if (player.t >= player.c.total) { if (player.loop) player.t %= player.c.total || 1; else { apply(stateAt(player.c, player.c.total)); const d = player.done; player = null; if (d) d(); } }
+        if (player) { apply(stateAt(player.c, player.t)); if (player.tick) player.tick(player.t); }
+      } else {
+        if (orbit.auto && !reduce) orbit.theta += dt * 0.15;
+        if (!drag && (Math.abs(vel.th) > 0.01 || Math.abs(vel.ph) > 0.01)) { orbit.theta += vel.th * dt; orbit.phi = clamp(orbit.phi + vel.ph * dt, 0.06, Math.PI - 0.06); const k = Math.exp(-dt * 6); vel.th *= k; vel.ph *= k; }
+        explodeT += (explodeTarget - explodeT) * (reduce ? 1 : Math.min(1, dt * 7));
+        if (fits) orbit.zoom += (zoomTarget - orbit.zoom) * (reduce ? 1 : Math.min(1, dt * 10));
+      }
+      const e = ease(clamp(explodeT, 0, 1));
+      parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
+      frameHooks.forEach(f => f(dt, e));
+      if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
+      fitCenter.copy(orbit.target);
+      placeCam();
+      renderer.render(scene, camera);
+      layoutLabels(e, dt);
+    }
+    function layoutLabels(e, dt) {
+      const W = stage.clientWidth, H = stage.clientHeight, lineCol = css('--muted') || '#888';
+      const ctr = tmp.copy(fitCenter).project(camera), cx = (ctr.x + 1) / 2 * W;
+      const occlTest = (frameNo++ % 6) === 0;
+      const placed = [];
+      parts.forEach(p => {
+        if (!p.el) return;
+        p.vis = labelsOn && p.obj.visible && (!p.when || p.when(e, section || noSection)) && (!labelFilter || labelFilter.includes(p.name));
+        if (p.anchorFn) p.anchorV.set(...p.anchorFn(e, section || noSection));
+        p.obj.updateMatrixWorld(); const wp = p.anchorV.clone().applyMatrix4(p.obj.matrixWorld);
+        if (occlTest) { // dim labels whose anchor is hidden behind another part
+          const dir = wp.clone().sub(camera.position), d = dir.length(); ray.set(camera.position, dir.normalize());
+          const hit = ray.intersectObjects(pickables().filter(m => !m.material.transparent || m.material.opacity > 0.5), false).find(h => !section || !section.enabled || !h.object.material.clippingPlanes || section.plane.distanceToPoint(h.point) >= -1e-3);
+          p.hidden = p.dim !== false && !!(hit && hit.distance < d - 0.6 && hit.object.userData.part !== p);
+        }
+        tmp.copy(wp).project(camera);
+        p.ax = (tmp.x + 1) / 2 * W; p.ay = (1 - tmp.y) / 2 * H; p.front = tmp.z < 1;
+        if (p.labelOffset) { p.lx = p.ax + p.labelOffset[0]; p.ly = p.ay + p.labelOffset[1]; p.side = Math.sign(p.labelOffset[0]) || 1; }
+        else { p.side = p.ax >= cx ? 1 : -1; p.lx = p.ax + p.side * (W < 600 ? 44 : 72); p.ly = p.ay; }
+        p.w = p.el.offsetWidth || 90; p.h = p.el.offsetHeight || 22;
+        p.lx = clamp(p.lx, p.w / 2 + 8, W - p.w / 2 - 8);
+        if (p.vis && p.front) placed.push(p);
+      });
+      [-1, 1].forEach(side => { // push apart vertically, keep order
+        const col = placed.filter(p => p.side === side).sort((a, b) => a.ly - b.ly);
+        for (let k = 1; k < col.length; k++) { const a = col[k - 1], b = col[k]; const need = (a.h + b.h) / 2 + 6; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) b.ly = a.ly + need; }
+        for (let k = col.length - 2; k >= 0; k--) { const a = col[k], b = col[k + 1]; const over = b.ly + b.h / 2 - (H - (still ? 74 : 6)); if (k === col.length - 2 && over > 0) b.ly -= over; const need = (a.h + b.h) / 2 + 6; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) a.ly = b.ly - need; }
+      });
+      const fade = reduce ? 1 : Math.min(1, dt * 9);
+      // framed layouts keep labels clear of the title (top) and caption + footer (bottom)
+      const safeTop = still ? 58 : 6, safeBottom = still ? 74 : 6;
+      parts.forEach(p => {
+        if (!p.el) return;
+        const target = p.vis && p.front ? (p.hidden ? 0.4 : 1) : 0;
+        p.alpha += (target - p.alpha) * fade; if (Math.abs(target - p.alpha) < 0.01) p.alpha = target;
+        p.lyc = clamp(p.ly, p.h / 2 + safeTop, H - p.h / 2 - safeBottom);
+        p.el.style.opacity = p.alpha; p.el.style.left = p.lx + 'px'; p.el.style.top = p.lyc + 'px';
+        p.ex2 = p.lx - p.side * p.w / 2;
+        p.line.setAttribute('x1', p.ax); p.line.setAttribute('y1', p.ay); p.line.setAttribute('x2', p.ex2); p.line.setAttribute('y2', p.lyc);
+        p.line.setAttribute('stroke', lineCol); p.line.style.opacity = p.alpha;
+        p.dot.setAttribute('cx', p.ax); p.dot.setAttribute('cy', p.ay); p.dot.setAttribute('fill', lineCol); p.dot.style.opacity = p.alpha;
+      });
+    }
+    function frame(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!frozen) update(dt);
+      requestAnimationFrame(frame);
+    }
+
+    /* ----- export: composite the WebGL canvas and the HTML overlays into one 2D canvas ----- */
+    function composite(scale) {
+      scale = scale || pixelRatio;
+      const W = stage.clientWidth, H = stage.clientHeight, cv = document.createElement('canvas');
+      cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
+      const g = cv.getContext('2d'); g.scale(scale, scale);
+      g.fillStyle = css('--stage'); g.fillRect(0, 0, W, H);
+      g.drawImage(renderer.domElement, 0, 0, W, H);
+      const sr = stage.getBoundingClientRect();
+      const text = (el, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillText(el, x, y); };
+      const fontOf = el => { const s = getComputedStyle(el); return `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`; };
+      parts.forEach(p => {
+        if (!p.el || p.alpha < 0.02) return;
+        g.globalAlpha = p.alpha; g.strokeStyle = css('--muted'); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(p.ax, p.ay); g.lineTo(p.ex2, p.lyc); g.stroke();
+        g.fillStyle = css('--muted'); g.beginPath(); g.arc(p.ax, p.ay, 2.5, 0, Math.PI * 2); g.fill();
+        const r = p.el.getBoundingClientRect(), x = r.left - sr.left, y = r.top - sr.top;
+        g.save(); g.shadowColor = 'rgba(10,10,8,.10)'; g.shadowBlur = 12; g.shadowOffsetY = 3; g.fillStyle = css('--stage') === '#121210' ? '#1C1B18' : '#FFFFFF';
+        g.beginPath(); g.roundRect ? g.roundRect(x, y, r.width, r.height, 7) : g.rect(x, y, r.width, r.height); g.fill(); g.restore();
+        const cs = getComputedStyle(p.el), padL = parseFloat(cs.paddingLeft), padT = parseFloat(cs.paddingTop), small = p.el.querySelector('small');
+        const fs = parseFloat(cs.fontSize);
+        text(p.name, x + padL, y + padT + fs * 0.92, fontOf(p.el), p.el.classList.contains('hl') ? css('--accent') : css('--ink'));
+        if (small && getComputedStyle(small).display !== 'none') { const sm = small.getBoundingClientRect(); text(small.textContent, sm.left - sr.left, sm.top - sr.top + parseFloat(getComputedStyle(small).fontSize) * 0.92, fontOf(small), css('--muted')); }
+      });
+      g.globalAlpha = 1;
+      card.querySelectorAll('.dk-ov').forEach(ov => {
+        const s = getComputedStyle(ov); if (+s.opacity < 0.02 || s.visibility === 'hidden') return; g.globalAlpha = +s.opacity;
+        const leafs = ov.children.length ? [...ov.children] : [ov];
+        leafs.forEach(el => {
+          const r = el.getBoundingClientRect(); if (!el.textContent.trim()) return;
+          // wrap long text the way the browser did: draw line by line using Range rects
+          const range = document.createRange(); range.selectNodeContents(el); const rects = [...range.getClientRects()];
+          const fs = parseFloat(getComputedStyle(el).fontSize), words = el.textContent.split(' ');
+          if (rects.length <= 1) { text(el.textContent, r.left - sr.left, r.top - sr.top + fs * 0.95, fontOf(el), getComputedStyle(el).color); return; }
+          g.font = fontOf(el); let line = '', ly = r.top - sr.top + fs * 0.95; const lh = parseFloat(getComputedStyle(el).lineHeight) || fs * 1.2;
+          words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > r.width + 1 && line) { text(line, r.left - sr.left, ly, fontOf(el), getComputedStyle(el).color); line = w; ly += lh; } else line = t; });
+          if (line) text(line, r.left - sr.left, ly, fontOf(el), getComputedStyle(el).color);
+        });
+      });
+      g.globalAlpha = 1;
+      return cv;
+    }
+    function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+    const slug = () => (o.title || 'figure').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'figure';
+    function videoType() { return ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)); }
+    // deterministic seek for frame-by-frame rendering (scripts/render.py)
+    function seek(t) {
+      frozen = true; player = null; introOff = true;
+      if (!story) { update(0); return; }
+      const c = compile(story, startState);
+      apply(stateAt(c, clamp(t, 0, c.total)));
+      // labels fade deterministically: simulate the fade from 0.15 s earlier
+      parts.forEach(p => { p.alpha = 0; }); for (let i = 0; i < 6; i++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
+      update(0);
+    }
+    let story0 = {}, startState = null;
+
+    /* ----- procedure: named clinical steps, each a few story beats -----
+       interactive: a stepper (‹ 2/6 Pilot drill › ▶) · video: every step, captioned · image: a storyboard of every step */
+    let proc = null, stepCur = 0, stepEl = null, prevB = null, nextB = null;
+    const paramsOf = st => { const o2 = {}; Object.keys(params).forEach(n => { if (st['$' + n] !== undefined) o2[n] = st['$' + n]; }); return o2; };
+    function stepEnds() { const c = compile(story, startState); return proc.map(st => c.segs[st.last].to); }
+    function stepAtTime(t) { const c = compile(story, startState); let i = 0; proc.forEach((st, k) => { if (t >= c.segs[st.first].t0 - 1e-6) i = k; }); return i; }
+    function showStep(i) {
+      stepCur = i; if (!stepEl) return;
+      stepEl.innerHTML = '<small></small><span></span>'; stepEl.firstChild.textContent = `${i + 1}/${proc.length}`; stepEl.lastChild.textContent = proc[i].label;
+      prevB.disabled = i === 0; nextB.disabled = i === proc.length - 1;
+    }
+    function goStep(i) {
+      i = clamp(i, 0, proc.length - 1); if (!startState || i === stepCur && player) return;
+      if (i === stepCur + 1 && !reduce) {   // forward: finish the previous step instantly (keep the viewer's camera), then animate this one
+        const from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget });
+        apply(from); play(proc[i].beats, { from });
+      }
+      else { const end = stepEnds()[i]; play([Object.assign({}, end, { dur: reduce ? 0 : 0.7, hold: 0, set: paramsOf(end), caption: '' })]); }
+      showStep(i);
+    }
+
+    const fig = { T, scene, world, camera, renderer, orbit, stage, mode, part, parts, enableSection, slider, toggle, button, standardControls, setReadout,
+      get section() { return section; },
+      explode(v) { explodeTarget = v; if (fig.explodeSlider) fig.explodeSlider.value = v; },
+      onFrame(f) { frameHooks.push(f); },
+      xrayOn: false,
+      xray(objs, on) { if (objs) xrayObjs.push(...objs); fig.xrayOn = !!on; applyXray(on ? 1 : 0); },
+      xrayToggle(objs, label, on) { xrayObjs.push(...objs); newGroup(); const b = fig.xrayButton = toggle(label || 'X-ray', !!on, v => { fig.xrayOn = v; fig.goTo({ xray: v ? 1 : 0 }, 0.4); }); fig.xrayOn = !!on; applyXray(on ? 1 : 0); return b; },
+      // smooth camera / state move from wherever the figure is now
+      goTo(state, dur) { play([Object.assign({}, state, { dur: reduce ? 0 : (dur ?? 0.9), hold: 0 })]); },
+      // a view button that eases the camera there: fig.view('Occlusal', {phi: 0.05, theta: 0})
+      view(label, state, dur) { return button(label, () => fig.goTo(state, dur), { group: 'views' }); },
+      story(steps, opts) { story = steps; story0 = opts || {}; return fig; },
+      // a number the story can animate; fn(v) updates the scene (move a drill, deepen an osteotomy, lower the bone)
+      param(name, value, fn) { params[name] = { v: value, fn: fn || (() => {}) }; params[name].fn(value); return fig; },
+      procedure(steps, opts) {
+        proc = []; const flat = [];
+        steps.forEach(st => {
+          const beats = (st.beats || [st]).map(b => Object.assign({}, b, { caption: b.caption !== undefined ? b.caption : (st.caption || '') }));
+          const k = beats.findIndex(b => b.key);   // the beat a storyboard panel shows (default: the step's last beat)
+          proc.push({ label: st.label, beats, first: flat.length, last: flat.length + beats.length - 1, shot: flat.length + (k < 0 ? beats.length - 1 : k) }); flat.push(...beats);
+        });
+        story = flat; story0 = opts || {};
+        if (panel) {
+          const box = panel.querySelector('.dk-psteps');
+          const mk = (txt, title, fn) => { const b = document.createElement('button'); b.className = 'dk-btn dk-icon'; b.textContent = txt; b.title = title; b.setAttribute('aria-label', title); b.addEventListener('click', () => { interrupt(); fn(); }); box.appendChild(b); return b; };
+          prevB = mk('‹', 'Previous step', () => goStep(stepCur - 1));
+          stepEl = document.createElement('span'); stepEl.className = 'dk-step'; stepEl.setAttribute('aria-live', 'polite'); box.appendChild(stepEl);
+          nextB = mk('›', 'Next step', () => goStep(stepCur + 1));
+          mk('▶', 'Play all steps', () => { showStep(0); play(story, { from: startState, tick: t => { const i = stepAtTime(t); if (i !== stepCur) showStep(i); } }); });
+          showStep(0);
+        }
+        return fig;
+      },
+      get step() { return stepCur; },
+      goStep,
+      storyboard(scale) {
+        const c = compile(story, startState), n = proc.length, cols = n <= 3 ? n : n === 4 ? 2 : 3, rows = Math.ceil(n / cols);
+        const W = stage.clientWidth, H = stage.clientHeight; scale = scale || Math.min(2, 2400 / (cols * W));
+        const ovs = [...card.querySelectorAll('.dk-ov')]; ovs.forEach(e => { e.style.visibility = 'hidden'; });
+        const pw = Math.round(W * scale), ph = Math.round(H * scale), gut = Math.round(2 * scale), head = Math.round(64 * scale), foot = Math.round(40 * scale);
+        const cv = document.createElement('canvas'); cv.width = cols * pw + (cols - 1) * gut; cv.height = head + rows * ph + (rows - 1) * gut + foot;
+        const g = cv.getContext('2d'); g.fillStyle = css('--line'); g.fillRect(0, 0, cv.width, cv.height);
+        g.fillStyle = css('--stage'); g.fillRect(0, 0, cv.width, head); g.fillRect(0, cv.height - foot, cv.width, foot);
+        const wasFrozen = frozen; frozen = true; player = null;
+        const font = (w, px) => `${w} ${px * scale}px "Instrument Sans", ui-sans-serif, system-ui, sans-serif`;
+        proc.forEach((st, i) => {
+          apply(c.segs[st.shot].to);
+          parts.forEach(p => { p.alpha = 0; }); for (let k = 0; k < 6; k++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
+          update(0);
+          const x = (i % cols) * (pw + gut), y = head + Math.floor(i / cols) * (ph + gut);
+          if (i >= cols) { g.fillStyle = css('--stage'); }
+          g.drawImage(composite(scale), x, y, pw, ph);
+          g.textBaseline = 'top'; g.font = font(600, 15); g.fillStyle = css('--accent'); g.fillText(String(i + 1), x + 20 * scale, y + 18 * scale);
+          g.fillStyle = css('--ink'); g.fillText(st.label, x + 20 * scale + g.measureText(String(i + 1)).width + 8 * scale, y + 18 * scale);
+        });
+        for (let i = n; i < rows * cols; i++) { g.fillStyle = css('--stage'); g.fillRect((i % cols) * (pw + gut), head + Math.floor(i / cols) * (ph + gut), pw, ph); }
+        g.textBaseline = 'middle'; g.font = font(600, 22); g.fillStyle = css('--ink'); g.fillText(o.title, 20 * scale, head / 2 + 4 * scale);
+        g.font = font(400, 12); g.fillStyle = css('--muted'); g.fillText(o.footer, 20 * scale, cv.height - foot / 2);
+        g.textAlign = 'right'; g.fillText('Made with dental-explainer by Sixmonth', cv.width - 20 * scale, cv.height - foot / 2); g.textAlign = 'left';
+        ovs.forEach(e => { e.style.visibility = ''; }); apply(c.end); update(0); frozen = wasFrozen;
+        return cv;
+      },
+      get duration() { return story ? compile(story, startState || homeState()).total : 0; },
+      seek, composite,
+      exportPNG(scale) { return (proc && mode === 'image' ? fig.storyboard() : composite(scale || 2)).toDataURL('image/png'); },
+      savePNG() { (proc && mode === 'image' ? fig.storyboard() : composite(2)).toBlob(b => download(b, slug() + '.png'), 'image/png'); },
+      recordVideo(opts) { // real-time capture of one pass of the story, in the viewer's browser
+        opts = opts || {}; const type = videoType(); if (!type || !story) return Promise.reject(new Error('Video recording is not supported in this browser.'));
+        const scale = opts.scale || Math.max(pixelRatio, 1920 / stage.clientWidth);
+        const out = document.createElement('canvas'); const first = composite(scale); out.width = first.width; out.height = first.height;
+        const g = out.getContext('2d'); g.drawImage(first, 0, 0);
+        const rec = new MediaRecorder(out.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 }), chunks = [];
+        rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+        return new Promise(resolve => {
+          rec.onstop = () => resolve(new Blob(chunks, { type: type.split(';')[0] }));
+          seek(0); frozen = false; play(story, { from: startState });
+          const total = player.c.total; rec.start();
+          const t0 = performance.now(); (function tick() { g.drawImage(composite(scale), 0, 0); if ((performance.now() - t0) / 1000 < total + 0.2) requestAnimationFrame(tick); else rec.stop(); })();
+        });
+      },
+      fit,
+      start() {
+        resize(); if (!o.view || o.view.dist === undefined) fit(o.view?.margin); else fitCenter.copy(orbit.target);
+        placeCam();
+        startState = Object.assign(snapshot(), homeState(), { section: section ? section.enabled : false, offset: section ? section.offset : 0, xray: xrayAmt }, story0);
+        if (mode === 'image') {
+          if (story) { const c = compile(story, startState); apply(c.end); }
+          if (proc) { // show the storyboard image in place of the single frame
+            const frame = card.querySelector('.dk-frame'); stage.style.width = stage.clientWidth + 'px'; stage.style.height = stage.clientHeight + 'px'; frame.classList.add('board');
+            const img = document.createElement('img'); img.className = 'dk-board'; img.alt = o.title; frame.appendChild(img);
+            (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => requestAnimationFrame(() => { img.src = fig.storyboard().toDataURL('image/png'); }));
+          }
+          actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download PNG'; b.onclick = () => fig.savePNG(); actions.appendChild(b);
+        } else if (mode === 'video') {
+          if (story) { apply(stateAt(compile(story, startState), 0)); if (!reduce) play(story, { loop: true, from: startState }); else apply(compile(story, startState).end); }
+          actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download video';
+          b.onclick = () => { b.disabled = true; b.textContent = 'Recording…'; fig.recordVideo().then(bl => { download(bl, slug() + (bl.type.includes('mp4') ? '.mp4' : '.webm')); }).catch(err => alert(err.message)).finally(() => { b.disabled = false; b.textContent = 'Download video'; play(story, { loop: true, from: startState }); }); };
+          actions.appendChild(b);
+        } else if (story && !reduce) {
+          const intro = proc ? proc[0].beats : story;   // procedures: play step 1, then the viewer steps through
+          apply(stateAt(compile(intro, startState), 0));
+          setTimeout(() => { if (!introOff) play(intro, { from: startState }); }, o.introDelay ?? 500);
+        } else if (story) apply(compile(proc ? proc[0].beats : story, startState).end);
+        else if (o.introExplode && !reduce) setTimeout(() => fig.explode(o.introExplode), 700);
+        requestAnimationFrame(frame); window.__dkReady = true; return fig;
+      },
+      // test hook: jump state instantly (used by verification screenshots)
+      setState(s) {
+        player = null; introOff = true; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; }
+        if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; }
+        if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi;
+        if (s.dist !== undefined) { if (fits) orbit.zoom = zoomTarget = s.dist; else orbit.dist = s.dist; }
+        if (s.section !== undefined && section) section.set(s.section, s.offset);
+        orbit.auto = false; vel = { th: 0, ph: 0 }; labelFilter = null;
+      }
+    };
+    window.__dkFig = fig;
+    return fig;
+  };
+
+  /* ---------- ready-made dental parts ---------- */
+  // Implant body (fixture). Platform at y=0, apex at -length. Internal connection socket shown as a hex well.
+  DK.implant = function (o) {
+    o = Object.assign({ diameter: 4.1, length: 10, pitch: 0.8, threadDepth: 0.35, collar: 0.8, connection: 'internal hex', taper: 0.12 }, o);
+    const R = o.diameter / 2, grp = new T.Group(); grp.name = 'Implant';
+    const ti = DK.mat('titanium', { cap: 0x8e939a });
+    const body = new T.Mesh(DK.threaded({ length: o.length, coreRadius: R - o.threadDepth, threadDepth: o.threadDepth, pitch: o.pitch, collar: o.collar, collarRadius: R, bodyTaper: o.taper, apexTaper: 0.22, starts: o.starts || 2 }), ti);
+    grp.add(body);
+    // platform ring + internal well (6 sides = hex)
+    const well = o.connection === 'conical' ? 32 : 6;
+    const top = new T.Mesh(new T.RingGeometry(R * 0.55, R, 48), DK.mat('titaniumDark')); top.rotation.x = -Math.PI / 2; top.position.y = 0.001; grp.add(top);
+    const sock = new T.Mesh(new T.CylinderGeometry(R * 0.55, R * (o.connection === 'conical' ? 0.42 : 0.55), 3, well, 1, true), DK.mat('titaniumDark', { side: T.BackSide }));
+    sock.position.y = -1.5; grp.add(sock);
+    grp.userData.spec = o;
+    return grp;
+  };
+  // Abutment: engaging hex (into implant), transmucosal collar, prep-like post.
+  DK.abutment = function (o) {
+    o = Object.assign({ platform: 4.1, collarHeight: 2.5, postHeight: 5, postTopDiameter: 3.2, emergence: 5.2 }, o);
+    const r = o.platform / 2, grp = new T.Group(); grp.name = 'Abutment';
+    const prof = [[0, -2.6], [r * 0.5, -2.6], [r * 0.5, -0.05], [r * 0.97, 0], [o.emergence / 2, o.collarHeight * 0.85], [o.emergence / 2 * 0.97, o.collarHeight], [o.postTopDiameter / 2 + 0.6, o.collarHeight + 0.3],
+      [o.postTopDiameter / 2 + 0.2, o.collarHeight + o.postHeight * 0.9], [o.postTopDiameter / 2 - 0.2, o.collarHeight + o.postHeight], [0.9, o.collarHeight + o.postHeight], [0.9, o.collarHeight + o.postHeight - 0.4], [0, o.collarHeight + o.postHeight - 0.4]];
+    const m = DK.mat('titanium', { cap: 0x8e939a });
+    grp.add(DK.lathe(prof.slice(2), 64, m));
+    const hex = new T.Mesh(new T.CylinderGeometry(r * 0.53, r * 0.53, 2.5, 6), m); hex.position.y = -1.3; grp.add(hex);
+    grp.userData.spec = o; return grp;
+  };
+  DK.screw = function (o) {
+    o = Object.assign({ diameter: 2.0, length: 8, headDiameter: 2.6, headHeight: 1.6, pitch: 0.4 }, o);
+    const grp = new T.Group(); grp.name = 'Abutment screw';
+    const m = DK.mat('gold', { cap: 0xb48a2c });
+    grp.add(new T.Mesh(DK.threaded({ length: o.length - o.headHeight, coreRadius: o.diameter / 2 - 0.18, threadDepth: 0.18, pitch: o.pitch, collar: 1.2, collarRadius: o.diameter / 2 - 0.12, apexTaper: 0.08, starts: 1, cols: 40 }), m));
+    const head = DK.lathe([[0, 0], [o.diameter / 2, 0], [o.headDiameter / 2, 0.3], [o.headDiameter / 2, o.headHeight - 0.2], [o.headDiameter / 2 - 0.2, o.headHeight], [0.55, o.headHeight], [0.55, o.headHeight - 0.6], [0, o.headHeight - 0.6]], 40, m);
+    grp.add(head); return grp;
+  };
+  // Surgical twist drill: fluted cutting part from y = 0 down to the tip at y = -length, shank above y = 0.
+  // Place it with the tip at depth d below the crest: drill.position.y = crestY - d + length.
+  DK.drill = function (o) {
+    o = Object.assign({ diameter: 2.0, length: 14, shank: 12, bands: [8, 10, 12] }, o);
+    const r = o.diameter / 2, grp = new T.Group(); grp.name = 'Drill';
+    const steel = DK.mat('steel', { cap: 0x9ea4aa }), dark = DK.mat('titaniumDark');
+    grp.add(new T.Mesh(DK.threaded({ length: o.length, coreRadius: r * 0.72, threadDepth: r * 0.28, pitch: Math.max(1.6, o.diameter * 1.4), collar: 0, apexTaper: 0.08, starts: 2, cols: 48 }), steel));
+    grp.add(DK.lathe([[r, 0], [r, 1.2], [1.2, 2.4], [1.2, o.shank]], 32, steel));
+    o.bands.filter(b => b < o.length).forEach(b => { const ring = new T.Mesh(new T.CylinderGeometry(r * 1.01, r * 1.01, 0.25, 32, 1, true), dark); ring.position.y = -o.length + b; grp.add(ring); }); // depth marks from the tip
+    grp.userData.spec = o; return grp;
+  };
+  // Prepared implant bed: a closed cylinder (top at y = 0) to put in a section group after the bone, so the cut
+  // face shows the hole. osteotomy.set(radius, depth) resizes it; depth 0 hides it.
+  DK.osteotomy = function (o) {
+    o = Object.assign({ color: 0x5b2a25 }, o);
+    const g = new T.CylinderGeometry(1, 1, 1, 40); g.translate(0, -0.5, 0);
+    const m = new T.Mesh(g, DK.mat('pdl', { color: o.color, cap: o.color })); m.name = 'Osteotomy';
+    m.set = (radius, depth) => { m.visible = depth > 0.02; m.scale.set(Math.max(radius, 0.01), Math.max(depth, 0.01), Math.max(radius, 0.01)); };
+    m.set(0, 0); return m;
+  };
+  /* ---------- restorative & endodontic parts ---------- */
+  const PREP = { axial: 1.2, occlusal: 1.8 };
+  function prepInset(o) { return { side: o.axial ?? PREP.axial, top: o.occlusal ?? PREP.occlusal, reliefScale: 0.45, topScale: 0.9 }; }
+  // Prepared crown stump (what a crown sits on). Closed solid, cervical margin at y = 0. material 'dentin' (vital) or 'composite' (core build-up).
+  // o.maxY / o.minY slice it horizontally: DK.prep(s,{maxY:2}) = 2 mm ferrule of own tooth; DK.prep(s,{material:'composite',minY:2}) = core above it.
+  DK.prep = function (presetOrFdi, o) {
+    o = o || {}; const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const g = crownGeometry(s, prepInset(o));
+    if (o.minY !== undefined || o.maxY !== undefined) { // slice: maxY → ferrule collar of own dentin; minY → core sitting on it
+      const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, clamp(p.getY(i), o.minY ?? -1e9, o.maxY ?? 1e9)); g.computeVertexNormals();
+    }
+    const m = new T.Mesh(g, DK.mat(o.material || 'dentin', o.material === 'composite' ? { cap: 0xe9dfc4 } : { cap: DK.COLORS.dentinCap }));
+    m.name = o.material === 'composite' ? 'Core' : 'Prepared tooth'; return m;
+  };
+  // Crown restoration shaped like that tooth's crown. hollow:true (default) makes a shell whose inside matches DK.prep with the same reductions,
+  // so in section the crown shows as a shell over the prep / core. CEJ / margin at y = 0.
+  DK.restorationCrown = function (presetOrFdi, material, o) {
+    o = Object.assign({ hollow: true }, o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    let geo;
+    if (!o.hollow) geo = crownGeometry(s);
+    else {
+      const A = crownGeometry(s, null, true), B = crownGeometry(s, prepInset(o), true);
+      const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = 64;
+      const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia);
+      for (let i = 0; i < ib.length; i += 3) idx.push(ib[i] + off, ib[i + 2] + off, ib[i + 1] + off); // inner surface faces inward
+      for (let j = 0; j < cols; j++) { const o0 = j, o1 = (j + 1) % cols, i0 = off + j, i1 = off + (j + 1) % cols; idx.push(o0, o1, i0, o1, i1, i0); } // margin ring
+      geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+    }
+    const mesh = new T.Mesh(geo, DK.mat(material || 'zirconia')); mesh.name = 'Crown';
+    return mesh;
+  };
+  // Tapered post (fibre / metal). Top at y = 0 going down `length`; `exposed` mm stick up above y = 0 into the core.
+  DK.post = function (o) {
+    o = Object.assign({ length: 9, exposed: 4, d0: 1.6, d1: 1.0, material: 'fiber' }, o);
+    const m = DK.lathe([[0, -o.length - 0.2], [o.d1 / 2 * 0.8, -o.length - 0.1], [o.d1 / 2, -o.length + 0.2], [o.d0 / 2, 0], [o.d0 / 2, o.exposed - 0.3], [o.d0 / 2 - 0.3, o.exposed], [0, o.exposed]], 32, DK.mat(o.material));
+    m.name = 'Post'; return m;
+  };
+  // Root filling along a canal, from `from` (y) to working length. Closed solid (section-ready). which: canal name or index.
+  DK.guttaPercha = function (spec, which, o) {
+    o = o || {}; const c = findCanal(spec, which), pts = DK.canalPath(spec, which, o);
+    const y0 = pts[0][1], y1 = pts[pts.length - 1][1];
+    const rAt = y => DK.canalAt(spec, which, y).r * 0.92;
+    const m = DK.tube(pts, 1, DK.mat('gutta'), { taper: t => rAt(lerp(y0, y1, t)), radial: 14 });
+    m.name = 'Root filling'; return m;
+  };
+  // Distance helper for readouts
+  DK.mm = v => (Math.round(v * 10) / 10).toFixed(1) + ' mm';
+
+  window.DK = DK;
+})();
+
+</script>
+<script>
+// Example procedure: placing a single implant in the healed site of the mandibular left first molar (FDI 36 = Universal 19),
+// seen in a mesio-distal cut so the neighbouring roots and the inferior alveolar canal stay visible.
+// Tools and parts that the steps move are added to fig.world and annotated with inPlace: true (explode would reset them).
+// Frame: +x = mesial, +z = buccal, y up. Neighbour CEJs at y = 0. All sizes in mm.
+const CREST = -1.8;                                  // alveolar crest
+const IMPLANT = { diameter: 4.1, length: 10, lead: 1.6 };   // lead = advance per turn (0.8 mm pitch, 2 starts)
+const CANAL_Y = CREST - IMPLANT.length - 4.0, CANAL_R = 1.5;
+const PILOT = 2.0, FINAL = 3.5;                      // drill diameters; the final size is set by the implant system
+const clearance = (CREST - IMPLANT.length) - (CANAL_Y + CANAL_R);
+
+const fig = DK.figure({
+  title: 'Placing an implant in 36',
+  subtitle: 'FDI 36 (Universal 19), mesio-distal cut. Drill sizes vary by system.',
+  view: { theta: 0, phi: 1.45 }
+});
+
+// --- context: bone, canal, gingiva, neighbours (regular parts: they frame the camera)
+const bone = DK.bone({ width: 34, height: 19, depth: 11, cortical: 1.2, crest: 1.6 });
+bone.position.set(-1, CREST, 0);
+const canal = new THREE.Group();
+const path = [[-18, CANAL_Y - 0.6, 0.4], [-6, CANAL_Y, 0.2], [6, CANAL_Y + 0.3, 0], [16, CANAL_Y + 0.9, -0.2]];
+const lumen = DK.tube(path, CANAL_R, DK.mat('pdl', { color: 0xf0dcc4, cap: 0xf0dcc4 }), { caps: false });
+const nerve = DK.tube(path.map(p => [p[0], p[1] - 0.2, p[2] - 0.1]), 0.75, DK.mat('nerve'), { caps: false });
+canal.add(lumen, nerve);
+const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4 });
+gum.position.set(-1, 1.1, 0);
+const t35 = DK.tooth(35); t35.group.position.x = 5.5 + 3.5;
+const t37 = DK.tooth(37); t37.group.position.x = -(5.5 + 5.25);
+
+fig.part(bone, { name: 'Bone', label: false, info: 'Healed alveolar ridge: cortical shell over cancellous bone.' });
+fig.part(canal, { name: 'Inferior alveolar canal', sub: `${clearance.toFixed(1)} mm below the implant`, anchor: [-13, CANAL_Y - 0.5, 0], info: 'Keep at least 2 mm between the implant apex and the canal.' });
+fig.part(gum, { name: 'Gingiva', label: false, info: 'Soft tissue over the ridge.' });
+fig.part(t35.group, { name: '35', anchor: [0, 6, 0], info: 'Lower second premolar. Keep at least 1.5 mm from its root.' });
+fig.part(t37.group, { name: '37', anchor: [0, 6, 0], info: 'Lower second molar. Keep at least 1.5 mm from its mesial root.' });
+
+// --- what the procedure moves (inPlace parts, positioned by params)
+const hole1 = DK.osteotomy(), hole2 = DK.osteotomy();
+hole1.position.y = hole2.position.y = CREST + 0.02;
+const pilot = DK.drill({ diameter: PILOT, length: 14, shank: 6 });
+const final = DK.drill({ diameter: FINAL, length: 14, shank: 6 });
+const implant = DK.implant({ diameter: IMPLANT.diameter, length: IMPLANT.length, connection: 'internal hex' });
+const heal = DK.lathe([[0, 0], [2.05, 0], [2.3, 2.2], [2.3, 3.4], [2.0, 3.6], [0, 3.6]], 48, DK.mat('titanium'));
+const abut = DK.abutment({ platform: 4.1, collarHeight: 2.0, postHeight: 3.5, emergence: 5.6 });
+const crown = DK.restorationCrown(36, 'zirconia', { hollow: false });
+[hole1, hole2, pilot, final, implant, heal, abut, crown].forEach(o => fig.world.add(o));
+
+fig.part(pilot, { inPlace: true, name: 'Pilot drill', sub: `Ø${PILOT} mm`, anchor: [0, -6, 0], info: 'First drill: sets the position, angle and depth of the implant bed.' });
+fig.part(final, { inPlace: true, name: 'Final drill', sub: `Ø${FINAL} mm (system-specific)`, anchor: [0, -6, 0], info: 'Sequential drills widen the bed; the final size depends on the implant system and bone density.' });
+fig.part(implant, { inPlace: true, name: 'Implant', sub: `Ø${IMPLANT.diameter} × ${IMPLANT.length} mm`, anchor: [IMPLANT.diameter / 2, -5, 0], info: 'Threaded in to the depth of the bed.' });
+fig.part(heal, { inPlace: true, name: 'Healing abutment', anchor: [2.3, 2, 0], info: 'Shapes the gingiva while the implant integrates.' });
+fig.part(abut, { inPlace: true, name: 'Abutment', anchor: [2.8, 1.2, 0], info: 'Connects the crown to the implant; the hex stops it rotating.' });
+fig.part(crown, { inPlace: true, name: 'Crown', sub: 'zirconia', anchor: [-3, 6.5, 0], info: 'Restores the occlusion of 36.' });
+
+// --- params: every moving thing is a number the steps animate
+const drillAt = (tool, d) => { tool.visible = d > -15; tool.position.y = CREST - d + 14; tool.rotation.y = d * 3; };  // d = tip depth below crest
+fig.param('pilot', -20, d => drillAt(pilot, d));
+fig.param('final', -20, d => drillAt(final, d));
+fig.param('bed1', 0, d => hole1.set(PILOT / 2, d));
+fig.param('bed2', 0, d => hole2.set(FINAL / 2, d));
+fig.param('implant', 0, k => {   // 0 = hovering 3 mm above the crest, 1 = seated at the crest
+  const travel = (1 - k) * (IMPLANT.length + 3);
+  implant.visible = k > 0.001; implant.position.y = CREST + travel; implant.rotation.y = -travel / IMPLANT.lead * Math.PI * 2;
+});
+fig.param('heal', 0, k => { heal.visible = k > 0.001; heal.position.y = CREST + (1 - k) * 8; });
+fig.param('crown', 0, k => {
+  abut.visible = crown.visible = k > 0.001;
+  abut.position.y = CREST + (1 - k) * 10; crown.position.y = 0.2 + (1 - k) * 18;
+});
+
+fig.enableSection([0, 0, 1], [
+  { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
+  { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
+  { objects: [lumen], color: 0xf0dcc4 }, { objects: [nerve], color: DK.COLORS.nerve },
+  { objects: [gum], color: DK.COLORS.gingivaCap },
+  { objects: [hole2], color: 0x5b2a25 }, { objects: [hole1], color: 0x5b2a25 },
+  { objects: [t35.layers.enamel, t37.layers.enamel], color: DK.COLORS.enamelCap },
+  { objects: [t35.layers.root, t35.layers.dentin, t37.layers.root, t37.layers.dentin], color: DK.COLORS.dentinCap },
+  { objects: [t35.layers.pulp, t37.layers.pulp], color: DK.COLORS.pulpCap }
+]);
+fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-4, 4], offset: 0 } });
+
+const D = IMPLANT.length;
+fig.procedure([
+  { label: 'Healed site', caption: 'The healed site of 36, between 35 and 37.', beats: [
+    { dur: 0, hold: 1.6, section: true, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'] }] },
+  { label: 'Pilot drill', caption: `Pilot drill to ${D} mm: position, angle, depth.`, beats: [
+    { dur: 1.0, hold: 0.2, zoom: 0.9, set: { pilot: 0 }, labels: ['Pilot drill'] },
+    { dur: 1.8, hold: 0.6, set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
+    { dur: 0.9, hold: 0.2, set: { pilot: -20 }, labels: [] }] },
+  { label: 'Final drill', caption: 'Wider drills shape the bed to the implant.', beats: [
+    { dur: 1.0, hold: 0.2, set: { final: 0 }, labels: ['Final drill'] },
+    { dur: 1.8, hold: 0.6, set: { final: D, bed2: D }, key: true },
+    { dur: 0.9, hold: 0.2, set: { final: -20 }, labels: [] }] },
+  { label: 'Implant', caption: `Implant threaded in, ${clearance.toFixed(1)} mm above the canal.`, beats: [
+    { dur: 0.8, hold: 0.1, set: { implant: 0.05 }, labels: ['Implant'] },
+    { dur: 2.6, hold: 1.4, set: { implant: 1 }, labels: ['Implant', 'Inferior alveolar canal'] }] },
+  { label: 'Healing', caption: 'Healing abutment: 3–6 months to integrate.', beats: [
+    { dur: 1.0, hold: 1.8, set: { heal: 1 }, labels: ['Healing abutment'] }] },
+  { label: 'Crown', caption: 'Abutment and crown restore the tooth.', beats: [
+    { dur: 0.6, hold: 0.1, set: { heal: 0 }, labels: [] },
+    { dur: 1.6, hold: 2.2, zoom: 1, set: { crown: 1 }, labels: ['Abutment', 'Crown', 'Implant'] }] }
+]);
+fig.start();
+
+</script>
+</body></html>

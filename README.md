@@ -111,7 +111,7 @@ Values carry their sources. Anything not yet checked against a source is tagged 
 1. **Ask.** Image, video or interactive? If the request is vague, what should it show (for a video, it proposes the shot list first).
 2. **Teaching point.** The agent pins down the one idea the figure must show.
 3. **Facts.** It looks up the numbers in the facts file instead of guessing.
-4. **Plan.** Parts with real sizes in millimetres, the cut planes, and a short story of camera moves that ends on the shot that answers the question. Every piece of text has to earn its place.
+4. **Plan.** Parts with real sizes in millimetres, the cut planes, and a short story of camera moves that ends on the shot that answers the question. Every piece of text has to earn its place. Procedures (placing an implant, shaping a canal) become named clinical steps: a stepper on the page, a captioned clip, or a numbered storyboard image.
 5. **Build.** A short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position, implants, crowns, posts, bone and gingiva.
 6. **Verify and deliver.** Where a browser is available, it renders the PNG or MP4 (or screenshots the page), looks at it, and fixes what's wrong.
 

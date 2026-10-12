@@ -1,0 +1,22 @@
+{
+  "name": "sixmonth",
+  "description": "Sixmonth agent skills for dentistry.",
+  "owner": {
+    "name": "Sixmonth",
+    "url": "https://sixmonth.ai"
+  },
+  "plugins": [
+    {
+      "name": "dental-explainer",
+      "source": "./",
+      "description": "Agent skill that turns any dental concept into an interactive 3D figure. By Sixmonth.",
+      "version": "1.0.0",
+      "homepage": "https://github.com/sixmonth-ai/dental-explainer",
+      "license": "MIT",
+      "strict": false,
+      "skills": [
+        "./"
+      ]
+    }
+  ]
+}

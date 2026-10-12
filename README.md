@@ -34,9 +34,10 @@
 
 | Where | How |
 |---|---|
-| **Claude** (web & desktop) | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)**. Turn on code execution in **Settings → Capabilities**, then **Skills → Upload a skill**. |
-| **ChatGPT** (plans with Skills) | Download the same ZIP, then **Skills → Create → Upload from your computer**. |
-| **Claude Code, Codex, Cursor, OpenCode, Copilot, Gemini CLI** | `npx skills add sixmonth-ai/dental-explainer` |
+| **Claude** (web & desktop) | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)** and upload it as is (don't unzip it). Turn on code execution in **Settings → Capabilities**, then **Skills → Upload a skill**. |
+| **ChatGPT** (plans with Skills) | Download the same ZIP and upload it as is: **Skills → Create → Upload from your computer**. |
+| **Claude Code** | `/plugin install dental-explainer --marketplace sixmonth-ai/dental-explainer` |
+| **Codex, Cursor, OpenCode, Copilot, Gemini CLI** (and Claude Code) | `npx skills add sixmonth-ai/dental-explainer` |
 | **Manual** | `git clone https://github.com/sixmonth-ai/dental-explainer.git ~/.claude/skills/dental-explainer` |
 
 Then ask for a dental visual in plain words. You can also call it by name: `/dental-explainer` in Claude, `$dental-explainer` in Codex.

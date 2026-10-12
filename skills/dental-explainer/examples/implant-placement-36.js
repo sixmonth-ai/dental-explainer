@@ -87,17 +87,17 @@ fig.procedure([
     { dur: 0, hold: 0, section: true, offset: 7 },
     { dur: 2.4, hold: 1.6, theta: 0, phi: 1.45, zoom: 1, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'], key: true }] },
   { label: 'Pilot drill', caption: `Pilot drill to ${D} mm: position, angle, depth.`, beats: [
-    { dur: 1.2, hold: 0.2, zoom: 0.78, focus: [0, -4, 0], set: { pilot: 0 }, labels: ['Pilot drill'] },
-    { dur: 2.0, hold: 0.8, set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
+    { dur: 1.2, hold: 0.2, zoom: 0.92, focus: [0, 1, 0], phi: 1.38, set: { pilot: 0 }, labels: ['Pilot drill'] },
+    { dur: 2.0, hold: 0.8, zoom: 0.85, focus: [0, -4, 0], set: { pilot: D, bed1: D }, labels: ['Pilot drill', 'Inferior alveolar canal'], key: true },
     { dur: 0.9, hold: 0.2, set: { pilot: -20 }, labels: [] }] },
   { label: 'Final drill', caption: 'Wider drills shape the bed to the implant.', beats: [
-    { dur: 1.0, hold: 0.2, theta: 0.12, set: { final: 0 }, labels: ['Final drill'] },
-    { dur: 2.0, hold: 0.8, set: { final: D, bed2: D }, key: true },
+    { dur: 1.0, hold: 0.2, theta: 0.12, zoom: 0.92, focus: [0, 1, 0], set: { final: 0 }, labels: ['Final drill'] },
+    { dur: 2.0, hold: 0.8, zoom: 0.85, focus: [0, -4, 0], set: { final: D, bed2: D }, key: true },
     { dur: 0.9, hold: 0.2, set: { final: -20 }, labels: [] }] },
   { label: 'Implant', caption: `Implant threaded in, ${clearance.toFixed(1)} mm above the canal.`, beats: [
     { dur: 0.8, hold: 0.1, theta: 0, set: { implant: 0.05 }, labels: ['Implant'] },
     { dur: 2.8, hold: 0.4, set: { implant: 1 }, labels: ['Implant'] },
-    { dur: 1.6, hold: 1.6, zoom: 0.62, focus: [0, -11, 0], labels: ['Implant', 'Inferior alveolar canal'], key: true }] },
+    { dur: 1.6, hold: 1.6, zoom: 0.86, focus: [0, -6, 0], theta: 0.18, phi: 1.4, labels: ['Implant', 'Inferior alveolar canal'], key: true }] },
   { label: 'Healing', caption: 'Healing abutment: 3–6 months to integrate.', beats: [
     { dur: 1.6, hold: 0.2, zoom: 0.85, focus: [0, -2, 0], theta: 0.25, phi: 1.3, labels: [] },
     { dur: 1.2, hold: 1.8, set: { heal: 1 }, labels: ['Healing abutment'], key: true }] },

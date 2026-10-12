@@ -20,5 +20,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-three.js (assets/vendor/three.r128.min.js) is distributed under its own MIT license,
-see assets/vendor/three.LICENSE.txt.
+Generated figures load three.js r128 (MIT, © three.js authors) from cdnjs.cloudflare.com.

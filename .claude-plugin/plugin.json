@@ -1,0 +1,11 @@
+{
+  "name": "dental-explainer",
+  "displayName": "Dental Explainer",
+  "version": "1.0.0",
+  "description": "Turns any dental concept into an accurate, interactive 3D figure: exploded views, cross-sections, implants, endo, perio, restorations. Built from real millimetre dimensions and a verified dental facts file.",
+  "author": { "name": "Sixmonth", "url": "https://sixmonth.ai" },
+  "homepage": "https://github.com/sixmonth-ai/dental-explainer",
+  "repository": "https://github.com/sixmonth-ai/dental-explainer",
+  "license": "MIT",
+  "keywords": ["dental", "dentistry", "3d", "education", "implants", "endodontics", "periodontics", "anatomy"]
+}

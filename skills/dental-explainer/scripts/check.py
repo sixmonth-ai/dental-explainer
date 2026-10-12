@@ -7,12 +7,12 @@ usage: python3 check.py figure.html [--out shots/] [--three-local three.min.js] 
 Custom --state entries are shot in addition to the defaults (use --only to shoot just them).
 State keys: explode, section, offset, theta, phi, dist (zoom factor, <1 = closer), xray, click (list of button labels to press).
 States: assembled, exploded, sectioned (if the figure has a section), occlusal-ish view, mobile width.
+three.js loads from cdnjs unless --three-local is given. If it can't load, prints "SKIP: ..." and exits 2.
 """
 import argparse, pathlib, sys
 from playwright.sync_api import sync_playwright
 
 CDN = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-VENDOR = pathlib.Path(__file__).resolve().parent.parent / "assets" / "vendor" / "three.r128.min.js"  # used automatically (offline-safe)
 STATES = [
     ("assembled", {"explode": 0, "section": False}),
     ("exploded", {"explode": 1, "section": False}),
@@ -36,10 +36,12 @@ def main():
             pg = b.new_page(viewport={"width": width, "height": 900}, color_scheme="dark" if a.dark else "light")
             pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
             pg.on("console", lambda m: errors.append(f"console.{m.type}: {m.text}") if m.type == "error" else None)
-            local = a.three_local or (str(VENDOR) if VENDOR.exists() else None)
-            if local:
-                pg.route(CDN, (lambda p: (lambda r: r.fulfill(path=p, content_type="application/javascript")))(local))
+            if a.three_local:
+                pg.route(CDN, (lambda p: (lambda r: r.fulfill(path=p, content_type="application/javascript")))(a.three_local))
             pg.goto(url)
+            if not pg.evaluate("typeof THREE !== 'undefined'"):
+                print("SKIP: three.js did not load (no access to cdnjs?). Use --three-local or rely on the checklist.")
+                b.close(); sys.exit(2)
             pg.wait_for_function("window.__dkReady === true", timeout=20000)
             has_section = pg.evaluate("!!(window.__dkFig && window.__dkFig.section)")
             custom = [(s.split('=', 1)[0], __import__('json').loads(s.split('=', 1)[1])) for s in a.state]

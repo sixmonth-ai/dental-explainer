@@ -30,15 +30,24 @@
 
 ## Install
 
-`dental-explainer` follows the open [Agent Skills](https://agentskills.io) format: a folder with a `SKILL.md` at its root. Any agent that reads skills can use it.
+`dental-explainer` follows the open [Agent Skills](https://agentskills.io) format. The skill lives in [`skills/dental-explainer/`](skills/dental-explainer), a folder with a `SKILL.md` at its root, and the repo doubles as a Claude plugin marketplace.
+
+**Claude (web & desktop app): no download needed**
+
+1. Open **Customize → Plugins → Add marketplace**.
+2. Paste `sixmonth-ai/dental-explainer`.
+3. Find **Dental Explainer** and click **Install**.
+
+It updates automatically when the repo changes. For screenshots and page assembly, turn on code execution in **Settings → Capabilities**.
 
 | Where | How |
 |---|---|
-| **Claude** (web & desktop) | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)** and upload it as is (don't unzip it). Turn on code execution in **Settings → Capabilities**, then **Skills → Upload a skill**. |
-| **ChatGPT** (plans with Skills) | Download the same ZIP and upload it as is: **Skills → Create → Upload from your computer**. |
-| **Claude Code** | `/plugin install dental-explainer --marketplace sixmonth-ai/dental-explainer` |
-| **Codex, Cursor, OpenCode, Copilot, Gemini CLI** (and Claude Code) | `npx skills add sixmonth-ai/dental-explainer` |
-| **Manual** | `git clone https://github.com/sixmonth-ai/dental-explainer.git ~/.claude/skills/dental-explainer` |
+| **Claude Code** | `/plugin marketplace add sixmonth-ai/dental-explainer`, then `/plugin install dental-explainer@sixmonth` |
+| **Codex, Cursor, OpenCode, Copilot, Gemini CLI** | `npx skills add sixmonth-ai/dental-explainer` |
+| **ChatGPT** (plans with Skills), or Claude by ZIP | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)** and upload it as is (don't unzip it). ChatGPT: **Skills → Create → Upload from your computer**. Claude: **Settings → Capabilities → Skills → Upload a skill**. |
+| **Manual** | `git clone https://github.com/sixmonth-ai/dental-explainer.git && cp -r dental-explainer/skills/dental-explainer ~/.claude/skills/` |
+
+**What it runs and fetches.** Figures load three.js r128 from cdnjs.cloudflare.com, and each figure's footer links to sixmonth.ai. The optional scripts (Python, headless Chromium) run locally, and only when the agent has code execution. The skill sends no data anywhere.
 
 Then ask for a dental visual in plain words. You can also call it by name: `/dental-explainer` in Claude, `$dental-explainer` in Codex.
 
@@ -53,7 +62,7 @@ Root-filled premolar with fibre post, core and crown, for patients
 
 ## Gallery
 
-Every figure below was made by the skill. Each one is a single HTML page you can open, share, or put in slides. The pages are in [`examples/`](examples).
+Every figure below was made by the skill. Each one is a single HTML page you can open, share, or put in slides. The pages are in [`examples/`](skills/dental-explainer/examples).
 
 <table>
   <tr>
@@ -82,7 +91,7 @@ Every figure below was made by the skill. Each one is a single HTML page you can
 
 ## Why it exists
 
-AI models are fluent about dentistry and often wrong about it. `dental-explainer` gives the agent a verified [facts file](references/dental-facts.md) to work from, plus a checklist it runs before every figure.
+AI models are fluent about dentistry and often wrong about it. `dental-explainer` gives the agent a verified [facts file](skills/dental-explainer/references/dental-facts.md) to work from, plus a checklist it runs before every figure.
 
 | Models often… | The skill knows |
 |---|---|
@@ -107,13 +116,17 @@ Values carry their sources. Anything not yet checked against a source is tagged 
 
 ```
 dental-explainer/
-├── SKILL.md                 the workflow the agent follows
-├── references/
-│   ├── dental-facts.md      verified values and sources: the correction layer
-│   └── kit-api.md           drawing-kit reference
-├── assets/dentkit.js        3D kit (three.js r128 bundled in assets/vendor)
-├── examples/                four finished figures, .js source and .html pages
-└── scripts/                 build.py (assemble a page) · check.py (screenshot and error check)
+├── .claude-plugin/
+│   ├── plugin.json              plugin manifest
+│   └── marketplace.json         lets Claude add this repo as a marketplace
+└── skills/dental-explainer/
+    ├── SKILL.md                 the workflow the agent follows
+    ├── references/
+    │   ├── dental-facts.md      verified values and sources: the correction layer
+    │   └── kit-api.md           drawing-kit reference
+    ├── assets/dentkit.js        3D kit (loads three.js r128 from cdnjs)
+    ├── examples/                four finished figures, .js source and .html pages
+    └── scripts/                 build.py (assemble a page) · check.py (screenshot and error check)
 ```
 
 <br>

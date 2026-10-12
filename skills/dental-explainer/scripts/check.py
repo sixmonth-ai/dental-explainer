@@ -3,6 +3,7 @@
 and save screenshots of several states so Claude can LOOK at them before delivering.
 
 usage: python3 check.py figure.html [--out shots/] [--three-local three.min.js] [--dark] [--offset MM]
+       (--offset is the default cut for section states that don't set their own)
        [--state 'name={"explode":0.5,"section":true,"offset":1.2,"theta":0.3,"phi":0.4,"xray":true}' ...]
 Custom --state entries are shot in addition to the defaults (use --only to shoot just them).
 State keys: explode, section, offset, theta, phi, dist (zoom factor, <1 = closer), xray, click (list of button labels to press).
@@ -42,7 +43,11 @@ def main():
             if not pg.evaluate("typeof THREE !== 'undefined'"):
                 print("SKIP: three.js did not load (no access to cdnjs?). Use --three-local or rely on the checklist.")
                 b.close(); sys.exit(2)
-            pg.wait_for_function("window.__dkReady === true", timeout=20000)
+            try:
+                pg.wait_for_function("window.__dkReady === true", timeout=20000)
+            except Exception:
+                print("FAIL: the figure never finished starting.")
+                print("\n".join(errors) or "(no JS error was reported)"); b.close(); sys.exit(1)
             has_section = pg.evaluate("!!(window.__dkFig && window.__dkFig.section)")
             custom = [(s.split('=', 1)[0], __import__('json').loads(s.split('=', 1)[1])) for s in a.state]
             states = (custom if a.only else STATES + custom) if not tag else [STATES[0], STATES[2]]
@@ -52,7 +57,7 @@ def main():
                     continue
                 if name == 'exploded' and no_explode:
                     continue
-                st = dict(st, offset=a.offset) if st.get("section") else st
+                st = dict(st, offset=a.offset) if st.get("section") and "offset" not in st else st
                 pg.evaluate(f"window.__dkFig.setState({__import__('json').dumps(dict({'home': True}, **st))})")
                 pg.evaluate(f"window.__dkFig.xray(null, {str(bool(st.get('xray'))).lower()})")
                 for label in st.get('click', []):   # press custom buttons by their text, e.g. "click":["Gingiva"]

@@ -1,11 +1,9 @@
 // Example: single implant replacing the mandibular left first molar (FDI 36), with neighbours 35 and 37.
 // Frame: +x = mesial, +z = buccal, y up. Neighbour CEJs at y = 0. All sizes in mm.
 const fig = DK.figure({
-  fig: 'Fig. 1 · Implant · FDI 36',
-  title: 'Implant-supported crown replacing tooth 36',
-  subtitle: 'A bone-level implant (Ø4.1 × 10 mm) with abutment, abutment screw and zirconia crown. Explode it to see each component; cut it to see the bucco-lingual cross-section used in CBCT planning.',
-  view: { theta: 0.75, phi: 1.22 },
-  introExplode: 0.65
+  title: 'Implant replacing tooth 36',
+  subtitle: 'FDI 36 (Universal 19), lower left first molar.',
+  view: { theta: 0.75, phi: 1.22 }
 });
 
 const CREST = -1.8;               // alveolar crest, below neighbouring CEJs
@@ -58,8 +56,17 @@ fig.enableSection([1, 0, 0], [
   { objects: [gum], color: DK.COLORS.gingivaCap },
   { objects: [t35.layers.enamel], color: DK.COLORS.enamelCap }, { objects: [t35.layers.root, t35.layers.dentin], color: DK.COLORS.dentinCap }, { objects: [t35.layers.pulp], color: DK.COLORS.pulpCap }
 ]);
-fig.standardControls({ section: { label: 'Cross-section', range: [-4, 6], rangeLabel: 'Cut (mm from axis)', offset: 0 } });
-fig.xrayToggle([bone, gum, lumen], 'X-ray bone', false);
+fig.standardControls({ section: { label: 'Cut', range: [-4, 6], offset: 0 } });
+fig.xrayToggle([bone, gum, lumen], 'X-ray', false);
+
+// story: assemble → lift the parts in insertion order → back together → CBCT-style cut (the safety check)
+const STACK = ['Crown', 'Abutment screw', 'Abutment', 'Implant body'];
+fig.story([
+  { dur: 0, hold: 0.8, labels: [] },
+  { dur: 1.6, hold: 2.0, explode: 0.75, labels: STACK, caption: 'Four parts, lifted in the order they go in.' },
+  { dur: 1.2, hold: 0.3, explode: 0, labels: [] },
+  { dur: 1.6, hold: 2.4, theta: 1.35, phi: 1.4, section: true, offset: 0, labels: ['Implant body', 'Inferior alveolar canal', 'Alveolar bone'], caption: 'Cut through the axis: ≥ 2 mm above the canal.' }
+]);
 
 // --- readout: every number is computed from the geometry above
 const R = IMPLANT.diameter / 2;
@@ -71,7 +78,6 @@ const to37v = Math.abs((t37.group.position.x + r37m.x + r37m.ra)) - R;
 const buccal = 11 * 0.86 / 2 - R;
 const tag = (v, min) => ({ v: DK.mm(v) + (v >= min ? ' ✓' : ' ⚠'), cls: v >= min ? 'ok' : 'warn' });
 fig.setReadout([
-  { k: 'Implant', v: `Ø${IMPLANT.diameter} × ${IMPLANT.length} mm` },
   Object.assign({ k: 'To 35 root (≥1.5)' }, tag(to35, 1.5)),
   Object.assign({ k: 'To 37 root (≥1.5)' }, tag(to37v, 1.5)),
   Object.assign({ k: 'Apex → canal (≥2)' }, tag(toCanal, 2)),

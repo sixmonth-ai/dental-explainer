@@ -1,9 +1,8 @@
 // Example: natural mandibular left first molar (FDI 36 = Universal 19) in its socket, with a movable mesio-distal section.
 // Tooth frame: +x mesial, +z buccal, y up, CEJ at y = 0. Sizes in mm (Wheeler averages via DK.toothPreset).
 const fig = DK.figure({
-  fig: 'Fig. 2 · Tooth anatomy · FDI 36',
-  title: 'Mandibular first molar in cross-section',
-  subtitle: 'Turn on the section and slide the cut bucco-lingually: the mesial root carries two canals (MB, ML) side by side, the distal root usually one wide canal. Explode to drop the bone away from the roots.',
+  title: 'Lower first molar in section',
+  subtitle: 'FDI 36 (Universal 19), mesio-distal cut.',
   view: { theta: 0.35, phi: 1.3 }
 });
 
@@ -40,20 +39,12 @@ const sec = fig.enableSection([0, 0, 1], [
   { objects: [L.root, L.dentin], color: DK.COLORS.dentinCap },
   { objects: [L.pulp], color: DK.COLORS.pulpCap }
 ]);
-fig.standardControls({ section: { label: 'Section', on: true, range: [-3.5, 3.5], rangeLabel: 'Cut (lingual ↔ buccal, mm)', offset: 1.5 } });
-fig.xrayToggle([bone, gum], 'X-ray bone', false);
+fig.standardControls({ explode: false, section: { label: 'Cut', on: false, range: [-3.5, 3.5], offset: 1.5 } });
 
-const canalAt = z => (Math.abs(z - 1.5) < 0.9 ? 'MB' : Math.abs(z + 1.5) < 0.9 ? 'ML' : 'between MB and ML');
-let lastKey = '';
-fig.onFrame(() => {
-  const z = sec.enabled ? sec.offset : null, key = String(z);
-  if (key === lastKey) return; lastKey = key;
-  fig.setReadout([
-    { k: 'Tooth', v: 'FDI 36 · Universal 19 · Palmer lower-left 6' },
-    { k: 'Crown / root', v: `${s.crownL} / ${s.rootL} mm` },
-    { k: 'Roots', v: '2 (mesial, distal)' },
-    { k: 'Canals (typical)', v: 'MB, ML, D (D may be 2)' },
-    { k: 'Cut', v: z === null ? 'off' : `${DK.mm(z).replace(' mm', '')} mm ${z >= 0 ? 'buccal' : 'lingual'} · mesial canal: ${canalAt(z)}` }
-  ]);
-});
+// story: whole tooth in bone → cut through the MB canal → slide lingually to the ML canal
+fig.story([
+  { dur: 0, hold: 0.8, labels: ['Alveolar bone', 'Gingiva'] },
+  { dur: 1.4, hold: 1.8, section: true, offset: 1.5, theta: 0, phi: 1.45, labels: ['Enamel', 'Dentin', 'Pulp chamber', 'Mesial root', 'PDL'], caption: 'Enamel over dentin, pulp in the middle.' },
+  { dur: 1.6, hold: 2.2, offset: -1.5, labels: ['Mesial root', 'Pulp chamber'], caption: 'Slide lingually: the mesial root has a second canal.' }
+]);
 fig.start();

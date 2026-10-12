@@ -13,8 +13,8 @@
 </p>
 
 <p align="center">
-  <b>An open agent skill that turns any dental concept into an interactive 3D figure.</b><br>
-  Rotate it, explode it, cut through it, and hover any part for a sourced fact.<br>
+  <b>An open agent skill that turns any dental concept into an accurate 3D figure.</b><br>
+  Get it as an image, a short video, or an interactive page you can rotate, explode and cut through.<br>
   Built from real millimetre dimensions and checked against a verified dental facts file.
 </p>
 
@@ -49,7 +49,7 @@ It updates automatically when the repo changes. For screenshots and page assembl
 
 **What it runs and fetches.** Figures load three.js r128 from cdnjs.cloudflare.com, and each figure's footer links to sixmonth.ai. The optional scripts (Python, headless Chromium) run locally, and only when the agent has code execution. The skill sends no data anywhere.
 
-Then ask for a dental visual in plain words. You can also call it by name: `/dental-explainer` in Claude, `$dental-explainer` in Codex.
+Then ask for a dental visual in plain words. The agent asks which format you want (image, video or interactive) unless you say, and asks what to show only when the request is vague. You can also call it by name: `/dental-explainer` in Claude, `$dental-explainer` in Codex.
 
 ```text
 Show an exploded view of an implant replacing 36
@@ -62,7 +62,7 @@ Root-filled premolar with fibre post, core and crown, for patients
 
 ## Gallery
 
-Every figure below was made by the skill. Each one is a single HTML page you can open, share, or put in slides. The pages are in [`examples/`](skills/dental-explainer/examples).
+Every figure below was made by the skill, shown here in image mode. The same script also plays as a video or opens as an interactive page; the sources and pages are in [`examples/`](skills/dental-explainer/examples).
 
 <table>
   <tr>
@@ -108,11 +108,12 @@ Values carry their sources. Anything not yet checked against a source is tagged 
 
 ## How it works
 
-1. **Teaching point.** The agent pins down the one idea the figure must show.
-2. **Facts.** It looks up the numbers in the facts file instead of guessing.
-3. **Plan.** It lists parts with real sizes in millimetres, insertion order, and the cut planes.
-4. **Build.** It writes a short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position, implants, crowns, posts, bone and gingiva.
-5. **Verify.** Where a browser is available, it screenshots the figure, looks at it, and fixes what's wrong.
+1. **Ask.** Image, video or interactive? If the request is vague, what should it show (for a video, it proposes the shot list first).
+2. **Teaching point.** The agent pins down the one idea the figure must show.
+3. **Facts.** It looks up the numbers in the facts file instead of guessing.
+4. **Plan.** Parts with real sizes in millimetres, the cut planes, and a short story of camera moves that ends on the shot that answers the question. Every piece of text has to earn its place.
+5. **Build.** A short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position, implants, crowns, posts, bone and gingiva.
+6. **Verify and deliver.** Where a browser is available, it renders the PNG or MP4 (or screenshots the page), looks at it, and fixes what's wrong.
 
 ```
 dental-explainer/
@@ -126,7 +127,7 @@ dental-explainer/
     │   └── kit-api.md           drawing-kit reference
     ├── assets/dentkit.js        3D kit (loads three.js r128 from cdnjs)
     ├── examples/                four finished figures, .js source and .html pages
-    └── scripts/                 build.py (assemble a page) · check.py (screenshot and error check)
+    └── scripts/                 build.py (assemble a page) · render.py (PNG / MP4) · check.py (screenshot and error check)
 ```
 
 <br>

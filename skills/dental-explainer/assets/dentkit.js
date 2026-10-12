@@ -11,14 +11,14 @@
 
   /* ---------- palette & materials ---------- */
   DK.COLORS = {
-    enamel: 0xf2f0ea, enamelCap: 0xf4f6fa, dentin: 0xe2c27e, dentinCap: 0xe0bb6e,
-    cementum: 0xdcc08a, pulp: 0xd9534f, pulpCap: 0xc9413e, nerve: 0xf2c94c, artery: 0xc0392b, vein: 0x3c6fb4,
-    pdl: 0xb5566a, gingiva: 0xe58f9a, gingivaCap: 0xd97884, cortical: 0xeee6d3, corticalCap: 0xf3ecdb,
+    enamel: 0xf2f0ea, enamelCap: 0xe9edf2, dentin: 0xe2c27e, dentinCap: 0xd9a95a,
+    cementum: 0xdcc08a, pulp: 0xd9534f, pulpCap: 0xc0392b, nerve: 0xf2c94c, artery: 0xc0392b, vein: 0x3c6fb4,
+    pdl: 0xb5566a, gingiva: 0xe58f9a, gingivaCap: 0xd46a78, cortical: 0xeee6d3, corticalCap: 0xe8dcc0,
     cancellous: 0xd8b98a, titanium: 0xa9adb3, titaniumDark: 0x7d828a, zirconia: 0xf6f3ec, ceramic: 0xf1ede2,
     gold: 0xd4a843, steel: 0xc3c7cc, nickelTi: 0x9aa0a6, gutta: 0xe07b39, composite: 0xf0e7d0, rubberDam: 0x2f80ed, caries: 0x6b4a2b
   };
   const MAT_PRESETS = {
-    enamel: { color: 'enamel', roughness: 0.28, metalness: 0 },
+    enamel: { color: 'enamel', roughness: 0.4, metalness: 0, clearcoat: 0.6 },
     dentin: { color: 'dentin', roughness: 0.6 },
     root: { color: 'cementum', roughness: 0.7 },
     pulp: { color: 'pulp', roughness: 0.5 },
@@ -29,7 +29,7 @@
     gold: { color: 'gold', roughness: 0.3, metalness: 0.9 },
     steel: { color: 'steel', roughness: 0.25, metalness: 0.9 },
     zirconia: { color: 'zirconia', roughness: 0.3 },
-    ceramic: { color: 'ceramic', roughness: 0.18 },
+    ceramic: { color: 'ceramic', roughness: 0.25, clearcoat: 0.8 },
     nerve: { color: 'nerve', roughness: 0.5 },
     artery: { color: 'artery', roughness: 0.45 },
     vein: { color: 'vein', roughness: 0.45 },
@@ -44,7 +44,8 @@
   DK.mat = function (name, extra) {
     const p = Object.assign({}, MAT_PRESETS[name] || { color: name }, extra || {});
     const c = typeof p.color === 'string' ? (DK.COLORS[p.color] !== undefined ? DK.COLORS[p.color] : p.color) : p.color;
-    const m = new T.MeshStandardMaterial({ color: c, roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
+    const Mat = p.clearcoat ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
+    const m = new Mat({ color: c, roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.35 } : {}), transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
     m.userData.capColor = p.cap !== undefined ? p.cap : c;
     return m;
   };
@@ -206,7 +207,7 @@
     relief: DK.cuspRelief([{ x: 0.42, z: 0.48, h: 1.7 }, { x: -0.42, z: 0.48, h: 1.5 }, { x: 0.35, z: -0.42, h: 2.0, w: 0.34 }, { x: -0.48, z: -0.48, h: 1.3, w: 0.24 }, { x: 0.55, z: -0.8, h: 0.6, w: 0.15 }], 0.5, [[0.65, 0.05, -0.1, 0.1], [-0.1, 0.1, -0.55, -0.35], [-0.1, 0.1, -0.05, 0.85], [0.1, -0.05, 0.7, -0.6, 0.25]]),
     roots: [{ x: 2.2, z: 2.4, len: 12, ra: 1.9, rb: 2.7, taper: 0.5, apex: [-1.4, 0.6], flare: [0.4, 0.3], start: -0.5 }, { x: -2.4, z: 2.5, len: 11.5, ra: 1.75, rb: 1.9, taper: 0.5, apex: [-0.6, 0.6], flare: [-0.5, 0.3], start: -0.5 },
       { x: 0, z: -2.5, len: 13, ra: 2.4, rb: 2.2, taper: 0.5, apex: [0, -1.6], flare: [0, -0.8], start: -0.5 }],
-    trunk: 4, canals: [{ root: 0, dx: -0.2, dz: 0.9, r: 0.38, name: 'MB1' }, { root: 0, dx: 0.45, dz: -0.85, r: 0.3, name: 'MB2', short: 1.5 }, { root: 1, dx: 0, dz: 0, r: 0.35, name: 'DB' }, { root: 2, dx: 0, dz: 0, r: 0.5, name: 'P' }] };
+    trunk: 4, canals: [{ root: 0, dx: -0.2, dz: 0.9, r: 0.38, name: 'MB1' }, { root: 0, dx: 0.15, dz: -0.95, r: 0.3, name: 'MB2', short: 1.5 }, { root: 1, dx: 0, dz: 0, r: 0.35, name: 'DB' }, { root: 2, dx: 0, dz: 0, r: 0.5, name: 'P' }] };
   P.mandCentral = { name: 'Mandibular central incisor', crownL: 9, rootL: 12.5, md: 5, mdC: 3.5, bl: 6, blC: 5.3, incisal: true, incisalBL: 0.8, squareness: 2.3, contourAt: 0.9, blContourAt: 0.2,
     roots: [{ x: 0, z: 0, len: 12.5, ra: 1.75, rb: 2.6, taper: 0.62, apex: [-0.3, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.38, rbk: 0.7 }] };
   P.mandLateral = Object.assign({}, P.mandCentral, { name: 'Mandibular lateral incisor', crownL: 9.5, rootL: 14, md: 5.5, mdC: 4, bl: 6.5, blC: 5.8, roots: [{ x: 0, z: 0, len: 14, ra: 1.95, rb: 2.9, taper: 0.62, apex: [-0.5, 0] }] });
@@ -360,7 +361,7 @@
         const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; return s; };
         m.add(mk(T.BackSide, T.IncrementWrapStencilOp), mk(T.FrontSide, T.DecrementWrapStencilOp));
       }));
-      const capMat = new T.MeshStandardMaterial({ color: cg.color, roughness: 0.75, metalness: 0, map: cg.texture || null, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k });
+      const capMat = new T.MeshBasicMaterial({ color: cg.color, toneMapped: false, map: cg.texture || null, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k });
       const cap = new T.Mesh(new T.PlaneGeometry(400, 400), capMat); cap.renderOrder = base + 1; cap.onAfterRender = r => r.clearStencil();
       cap.userData.isStencil = true; fig.scene.add(cap); caps.push(cap);
     });
@@ -378,79 +379,136 @@
     return api;
   }
 
-  /* ---------- figure: renderer, camera, orbit, parts, labels, UI ---------- */
+  /* ---------- figure: renderer, camera, orbit, parts, labels, story, export, UI ---------- */
+  // Sixmonth tokens: ink #0A0A08, blanc sale #F1EEE6, cream #F5F3EE, accent #0E3A5C (light) / #5A8FB8 (dark).
+  const FONT_URL = 'https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap';
   const CSS = `
-  :root{--bg:#f6f4ef;--card:#ffffff;--ink:#1d2329;--muted:#66707a;--line:#d9d4c8;--accent:#0f7b6c;--chip:#eef2f1}
-  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#121518;--card:#1a1e22;--ink:#e9ecef;--muted:#9aa4ad;--line:#2c3237;--accent:#4cc3a9;--chip:#232a2f}}
-  :root[data-theme="dark"]{--bg:#121518;--card:#1a1e22;--ink:#e9ecef;--muted:#9aa4ad;--line:#2c3237;--accent:#4cc3a9;--chip:#232a2f}
-  *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  .dk-card{max-width:1080px;margin:16px auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-  .dk-head{display:flex;gap:16px;align-items:baseline;justify-content:space-between;padding:16px 18px 6px;flex-wrap:wrap}
-  .dk-fig{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
-  .dk-title{font-size:20px;font-weight:650;margin:4px 0 0}.dk-sub{color:var(--muted);margin:2px 0 0;max-width:62ch}
-  .dk-stage{position:relative;height:min(68vh,600px);min-height:360px;touch-action:none;cursor:grab}.dk-stage:active{cursor:grabbing}
+  :root{--bg:#F1EEE6;--stage:#F7F5F0;--ink:#0A0A08;--muted:#6E6A62;--line:#DDD8CC;--accent:#0E3A5C;--panel:rgba(255,255,255,.82);--shadow:0 6px 24px rgba(10,10,8,.08),0 1px 2px rgba(10,10,8,.06)}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0A0A08;--stage:#121210;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}}
+  :root[data-theme="dark"]{--bg:#0A0A08;--stage:#121210;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}
+  *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  .dk{max-width:1120px;margin:0 auto;padding:20px 16px 14px}
+  .dk-head{padding:0 4px 12px}.dk-title{font-size:22px;line-height:1.2;font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
+  .dk-sub{color:var(--muted);margin:4px 0 0;max-width:68ch;text-wrap:pretty}
+  .dk-frame{position:relative;background:var(--stage);border-radius:16px;overflow:hidden}
+  .dk-stage{position:relative;width:100%;height:min(70vh,620px);min-height:380px;touch-action:none;cursor:grab}.dk-stage.drag{cursor:grabbing}
+  .dk-still .dk-stage{height:auto;min-height:0;cursor:default}
   .dk-stage canvas{display:block;width:100%;height:100%}
   .dk-labels{position:absolute;inset:0;pointer-events:none}.dk-labels svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
-  .dk-label{position:absolute;transform:translate(-50%,-50%);font:600 12px/1.15 ui-sans-serif,system-ui,sans-serif;color:var(--ink);background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--line);border-radius:6px;padding:3px 7px;white-space:nowrap;transition:opacity .2s}
-  .dk-label small{display:block;font-weight:500;color:var(--muted);font-size:11px}
-  .dk-label.hl{border-color:var(--accent);color:var(--accent)}
-  .dk-info{position:absolute;left:14px;bottom:14px;max-width:min(340px,70%);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none}
-  .dk-info.on{opacity:1}.dk-info b{display:block;margin-bottom:2px}
-  .dk-hint{position:absolute;right:14px;top:10px;color:var(--muted);font-size:12px}
-  .dk-controls{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;padding:12px 18px;border-top:1px solid var(--line)}
-  .dk-ctrl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}.dk-ctrl input[type=range]{width:150px;accent-color:var(--accent)}
-  .dk-btn{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:8px;padding:5px 10px;cursor:pointer}.dk-btn[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
-  .dk-readout{display:flex;flex-wrap:wrap;gap:6px 18px;padding:10px 18px 14px;border-top:1px solid var(--line);font:12px/1.4 ui-monospace,Menlo,monospace;color:var(--muted)}
-  .dk-readout b{color:var(--ink);font-weight:600}.dk-readout .ok{color:var(--accent)}.dk-readout .warn{color:#d9822b}
-  .dk-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;padding:8px 18px 14px;font-size:11px;color:var(--muted)}
+  .dk-label{position:absolute;transform:translate(-50%,-50%);font:600 12.5px/1.15 "Instrument Sans",ui-sans-serif,system-ui,sans-serif;color:var(--ink);background:var(--panel);box-shadow:var(--shadow);border-radius:7px;padding:4px 8px;white-space:nowrap;opacity:0}
+  .dk-label small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:1px}
+  .dk-label.hl{color:var(--accent)}
+  .dk-info{position:absolute;left:14px;top:14px;max-width:min(320px,62%);background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;opacity:0;transform:translateY(-4px);transition:opacity .18s ease,transform .18s ease;pointer-events:none}
+  .dk-info.on{opacity:1;transform:none}.dk-info b{display:block;margin-bottom:2px;font-weight:600}
+  .dk-ov{position:absolute;pointer-events:none;color:var(--ink)}
+  .dk-ov-title{left:22px;top:18px;font-size:20px;font-weight:600;letter-spacing:-.01em;max-width:60%;line-height:1.2}
+  .dk-ov-cap{left:22px;bottom:40px;font-size:16px;font-weight:500;max-width:60%}
+  .dk-ov-foot{left:22px;right:22px;bottom:14px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted)}
+  .dk-ov-foot b{color:var(--ink);font-weight:600}
+  .dk-panel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border-radius:12px}
+  .dk-panel:not(:has(.dk-btn,.dk-ctrl)){display:none}.dk-panel::-webkit-scrollbar{display:none}
+  .dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-pmain:not(:empty)+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
+  .dk-sep{width:1px;align-self:stretch;margin:4px 3px;background:var(--line);flex:none}
+  .dk-btn{flex:none;font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+  .dk-btn:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+  .dk-btn[aria-pressed=true]{background:var(--ink);color:var(--stage)}
+  .dk-btn:focus-visible,.dk-ctrl input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .dk-icon{width:32px;padding:6px 0;text-align:center;font-size:15px;line-height:1}
+  .dk-ctrl{flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
+  .dk-ctrl input[type=range]{-webkit-appearance:none;appearance:none;width:120px;height:20px;background:transparent;cursor:pointer}
+  .dk-ctrl input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  .dk-ctrl input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  .dk-ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5.5px;border-radius:50%;background:var(--ink);border:2px solid var(--stage);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .dk-ctrl input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ink);border:2px solid var(--stage)}
+  .dk-ctrl input:disabled{opacity:.35;cursor:default}
+  .dk-readout{display:flex;flex-wrap:wrap;gap:4px 22px;padding:12px 4px 0;font-size:13px;color:var(--muted)}
+  .dk-readout:empty{display:none}.dk-readout b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}.dk-readout .ok{color:var(--accent)}.dk-readout .warn{color:#B4541A}
+  .dk-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:12px 4px 0;font-size:11.5px;color:var(--muted)}
   .dk-foot a{color:var(--muted);text-decoration:none;white-space:nowrap}.dk-foot a b{color:var(--ink);font-weight:600}.dk-foot a:hover,.dk-foot a:focus-visible{color:var(--accent)}
-  @media (max-width:640px){.dk-label{font-size:11px;padding:2px 5px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:110px}}`;
+  .dk-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 0 0}
+  .dk-actions .dk-btn{border:1px solid var(--line)}
+  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:min(62vh,520px);min-height:320px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
+
+  const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
+  const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray'];
 
   DK.figure = function (o) {
-    o = Object.assign({ fig: 'Fig. 1', title: 'Untitled figure', subtitle: '', hint: 'Drag to rotate · scroll to zoom · hover a part', footer: 'Educational illustration based on population-average anatomy; individual anatomy varies. Not for diagnosis or treatment planning.' }, o);
+    o = Object.assign({ title: 'Untitled figure', subtitle: '', footer: 'Population-average anatomy. Not for diagnosis or treatment planning.' }, o);
+    const qs = new URLSearchParams(location.search);
+    const mode = qs.get('mode') || window.DK_MODE || o.mode || 'interactive';   // 'interactive' | 'image' | 'video'
+    const still = mode !== 'interactive';
+    const aspect = ASPECTS[qs.get('aspect') || window.DK_ASPECT || o.aspect || '16:9'] || 16 / 9;
+    if (!document.querySelector('link[data-dk-font]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONT_URL; l.dataset.dkFont = '1'; document.head.appendChild(l); }
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
     const root = o.mount || document.body;
-    const card = document.createElement('div'); card.className = 'dk-card';
-    card.innerHTML = `<div class="dk-head"><div><div class="dk-fig">${o.fig}</div><h1 class="dk-title">${o.title}</h1><p class="dk-sub">${o.subtitle}</p></div></div>
-      <div class="dk-stage"><div class="dk-labels"><svg></svg></div><div class="dk-info"></div><div class="dk-hint">${o.hint}</div></div>
-      <div class="dk-controls"></div><div class="dk-readout"></div><div class="dk-foot"><span>${o.footer}</span><a href="https://sixmonth.ai" target="_blank" rel="noopener">Made with dental-explainer by <b>Sixmonth</b></a></div>`;
+    const card = document.createElement('div'); card.className = 'dk' + (still ? ' dk-still' : ''); card.dataset.mode = mode;
+    const credit = 'Made with dental-explainer by <b>Sixmonth</b>';
+    card.innerHTML = still
+      ? `<div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div>
+          <div class="dk-ov dk-ov-title"></div><div class="dk-ov dk-ov-cap"></div>
+          <div class="dk-ov dk-ov-foot"><span class="dk-ov-disc"></span><span>${credit}</span></div></div></div>
+         <div class="dk-actions"></div>`
+      : `<div class="dk-head"><h1 class="dk-title"></h1>${o.subtitle ? '<p class="dk-sub"></p>' : ''}</div>
+         <div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div><div class="dk-info" role="status"></div></div><div class="dk-panel" role="toolbar" aria-label="Figure controls"><span class="dk-pmain"></span><span class="dk-pend"></span></div></div>
+         <div class="dk-readout"></div><div class="dk-foot"><span class="dk-disc"></span><a href="https://sixmonth.ai" target="_blank" rel="noopener">${credit}</a></div>`;
     root.appendChild(card);
-    const stage = card.querySelector('.dk-stage'), labelLayer = card.querySelector('.dk-labels'), svg = labelLayer.querySelector('svg');
-    const info = card.querySelector('.dk-info'), controls = card.querySelector('.dk-controls'), readout = card.querySelector('.dk-readout');
-    const dark = () => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim().toLowerCase() === '#121518';
+    const $ = s => card.querySelector(s);
+    if (still) { $('.dk-ov-title').textContent = o.title; $('.dk-ov-disc').textContent = o.footer; }
+    else { $('.dk-title').textContent = o.title; if (o.subtitle) $('.dk-sub').textContent = o.subtitle; $('.dk-disc').textContent = o.footer; }
+    document.title = document.title && document.title !== 'Dental figure' ? document.title : o.title;
+    const stage = $('.dk-stage'), labelLayer = $('.dk-labels'), svg = labelLayer.querySelector('svg');
+    const info = $('.dk-info'), panel = $('.dk-panel'), readout = $('.dk-readout'), caption = $('.dk-ov-cap'), actions = $('.dk-actions');
+    if (still) stage.style.aspectRatio = String(aspect);
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
     let renderer;
     try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true, stencil: true, preserveDrawingBuffer: true }); }
     catch (e) { stage.innerHTML = '<p style="padding:24px">This figure needs WebGL, which is not available in this viewer.</p>'; throw e; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+    let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
     renderer.autoClearStencil = true;
     stage.insertBefore(renderer.domElement, labelLayer);
     const scene = new T.Scene();
-    const camera = new T.PerspectiveCamera(28, 1, 0.5, 2000);
-    scene.add(new T.HemisphereLight(0xffffff, 0x8a7f72, 0.75));
-    const key = new T.DirectionalLight(0xffffff, 1.1); key.position.set(40, 70, 55); scene.add(key);
-    const fill = new T.DirectionalLight(0xdfe8ff, 0.45); fill.position.set(-60, 20, -30); scene.add(fill);
-    const rim = new T.DirectionalLight(0xffffff, 0.35); rim.position.set(0, -40, -60); scene.add(rim);
+    const camera = new T.PerspectiveCamera(26, 1, 0.5, 2000);
+    scene.add(new T.HemisphereLight(0xfffaf0, 0x6d6458, 0.55));
+    const key = new T.DirectionalLight(0xfff6ea, 1.25); key.position.set(45, 80, 60); scene.add(key);
+    const fill = new T.DirectionalLight(0xdce6f5, 0.4); fill.position.set(-70, 15, -10); scene.add(fill);
+    const rim = new T.DirectionalLight(0xffffff, 0.75); rim.position.set(-20, 40, -80); scene.add(rim);
     const world = new T.Group(); scene.add(world);
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-    // orbit
-    const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: o.autoRotate ?? true };
+    // orbit; auto-rotate is opt-in (it fights precise views)
+    const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: !still && !!o.autoRotate, zoom: 1 };
     const home = Object.assign({}, orbit, { target: orbit.target.clone() });
     function placeCam() { const { theta, phi, dist, target } = orbit; camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta)); camera.lookAt(target); }
-    let drag = null, idleT = 0;
-    stage.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, th: orbit.theta, ph: orbit.phi }; stage.setPointerCapture(e.pointerId); orbit.auto = false; });
-    stage.addEventListener('pointermove', e => { if (drag) { orbit.theta = drag.th - (e.clientX - drag.x) * 0.008; orbit.phi = clamp(drag.ph - (e.clientY - drag.y) * 0.008, 0.08, Math.PI - 0.08); } hover(e); });
-    stage.addEventListener('pointerup', () => { drag = null; });
-    stage.addEventListener('pointerleave', () => { setHover(null); });
-    stage.addEventListener('wheel', e => { e.preventDefault(); if (fits) orbit.zoom = clamp(orbit.zoom * (1 + Math.sign(e.deltaY) * 0.08), 0.25, 3); else orbit.dist = clamp(orbit.dist * (1 + Math.sign(e.deltaY) * 0.08), 15, 400); orbit.auto = false; }, { passive: false });
+    // inertia: the model keeps turning a little after a flick, then settles
+    let drag = null, vel = { th: 0, ph: 0 };
+    let introOff = false;
+    function interrupt() { player = null; introOff = true; orbit.auto = false; if (caption) caption.style.opacity = 0; }
+    if (!still) {
+      stage.addEventListener('pointerdown', e => { interrupt(); drag = { x: e.clientX, y: e.clientY, th: orbit.theta, ph: orbit.phi, t: performance.now() }; vel = { th: 0, ph: 0 }; stage.setPointerCapture(e.pointerId); stage.classList.add('drag'); });
+      stage.addEventListener('pointermove', e => {
+        if (drag) {
+          const th = drag.th - (e.clientX - drag.x) * 0.008, ph = clamp(drag.ph - (e.clientY - drag.y) * 0.008, 0.06, Math.PI - 0.06), now = performance.now(), dt = Math.max(1, now - drag.t) / 1000;
+          vel = { th: (th - orbit.theta) / dt, ph: (ph - orbit.phi) / dt }; drag.t = now; orbit.theta = th; orbit.phi = ph;
+        } else hover(e);
+      });
+      const end = () => { if (drag) { drag = null; stage.classList.remove('drag'); } };
+      stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+      stage.addEventListener('pointerleave', () => { setHover(null); });
+      stage.addEventListener('wheel', e => { e.preventDefault(); interrupt(); const k = Math.exp(Math.sign(e.deltaY) * 0.08); if (fits) zoomTarget = clamp(zoomTarget * k, 0.3, 3); else orbit.dist = clamp(orbit.dist * k, 15, 400); }, { passive: false });
+      stage.addEventListener('dblclick', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8));
+    }
 
     // parts
     const parts = [];
-    let explodeT = 0, explodeTarget = 0;
+    let explodeT = 0, explodeTarget = 0, zoomTarget = 1;
+    const noSection = { enabled: false, offset: 0 };
     function part(obj, p) {
       p = Object.assign({ name: obj.name || 'Part', info: '', explode: [0, 0, 0], label: true, anchor: [0, 0, 0], labelOffset: null }, p);
-      p.obj = obj; p.base = obj.position.clone(); p.ex = new T.Vector3(...p.explode); p.anchorFn = typeof p.anchor === 'function' ? p.anchor : null; p.anchorV = new T.Vector3(...(p.anchorFn ? p.anchorFn() : p.anchor));
+      p.obj = obj; p.base = obj.position.clone(); p.ex = new T.Vector3(...p.explode); p.anchorFn = typeof p.anchor === 'function' ? p.anchor : null;
+      p.anchorV = new T.Vector3(...(p.anchorFn ? p.anchorFn(0, section || noSection) : p.anchor)); p.alpha = 0;
       p.setAnchor = a => { if (typeof a === 'function') p.anchorFn = a; else { p.anchorFn = null; p.anchorV.set(...a); } };
       obj.traverse(m => { if (m.isMesh) m.userData.part = p; });
       if (!p.inPlace) world.add(obj); // inPlace: annotate a sub-object already in the scene (no explode motion)
@@ -463,36 +521,38 @@
       parts.push(p); return p;
     }
 
-    // hover
+    // hover (interactive only)
     const ray = new T.Raycaster(), mouse = new T.Vector2(); let hovered = null, frameNo = 0;
     function pickables() { const a = []; world.traverse(m => { if (m.isMesh && !m.userData.isStencil && m.userData.part && m.material.visible !== false && m.parent && isVisible(m)) a.push(m); }); return a; }
-    function isVisible(o) { while (o) { if (!o.visible) return false; o = o.parent; } return true; }
-    // x-ray: make context tissue see-through so hidden parts (roots, implant in bone) show
-    const xrayObjs = [];
-    function xray(objs, on) {
-      objs.forEach(obj => obj.traverse(m => {
+    function isVisible(ob) { while (ob) { if (!ob.visible) return false; ob = ob.parent; } return true; }
+    // x-ray: context tissue fades to see-through; amount 0..1 so stories can tween it
+    const xrayObjs = []; let xrayAmt = 0;
+    function applyXray(a) {
+      xrayAmt = a;
+      xrayObjs.forEach(obj => obj.traverse(m => {
         if (!m.isMesh || m.userData.isStencil) return;
         if (m.userData.op === undefined) m.userData.op = m.material.opacity;
-        m.material.transparent = on || m.userData.op < 1; m.material.opacity = on ? 0.22 : m.userData.op; m.material.depthWrite = !on; m.material.needsUpdate = true;
+        const op = lerp(m.userData.op, 0.2, a), tr = a > 0.001 || m.userData.op < 1;
+        if (m.material.transparent !== tr) m.material.needsUpdate = true;
+        m.material.transparent = tr; m.material.opacity = op; m.material.depthWrite = a < 0.5;
       }));
+      if (fig.xrayButton) fig.xrayButton.setAttribute('aria-pressed', a > 0.5);
     }
     // camera fit: bounds over assembled and fully exploded states
     const fitCenter = new T.Vector3();
     let fits = null;
     function fit(margin) {
-      const fov = camera.fov * Math.PI / 180, aspect = Math.max(0.5, stage.clientWidth / stage.clientHeight);
+      const fov = camera.fov * Math.PI / 180, asp = Math.max(0.5, stage.clientWidth / stage.clientHeight);
       fits = [0, 1].map(e => {
         const box = new T.Box3();
         parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); }); world.updateMatrixWorld(true);
         parts.forEach(p => { if (!p.inPlace) box.expandByObject(p.obj); });
         const size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
-        return { c, d: size.length() / 2 / Math.sin(Math.min(fov, fov * aspect) / 2) * (margin || 0.9) };
+        return { c, d: size.length() / 2 / Math.sin(Math.min(fov, fov * asp) / 2) * (margin || 0.85) * (still ? 1.15 : 1) };
       });
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base); });
-      orbit.zoom = 1; home.zoom = 1;
     }
     function hover(e) {
-      if (drag) return;
       const r = renderer.domElement.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
       ray.setFromCamera(mouse, camera);
       let hits = ray.intersectObjects(pickables().filter(m => !m.material.transparent || m.material.opacity > 0.5), false);
@@ -500,74 +560,139 @@
       setHover(hits.length ? hits[0].object.userData.part : null);
     }
     function setHover(p) {
-      if (hovered === p) return;
+      if (hovered === p || !info) return;
       if (hovered) { hovered.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0); }); if (hovered.el) hovered.el.classList.remove('hl'); }
       hovered = p;
-      if (p) { p.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0x1d3b36); }); if (p.el) p.el.classList.add('hl'); info.innerHTML = `<b>${p.name}</b>${p.info}`; info.classList.add('on'); }
-      else info.classList.remove('on');
+      if (p && p.info) { p.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0x14283a); }); if (p.el) p.el.classList.add('hl'); info.innerHTML = `<b></b><span></span>`; info.firstChild.textContent = p.name; info.lastChild.textContent = p.info; info.classList.add('on'); }
+      else { hovered = null; info.classList.remove('on'); }
     }
 
     // section
     let section = null;
     function enableSection(normal, capGroups) { section = makeSection(fig, normal, capGroups); return section; }
 
-    // UI builders
+    // panel builders: compact, grouped, only what the figure needs
+    function addToPanel(el) {
+      if (!panel) return el; const box = panel.querySelector(el.dataset.group === 'end' ? '.dk-pend' : '.dk-pmain');
+      if (box.children.length && el.dataset.group !== box.lastElementChild.dataset.group) { const s = document.createElement('span'); s.className = 'dk-sep'; box.appendChild(s); }
+      box.appendChild(el); return el;
+    }
+    let group = 0; const newGroup = () => ++group;
     function slider(label, min, max, step, val, onInput) {
-      const w = document.createElement('label'); w.className = 'dk-ctrl'; w.innerHTML = `${label}<input type=range min=${min} max=${max} step=${step} value=${val}>`;
-      const inp = w.querySelector('input'); inp.addEventListener('input', () => { orbit.auto = false; onInput(+inp.value); }); controls.appendChild(w); return inp;
+      const w = document.createElement('label'); w.className = 'dk-ctrl'; w.dataset.group = group; w.innerHTML = `<span></span><input type=range min=${min} max=${max} step=${step} value=${val}>`;
+      w.firstChild.textContent = label; const inp = w.querySelector('input'); inp.setAttribute('aria-label', label);
+      inp.addEventListener('input', () => { interrupt(); onInput(+inp.value); }); addToPanel(w); return inp;
     }
     function toggle(label, val, onChange) {
-      const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = label; b.setAttribute('aria-pressed', val);
-      b.addEventListener('click', () => { const v = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', v); onChange(v); }); controls.appendChild(b); return b;
+      const b = document.createElement('button'); b.className = 'dk-btn'; b.dataset.group = group; b.textContent = label; b.setAttribute('aria-pressed', val);
+      b.addEventListener('click', () => { interrupt(); const v = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', v); onChange(v); }); addToPanel(b); return b;
     }
-    function button(label, onClick) { const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = label; b.addEventListener('click', onClick); controls.appendChild(b); return b; }
+    function button(label, onClick, opts) {
+      const b = document.createElement('button'); b.className = 'dk-btn' + (opts && opts.icon ? ' dk-icon' : ''); b.dataset.group = opts && opts.group !== undefined ? opts.group : group; b.textContent = label;
+      if (opts && opts.title) { b.title = opts.title; b.setAttribute('aria-label', opts.title); }
+      b.addEventListener('click', () => { interrupt(); onClick(); }); addToPanel(b); return b;
+    }
     let labelsOn = true;
     function standardControls(opts) {
       opts = opts || {}; const out = {};
-      if (opts.explode !== false) { fig.explodeSlider = out.explode = slider('Explode', 0, 1, 0.01, 0, v => { explodeTarget = v; }); } else fig.noExplode = true;
+      if (opts.explode !== false) { newGroup(); fig.explodeSlider = out.explode = slider(opts.explodeLabel || 'Explode', 0, 1, 0.01, 0, v => { explodeTarget = v; }); } else fig.noExplode = true;
       if (opts.section && section) {
-        const sec = opts.section;
-        out.section = toggle(sec.label || 'Section', !!sec.on, v => { section.set(v); if (secSl) secSl.disabled = !v; });
-        var secSl = out.cut = sec.range ? slider(sec.rangeLabel || 'Cut position', sec.range[0], sec.range[1], 0.1, sec.offset || 0, v => section.set(section.enabled, v)) : null;
-        section.set(!!sec.on, sec.offset || 0); if (secSl) secSl.disabled = !sec.on;
+        const sec = opts.section; newGroup();
+        out.section = toggle(sec.label || 'Cut', !!sec.on, v => { section.set(v); });
+        var secSl = out.cut = sec.range ? slider(sec.rangeLabel || '', sec.range[0], sec.range[1], 0.1, sec.offset || 0, v => section.set(section.enabled, v)) : null;
+        if (secSl && !sec.rangeLabel) { secSl.previousSibling.remove(); secSl.setAttribute('aria-label', 'Cut position'); }
+        section.set(!!sec.on, sec.offset || 0);
         section.onChange = () => { out.section.setAttribute('aria-pressed', section.enabled); if (secSl) { secSl.disabled = !section.enabled; secSl.value = section.offset; } };
+        section.onChange();
       }
-      out.labels = toggle('Labels', true, v => { labelsOn = v; });
-      out.reset = button('Reset view', () => { Object.assign(orbit, home, { target: home.target.clone(), auto: false }); });
+      newGroup();
+      if (opts.labels) out.labels = toggle('Labels', true, v => { labelsOn = v; });
+      out.reset = button('↺', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8), { icon: true, title: 'Reset view', group: 'end' });
       return out;
     }
     function setReadout(items) { // v can be a string or [{v, cls}] segments (e.g. healthy ✓ · disease ⚠ in one row)
-      const seg = i => Array.isArray(i.v) ? i.v.map(x => `<b class="${x.cls || ''}">${x.v}</b>`).join(' · ') : `<b class="${i.cls || ''}">${i.v}</b>`;
-      readout.innerHTML = items.map(i => `<span>${i.k}: ${seg(i)}</span>`).join(''); }
+      if (!readout) return;
+      const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const seg = i => Array.isArray(i.v) ? i.v.map(x => `<b class="${x.cls || ''}">${esc(x.v)}</b>`).join(' · ') : `<b class="${i.cls || ''}">${esc(i.v)}</b>`;
+      readout.innerHTML = items.map(i => `<span>${esc(i.k)} ${seg(i)}</span>`).join('');
+    }
+
+    /* ----- story: one list of shots drives the intro (interactive), the loop (video) and the final frame (image) -----
+       step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, labels:[names]|'all', caption }
+       Unset keys carry over from the previous step. */
+    let story = null, player = null, labelFilter = null;
+    function snapshot() { return { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, labels: labelFilter, caption: '' }; }
+    function homeState() { return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, labels: null }; }
+    function compile(steps, from) {
+      let t = 0, prev = Object.assign({}, from); const segs = [];
+      steps.forEach(s => {
+        const to = Object.assign({}, prev); STORY_KEYS.forEach(k => { if (s[k] !== undefined) to[k] = typeof s[k] === 'boolean' ? +s[k] : s[k]; });
+        if (s.section !== undefined) to.section = s.section; if (s.labels !== undefined) to.labels = s.labels === 'all' ? null : s.labels; to.caption = s.caption !== undefined ? s.caption : '';
+        const dur = s.dur ?? 1.2, hold = s.hold ?? 0.6;
+        segs.push({ t0: t, t1: t + dur, t2: t + dur + hold, from: prev, to }); t += dur + hold; prev = to;
+      });
+      return { segs, total: t, end: prev };
+    }
+    function stateAt(c, t) {
+      const s = c.segs.find(g => t < g.t2) || c.segs[c.segs.length - 1];
+      const k = s.t1 > s.t0 ? ease(clamp((t - s.t0) / (s.t1 - s.t0), 0, 1)) : 1, out = {};
+      STORY_KEYS.forEach(n => { out[n] = lerp(s.from[n], s.to[n], k); });
+      out.section = s.to.section; out.labels = s.to.labels; out.caption = s.to.caption;
+      if (s.to.section && !s.from.section) out.offset = s.to.offset; // cut appears in place, then moves in later steps
+      return out;
+    }
+    function apply(sv) {
+      orbit.theta = sv.theta; orbit.phi = sv.phi; zoomTarget = sv.zoom; if (fits) orbit.zoom = sv.zoom;
+      explodeTarget = explodeT = sv.explode; if (fig.explodeSlider) fig.explodeSlider.value = sv.explode;
+      if (section && (section.enabled !== !!sv.section || Math.abs(section.offset - sv.offset) > 1e-4)) section.set(!!sv.section, sv.offset);
+      if (Math.abs(xrayAmt - sv.xray) > 1e-3) { applyXray(sv.xray); fig.xrayOn = sv.xray > 0.5; }
+      labelFilter = sv.labels;
+      if (caption) { const c = mode === 'video' ? sv.caption : ''; if (c) caption.textContent = c; caption.style.opacity = c ? 1 : 0; }  // captions narrate motion: video only
+    }
+    function play(steps, opts) {
+      opts = opts || {}; const c = compile(steps, Object.assign(snapshot(), opts.from || {}));
+      player = { c, t: 0, loop: !!opts.loop, done: opts.done }; return c;
+    }
 
     // resize & loop
-    function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+      if (fits && !o.view?.dist) { const z = orbit.zoom; fit(o.view?.margin); orbit.zoom = z; }
+    }
     window.addEventListener('resize', resize);
     const tmp = new T.Vector3();
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    let last = performance.now(), frameHooks = [];
-    function frame(now) {
-      const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      if (orbit.auto && !reduce) orbit.theta += dt * 0.18;
-      explodeT += (explodeTarget - explodeT) * (reduce ? 1 : Math.min(1, dt * 6));
+    let last = performance.now(), frameHooks = [], frozen = false;
+    function update(dt) {
+      if (player) {
+        player.t += dt;
+        if (player.t >= player.c.total) { if (player.loop) player.t %= player.c.total || 1; else { apply(stateAt(player.c, player.c.total)); const d = player.done; player = null; if (d) d(); } }
+        if (player) apply(stateAt(player.c, player.t));
+      } else {
+        if (orbit.auto && !reduce) orbit.theta += dt * 0.15;
+        if (!drag && (Math.abs(vel.th) > 0.01 || Math.abs(vel.ph) > 0.01)) { orbit.theta += vel.th * dt; orbit.phi = clamp(orbit.phi + vel.ph * dt, 0.06, Math.PI - 0.06); const k = Math.exp(-dt * 6); vel.th *= k; vel.ph *= k; }
+        explodeT += (explodeTarget - explodeT) * (reduce ? 1 : Math.min(1, dt * 7));
+        if (fits) orbit.zoom += (zoomTarget - orbit.zoom) * (reduce ? 1 : Math.min(1, dt * 10));
+      }
       const e = ease(clamp(explodeT, 0, 1));
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
       frameHooks.forEach(f => f(dt, e));
       if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
       fitCenter.copy(orbit.target);
       placeCam();
-      scene.background = null;
       renderer.render(scene, camera);
-      // labels
-      const W = stage.clientWidth, H = stage.clientHeight, lineCol = dark() ? '#6b7680' : '#9aa1a8';
-      // project anchors; labels sit left or right of the figure's screen centre, then are de-overlapped per side
+      layoutLabels(e, dt);
+    }
+    function layoutLabels(e, dt) {
+      const W = stage.clientWidth, H = stage.clientHeight, lineCol = css('--muted') || '#888';
       const ctr = tmp.copy(fitCenter).project(camera), cx = (ctr.x + 1) / 2 * W;
-      const occlTest = (frameNo++ % 8) === 0;
+      const occlTest = (frameNo++ % 6) === 0;
       const placed = [];
       parts.forEach(p => {
         if (!p.el) return;
-        p.vis = labelsOn && p.obj.visible && (!p.when || p.when(e, section));
-        if (p.anchorFn) p.anchorV.set(...p.anchorFn(e, section));
+        p.vis = labelsOn && p.obj.visible && (!p.when || p.when(e, section || noSection)) && (!labelFilter || labelFilter.includes(p.name));
+        if (p.anchorFn) p.anchorV.set(...p.anchorFn(e, section || noSection));
         p.obj.updateMatrixWorld(); const wp = p.anchorV.clone().applyMatrix4(p.obj.matrixWorld);
         if (occlTest) { // dim labels whose anchor is hidden behind another part
           const dir = wp.clone().sub(camera.position), d = dir.length(); ray.set(camera.position, dir.normalize());
@@ -577,39 +702,153 @@
         tmp.copy(wp).project(camera);
         p.ax = (tmp.x + 1) / 2 * W; p.ay = (1 - tmp.y) / 2 * H; p.front = tmp.z < 1;
         if (p.labelOffset) { p.lx = p.ax + p.labelOffset[0]; p.ly = p.ay + p.labelOffset[1]; p.side = Math.sign(p.labelOffset[0]) || 1; }
-        else { p.side = p.ax >= cx ? 1 : -1; p.lx = p.ax + p.side * (W < 600 ? 46 : 80); p.ly = p.ay; }
+        else { p.side = p.ax >= cx ? 1 : -1; p.lx = p.ax + p.side * (W < 600 ? 44 : 72); p.ly = p.ay; }
         p.w = p.el.offsetWidth || 90; p.h = p.el.offsetHeight || 22;
-        p.lx = clamp(p.lx, p.w / 2 + 6, W - p.w / 2 - 6);
+        p.lx = clamp(p.lx, p.w / 2 + 8, W - p.w / 2 - 8);
         if (p.vis && p.front) placed.push(p);
       });
       [-1, 1].forEach(side => { // push apart vertically, keep order
         const col = placed.filter(p => p.side === side).sort((a, b) => a.ly - b.ly);
-        for (let k = 1; k < col.length; k++) { const a = col[k - 1], b = col[k]; const need = (a.h + b.h) / 2 + 4; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) b.ly = a.ly + need; }
-        for (let k = col.length - 2; k >= 0; k--) { const a = col[k], b = col[k + 1]; const over = b.ly + b.h / 2 - (H - 6); if (k === col.length - 2 && over > 0) b.ly -= over; const need = (a.h + b.h) / 2 + 4; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) a.ly = b.ly - need; }
+        for (let k = 1; k < col.length; k++) { const a = col[k - 1], b = col[k]; const need = (a.h + b.h) / 2 + 6; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) b.ly = a.ly + need; }
+        for (let k = col.length - 2; k >= 0; k--) { const a = col[k], b = col[k + 1]; const over = b.ly + b.h / 2 - (H - (still ? 74 : 6)); if (k === col.length - 2 && over > 0) b.ly -= over; const need = (a.h + b.h) / 2 + 6; if (Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 && b.ly - a.ly < need) a.ly = b.ly - need; }
       });
+      const fade = reduce ? 1 : Math.min(1, dt * 9);
+      // framed layouts keep labels clear of the title (top) and caption + footer (bottom)
+      const safeTop = still ? 58 : 6, safeBottom = still ? 74 : 6;
       parts.forEach(p => {
         if (!p.el) return;
-        const show = p.vis && p.front, op = show ? (p.hidden ? 0.45 : 1) : 0;
-        const ly = clamp(p.ly, p.h / 2 + 4, H - p.h / 2 - 4);
-        p.el.style.opacity = op; p.el.style.left = p.lx + 'px'; p.el.style.top = ly + 'px';
-        const ex = p.lx - p.side * p.w / 2;
-        p.line.setAttribute('x1', p.ax); p.line.setAttribute('y1', p.ay); p.line.setAttribute('x2', ex); p.line.setAttribute('y2', ly);
-        p.line.setAttribute('stroke', lineCol); p.line.style.opacity = op;
-        p.dot.setAttribute('cx', p.ax); p.dot.setAttribute('cy', p.ay); p.dot.setAttribute('fill', lineCol); p.dot.style.opacity = op;
+        const target = p.vis && p.front ? (p.hidden ? 0.4 : 1) : 0;
+        p.alpha += (target - p.alpha) * fade; if (Math.abs(target - p.alpha) < 0.01) p.alpha = target;
+        p.lyc = clamp(p.ly, p.h / 2 + safeTop, H - p.h / 2 - safeBottom);
+        p.el.style.opacity = p.alpha; p.el.style.left = p.lx + 'px'; p.el.style.top = p.lyc + 'px';
+        p.ex2 = p.lx - p.side * p.w / 2;
+        p.line.setAttribute('x1', p.ax); p.line.setAttribute('y1', p.ay); p.line.setAttribute('x2', p.ex2); p.line.setAttribute('y2', p.lyc);
+        p.line.setAttribute('stroke', lineCol); p.line.style.opacity = p.alpha;
+        p.dot.setAttribute('cx', p.ax); p.dot.setAttribute('cy', p.ay); p.dot.setAttribute('fill', lineCol); p.dot.style.opacity = p.alpha;
       });
+    }
+    function frame(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!frozen) update(dt);
       requestAnimationFrame(frame);
     }
-    const fig = { T, scene, world, camera, renderer, orbit, stage, part, parts, enableSection, slider, toggle, button, standardControls, setReadout,
+
+    /* ----- export: composite the WebGL canvas and the HTML overlays into one 2D canvas ----- */
+    function composite(scale) {
+      scale = scale || pixelRatio;
+      const W = stage.clientWidth, H = stage.clientHeight, cv = document.createElement('canvas');
+      cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
+      const g = cv.getContext('2d'); g.scale(scale, scale);
+      g.fillStyle = css('--stage'); g.fillRect(0, 0, W, H);
+      g.drawImage(renderer.domElement, 0, 0, W, H);
+      const sr = stage.getBoundingClientRect();
+      const text = (el, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillText(el, x, y); };
+      const fontOf = el => { const s = getComputedStyle(el); return `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`; };
+      parts.forEach(p => {
+        if (!p.el || p.alpha < 0.02) return;
+        g.globalAlpha = p.alpha; g.strokeStyle = css('--muted'); g.lineWidth = 1;
+        g.beginPath(); g.moveTo(p.ax, p.ay); g.lineTo(p.ex2, p.lyc); g.stroke();
+        g.fillStyle = css('--muted'); g.beginPath(); g.arc(p.ax, p.ay, 2.5, 0, Math.PI * 2); g.fill();
+        const r = p.el.getBoundingClientRect(), x = r.left - sr.left, y = r.top - sr.top;
+        g.save(); g.shadowColor = 'rgba(10,10,8,.10)'; g.shadowBlur = 12; g.shadowOffsetY = 3; g.fillStyle = css('--stage') === '#121210' ? '#1C1B18' : '#FFFFFF';
+        g.beginPath(); g.roundRect ? g.roundRect(x, y, r.width, r.height, 7) : g.rect(x, y, r.width, r.height); g.fill(); g.restore();
+        const cs = getComputedStyle(p.el), padL = parseFloat(cs.paddingLeft), padT = parseFloat(cs.paddingTop), small = p.el.querySelector('small');
+        const fs = parseFloat(cs.fontSize);
+        text(p.name, x + padL, y + padT + fs * 0.92, fontOf(p.el), p.el.classList.contains('hl') ? css('--accent') : css('--ink'));
+        if (small && getComputedStyle(small).display !== 'none') { const sm = small.getBoundingClientRect(); text(small.textContent, sm.left - sr.left, sm.top - sr.top + parseFloat(getComputedStyle(small).fontSize) * 0.92, fontOf(small), css('--muted')); }
+      });
+      g.globalAlpha = 1;
+      card.querySelectorAll('.dk-ov').forEach(ov => {
+        const s = getComputedStyle(ov); if (+s.opacity < 0.02) return; g.globalAlpha = +s.opacity;
+        const leafs = ov.children.length ? [...ov.children] : [ov];
+        leafs.forEach(el => {
+          const r = el.getBoundingClientRect(); if (!el.textContent.trim()) return;
+          // wrap long text the way the browser did: draw line by line using Range rects
+          const range = document.createRange(); range.selectNodeContents(el); const rects = [...range.getClientRects()];
+          const fs = parseFloat(getComputedStyle(el).fontSize), words = el.textContent.split(' ');
+          if (rects.length <= 1) { text(el.textContent, r.left - sr.left, r.top - sr.top + fs * 0.95, fontOf(el), getComputedStyle(el).color); return; }
+          g.font = fontOf(el); let line = '', ly = r.top - sr.top + fs * 0.95; const lh = parseFloat(getComputedStyle(el).lineHeight) || fs * 1.2;
+          words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > r.width + 1 && line) { text(line, r.left - sr.left, ly, fontOf(el), getComputedStyle(el).color); line = w; ly += lh; } else line = t; });
+          if (line) text(line, r.left - sr.left, ly, fontOf(el), getComputedStyle(el).color);
+        });
+      });
+      g.globalAlpha = 1;
+      return cv;
+    }
+    function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+    const slug = () => (o.title || 'figure').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'figure';
+    function videoType() { return ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)); }
+    // deterministic seek for frame-by-frame rendering (scripts/render.py)
+    function seek(t) {
+      frozen = true; player = null; introOff = true;
+      if (!story) { update(0); return; }
+      const c = compile(story, startState);
+      apply(stateAt(c, clamp(t, 0, c.total)));
+      // labels fade deterministically: simulate the fade from 0.15 s earlier
+      parts.forEach(p => { p.alpha = 0; }); for (let i = 0; i < 6; i++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
+      update(0);
+    }
+    let story0 = {}, startState = null;
+
+    const fig = { T, scene, world, camera, renderer, orbit, stage, mode, part, parts, enableSection, slider, toggle, button, standardControls, setReadout,
       get section() { return section; },
       explode(v) { explodeTarget = v; if (fig.explodeSlider) fig.explodeSlider.value = v; },
       onFrame(f) { frameHooks.push(f); },
       xrayOn: false,
-      xray(objs, on) { if (objs) { xrayObjs.push(...objs); } fig.xrayOn = !!on; xray(xrayObjs, on); if (fig.xrayButton) fig.xrayButton.setAttribute('aria-pressed', !!on); },
-      xrayToggle(objs, label, on) { xrayObjs.push(...objs); const b = fig.xrayButton = toggle(label || 'X-ray', !!on, v => { fig.xrayOn = v; xray(xrayObjs, v); }); fig.xrayOn = !!on; xray(xrayObjs, !!on); return b; },
+      xray(objs, on) { if (objs) xrayObjs.push(...objs); fig.xrayOn = !!on; applyXray(on ? 1 : 0); },
+      xrayToggle(objs, label, on) { xrayObjs.push(...objs); newGroup(); const b = fig.xrayButton = toggle(label || 'X-ray', !!on, v => { fig.xrayOn = v; fig.goTo({ xray: v ? 1 : 0 }, 0.4); }); fig.xrayOn = !!on; applyXray(on ? 1 : 0); return b; },
+      // smooth camera / state move from wherever the figure is now
+      goTo(state, dur) { play([Object.assign({}, state, { dur: reduce ? 0 : (dur ?? 0.9), hold: 0 })]); },
+      // a view button that eases the camera there: fig.view('Occlusal', {phi: 0.05, theta: 0})
+      view(label, state, dur) { return button(label, () => fig.goTo(state, dur), { group: 'views' }); },
+      story(steps, opts) { story = steps; story0 = opts || {}; return fig; },
+      get duration() { return story ? compile(story, startState || homeState()).total : 0; },
+      seek, composite,
+      exportPNG(scale) { return composite(scale || 2).toDataURL('image/png'); },
+      savePNG() { composite(2).toBlob(b => download(b, slug() + '.png'), 'image/png'); },
+      recordVideo(opts) { // real-time capture of one pass of the story, in the viewer's browser
+        opts = opts || {}; const type = videoType(); if (!type || !story) return Promise.reject(new Error('Video recording is not supported in this browser.'));
+        const scale = opts.scale || Math.max(pixelRatio, 1920 / stage.clientWidth);
+        const out = document.createElement('canvas'); const first = composite(scale); out.width = first.width; out.height = first.height;
+        const g = out.getContext('2d'); g.drawImage(first, 0, 0);
+        const rec = new MediaRecorder(out.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 }), chunks = [];
+        rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+        return new Promise(resolve => {
+          rec.onstop = () => resolve(new Blob(chunks, { type: type.split(';')[0] }));
+          seek(0); frozen = false; play(story, { from: startState });
+          const total = player.c.total; rec.start();
+          const t0 = performance.now(); (function tick() { g.drawImage(composite(scale), 0, 0); if ((performance.now() - t0) / 1000 < total + 0.2) requestAnimationFrame(tick); else rec.stop(); })();
+        });
+      },
       fit,
-      start() { resize(); if (!o.view || o.view.dist === undefined) fit(o.view?.margin); else fitCenter.copy(orbit.target); placeCam(); requestAnimationFrame(frame); if (o.introExplode && !reduce) { setTimeout(() => fig.explode(o.introExplode), 900); } window.__dkReady = true; return fig; },
+      start() {
+        resize(); if (!o.view || o.view.dist === undefined) fit(o.view?.margin); else fitCenter.copy(orbit.target);
+        placeCam();
+        startState = Object.assign(snapshot(), homeState(), { section: section ? section.enabled : false, offset: section ? section.offset : 0, xray: xrayAmt }, story0);
+        if (mode === 'image') {
+          if (story) { const c = compile(story, startState); apply(c.end); }
+          actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download PNG'; b.onclick = () => fig.savePNG(); actions.appendChild(b);
+        } else if (mode === 'video') {
+          if (story) { apply(stateAt(compile(story, startState), 0)); if (!reduce) play(story, { loop: true, from: startState }); else apply(compile(story, startState).end); }
+          actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download video';
+          b.onclick = () => { b.disabled = true; b.textContent = 'Recording…'; fig.recordVideo().then(bl => { download(bl, slug() + (bl.type.includes('mp4') ? '.mp4' : '.webm')); }).catch(err => alert(err.message)).finally(() => { b.disabled = false; b.textContent = 'Download video'; play(story, { loop: true, from: startState }); }); };
+          actions.appendChild(b);
+        } else if (story && !reduce) {
+          apply(stateAt(compile(story, startState), 0));
+          setTimeout(() => { if (!introOff) play(story, { from: startState }); }, o.introDelay ?? 500);
+        } else if (story) apply(compile(story, startState).end);
+        else if (o.introExplode && !reduce) setTimeout(() => fig.explode(o.introExplode), 700);
+        requestAnimationFrame(frame); window.__dkReady = true; return fig;
+      },
       // test hook: jump state instantly (used by verification screenshots)
-      setState(s) { if (s.home) { Object.assign(orbit, home, { target: home.target.clone() }); } if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; } if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi; if (s.dist !== undefined) { if (fits) orbit.zoom = s.dist; else orbit.dist = s.dist; } if (s.section !== undefined && section) section.set(s.section, s.offset); orbit.auto = false; }
+      setState(s) {
+        player = null; introOff = true; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; }
+        if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; }
+        if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi;
+        if (s.dist !== undefined) { if (fits) orbit.zoom = zoomTarget = s.dist; else orbit.dist = s.dist; }
+        if (s.section !== undefined && section) section.set(s.section, s.offset);
+        orbit.auto = false; vel = { th: 0, ph: 0 }; labelFilter = null;
+      }
     };
     window.__dkFig = fig;
     return fig;

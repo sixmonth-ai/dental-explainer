@@ -3,10 +3,9 @@
 const FDI = 45, FERRULE = 2.0, POST_IN_ROOT = 8, GP_SEAL_MIN = 4;
 const spec = DK.toothPreset(FDI);
 const fig = DK.figure({
-  fig: 'Fig. 4 · Restoring a root-filled tooth · FDI 45',
-  title: 'Root filling, post, core, crown: what each layer does',
-  subtitle: 'Explode to lift the layers out in the order they go in. Turn on the section to see them nested: the crown hugs a 2 mm collar of the patient’s own tooth (the ferrule) — that collar, not the post, is what resists fracture.',
-  view: { theta: 0.5, phi: 1.3 }, introExplode: 0.7
+  title: 'Root filling, post, core, crown',
+  subtitle: 'FDI 45 (Universal 29), lower right second premolar.',
+  view: { theta: 0.5, phi: 1.3 }
 });
 
 const tooth = DK.tooth(spec, { omit: ['enamel', 'dentin', 'pulp'] });   // root only: crown already lost
@@ -41,15 +40,20 @@ fig.enableSection([0, 0, 1], [
   { objects: [gp], color: DK.COLORS.gutta },
   { objects: [post], color: 0xbfb9a6 }
 ]);
-fig.standardControls({ section: { label: 'Section', range: [-2.5, 2.5], rangeLabel: 'Cut (lingual ↔ buccal, mm)', offset: 0 } });
-fig.xrayToggle([bone, gum], 'X-ray bone', false);
+fig.standardControls({ section: { label: 'Cut', range: [-2.5, 2.5], offset: 0 } });
+
+// story: lift the layers in the order they go in → back together → cut to show the ferrule
+fig.story([
+  { dur: 0, hold: 0.8, labels: [] },
+  { dur: 1.6, hold: 2.0, explode: 0.8, labels: ['Crown', 'Core', 'Fibre post', 'Root filling'], caption: 'Four layers, lifted in the order they go in.' },
+  { dur: 1.2, hold: 0.3, explode: 0, labels: [] },
+  { dur: 1.4, hold: 2.4, theta: 0, phi: 1.45, section: true, offset: 0, labels: ['Ferrule', 'Fibre post', 'Root filling'], caption: 'The 2 mm ferrule, not the post, resists fracture.' }
+]);
 
 const seal = workingLen - POST_IN_ROOT - 0.2;
 const ok = (v, min) => ({ v: DK.mm(v) + (v >= min ? ' ✓' : ' ⚠'), cls: v >= min ? 'ok' : 'warn' });
 fig.setReadout([
-  { k: 'Tooth', v: `FDI ${FDI} · Universal 29` },
   Object.assign({ k: 'Ferrule height (≥1.5)' }, ok(FERRULE, 1.5)),
-  Object.assign({ k: `Apical seal (≥${GP_SEAL_MIN})` }, ok(seal, GP_SEAL_MIN)),
-  { k: 'Post in root', v: `${POST_IN_ROOT} mm of ${s.rootL} mm root` }
+  Object.assign({ k: `Apical seal (≥${GP_SEAL_MIN})` }, ok(seal, GP_SEAL_MIN))
 ]);
 fig.start();

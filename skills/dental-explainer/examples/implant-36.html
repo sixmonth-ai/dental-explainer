@@ -20,26 +20,29 @@
   DK.color = hex => new T.Color(hex).convertSRGBToLinear();
 
   /* ---------- palette & materials ---------- */
+  // Restrained palette: every tissue is a muted ivory, grey or dusty tone from the off-white / ink world of the brand, so the
+  // figure reads as one calm object; the brand accent is reserved for the single thing a figure points at.
   DK.COLORS = {
-    enamel: 0xefe9dc, enamelCap: 0xeef1f5, dentin: 0xe2c27e, dentinCap: 0xe2bd7c,
-    cementum: 0xd6ba86, pulp: 0xd9534f, pulpCap: 0xc0392b, nerve: 0xf2c94c, artery: 0xc0392b, vein: 0x3c6fb4,
-    pdl: 0xc27a88, gingiva: 0xd8707e, gingivaCap: 0xd67786, cortical: 0xdcc8a2, corticalCap: 0xeadfc6,
-    cancellous: 0xd8b98a, titanium: 0xa9adb3, titaniumDark: 0x7d828a, zirconia: 0xf6f3ec, ceramic: 0xf1ede2,
-    gold: 0xd4a843, steel: 0xc3c7cc, nickelTi: 0x9aa0a6, gutta: 0xe07b39, composite: 0xf0e7d0, rubberDam: 0x2f80ed, caries: 0x6b4a2b
+    enamel: 0xebe8e1, enamelCap: 0xe8e6e1, dentin: 0xdacfb6, dentinCap: 0xd8c9aa,
+    cementum: 0xcfc3aa, pulp: 0xb8827a, pulpCap: 0xb07a71, nerve: 0xd6c08a, artery: 0xb3675f, vein: 0x74839c,
+    pdl: 0xbca29c, gingiva: 0xcaa29e, gingivaCap: 0xc39692, cortical: 0xe3dbcb, corticalCap: 0xe9e3d4, cancellous: 0xd6cab2,
+    titanium: 0xb1b3b5, titaniumDark: 0x85888c, zirconia: 0xf2f0ea, ceramic: 0xf1efe8,
+    gold: 0xcbb27c, steel: 0xc4c6c8, nickelTi: 0xa3a6a9, gutta: 0xc8977c, composite: 0xe7e1d3, rubberDam: 0x5b7f9a, caries: 0x7a6554,
+    accent: 0x0E3A5C, accentDark: 0x5A8FB8
   };
   const MAT_PRESETS = {
-    enamel: { color: 'enamel', roughness: 0.34, metalness: 0, clearcoat: 0.85, rim: [0.84, 0.89, 0.97, 0.38] },
-    dentin: { color: 'dentin', roughness: 0.6 },
-    root: { color: 'cementum', roughness: 0.62 },
+    enamel: { color: 'enamel', roughness: 0.3, metalness: 0, clearcoat: 0.7, rim: [0.80, 0.86, 0.95, 0.45], core: [1.0, 0.965, 0.9, 0.45], bump: 'perikymata', bumpScale: 0.005 },
+    dentin: { color: 'dentin', roughness: 0.62, bump: 'streaks', bumpScale: 0.02 },
+    root: { color: 'cementum', roughness: 0.68, bump: 'streaks', bumpScale: 0.03, map: 'streaks' },
     pulp: { color: 'pulp', roughness: 0.5 },
-    gingiva: { color: 'gingiva', roughness: 0.42, clearcoat: 0.3, bump: 'stipple' },
-    bone: { color: 'cortical', roughness: 0.82, bump: 'pores' },
+    gingiva: { color: 'gingiva', roughness: 0.42, clearcoat: 0.3, bump: 'stipple', bumpScale: 0.02, core: [1.0, 0.93, 0.92, 0.22] },
+    bone: { color: 'cortical', roughness: 0.74, bump: 'pores', bumpScale: 0.05, map: 'pores' },
     titanium: { color: 'titanium', roughness: 0.32, metalness: 0.85 },
     titaniumDark: { color: 'titaniumDark', roughness: 0.35, metalness: 0.85 },
     gold: { color: 'gold', roughness: 0.3, metalness: 0.9 },
     steel: { color: 'steel', roughness: 0.25, metalness: 0.9 },
     zirconia: { color: 'zirconia', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },
-    ceramic: { color: 'ceramic', roughness: 0.25, clearcoat: 0.8 },
+    ceramic: { color: 'ceramic', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },   // same program as zirconia
     nerve: { color: 'nerve', roughness: 0.5 },
     artery: { color: 'artery', roughness: 0.45 },
     vein: { color: 'vein', roughness: 0.45 },
@@ -48,58 +51,107 @@
     composite: { color: 'composite', roughness: 0.35 },
     caries: { color: 'caries', roughness: 0.8 },
     rubberDam: { color: 'rubberDam', roughness: 0.5 },
-    fiber: { color: 0xeeeadc, roughness: 0.35 },
-    cement: { color: 0xd9e4ea, roughness: 0.6 }
+    fiber: { color: 0xe9e5da, roughness: 0.35 },
+    cement: { color: 0xdcdedf, roughness: 0.6 }
   };
-  const NOISE = {};
-  function noiseTexture(kind) {
-    if (NOISE[kind]) return NOISE[kind];
-    const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d');
-    let seed = kind === 'pores' ? 11 : 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    x.fillStyle = '#808080'; x.fillRect(0, 0, N, N);
-    const dots = kind === 'pores' ? 900 : 2600;
-    for (let i = 0; i < dots; i++) { // pores (bone) or stippling (gingiva): small soft dimples, tiled seamlessly
-      const px = rnd() * N, py = rnd() * N, r = kind === 'pores' ? 1 + rnd() * 2.6 : 0.8 + rnd() * 1.4, v = kind === 'pores' ? 40 + rnd() * 50 : 90 + rnd() * 40;
-      for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { const gr = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r); gr.addColorStop(0, `rgb(${v},${v},${v})`); gr.addColorStop(1, 'rgba(128,128,128,0)'); x.fillStyle = gr; x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2); }
+
+  /* Procedural textures (no image files). All tileable. */
+  const TEX = {};
+  const seeded = seed => { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; };
+  // value noise field, N×N pixels, cx×cy lattice cells per tile, `oct` octaves. Returns Float32Array in 0..1.
+  function noiseField(N, cx, cy, rnd, oct, gain) {
+    const out = new Float32Array(N * N); let amp = 1, total = 0;
+    for (let o = 0; o < (oct || 1); o++) {
+      const gx = cx << o, gy = cy << o, lat = new Float32Array(gx * gy); for (let i = 0; i < lat.length; i++) lat[i] = rnd();
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const fx = x / N * gx, fy = y / N * gy, ix = Math.floor(fx), iy = Math.floor(fy), tx = smooth(0, 1, fx - ix), ty = smooth(0, 1, fy - iy);
+        const v = (X, Y) => lat[((Y % gy) * gx) + (X % gx)];
+        out[y * N + x] += amp * lerp(lerp(v(ix, iy), v(ix + 1, iy), tx), lerp(v(ix, iy + 1), v(ix + 1, iy + 1), tx), ty);
+      }
+      total += amp; amp *= gain || 0.5;
     }
-    const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(kind === 'pores' ? 3 : 4, kind === 'pores' ? 3 : 4);
-    return (NOISE[kind] = t);
+    for (let i = 0; i < out.length; i++) out[i] /= total;
+    return out;
   }
+  function dataTexture(N, fill, opts) { // fill(i, px) writes rgba into px (0..255)
+    const d = new Uint8Array(N * N * 4), px = [128, 128, 128, 255];
+    for (let i = 0; i < N * N; i++) { fill(i, px); d.set(px, i * 4); }
+    const t = new T.DataTexture(d, N, N, T.RGBAFormat); t.wrapS = t.wrapT = T.RepeatWrapping; t.minFilter = T.LinearMipmapLinearFilter; t.magFilter = T.LinearFilter; t.generateMipmaps = true; t.anisotropy = 4;
+    if (opts && opts.repeat) t.repeat.set(opts.repeat[0], opts.repeat[1]);
+    if (opts && opts.srgb) t.encoding = T.sRGBEncoding;
+    t.needsUpdate = true; return t;
+  }
+  const N8 = v => Math.round(clamp(v, 0, 1) * 255);
+  DK.texture = function (kind) {
+    if (TEX[kind]) return TEX[kind];
+    const N = 256; let t;
+    if (kind === 'grain') { // 3 independent noises for shaders: r fine (3 oct), g coarse, b very fine
+      const r = noiseField(N, 16, 16, seeded(3), 3), g = noiseField(N, 5, 5, seeded(17), 2), b = noiseField(N, 40, 40, seeded(29), 1);
+      t = dataTexture(N, (i, px) => { px[0] = N8(r[i]); px[1] = N8(g[i]); px[2] = N8(b[i]); });
+      t.minFilter = T.LinearFilter; t.generateMipmaps = false;
+    } else if (kind === 'pores') { // cortical bone: fine porosity + gentle undulation; used as bump and as a faint albedo map
+      const f = noiseField(N, 24, 24, seeded(11), 3, 0.55), c = noiseField(N, 4, 4, seeded(12), 2), rnd = seeded(13);
+      const dots = new Float32Array(N * N); for (let k = 0; k < 420; k++) { const x0 = rnd() * N, y0 = rnd() * N, r = 1 + rnd() * 2.2; for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) { const d = Math.hypot(x, y) / r; if (d < 1) { const X = ((Math.round(x0) + x) % N + N) % N, Y = ((Math.round(y0) + y) % N + N) % N; dots[Y * N + X] = Math.max(dots[Y * N + X], 1 - d * d); } } }
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.5 + (c[i] - 0.5) * 0.5 - dots[i] * 0.45; px[0] = px[1] = px[2] = N8(v); }, { repeat: [3, 3] });
+    } else if (kind === 'stipple') { // gingiva: orange-peel stippling
+      const f = noiseField(N, 36, 36, seeded(5), 2, 0.4), c = noiseField(N, 6, 6, seeded(6), 1);
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.8 + (c[i] - 0.5) * 0.3; px[0] = px[1] = px[2] = N8(v); }, { repeat: [4, 4] });
+    } else if (kind === 'streaks') { // cementum / dentin: faint longitudinal streaks (u around, v along the root)
+      const f = noiseField(N, 48, 3, seeded(21), 2, 0.5), c = noiseField(N, 6, 6, seeded(22), 2);
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.7 + (c[i] - 0.5) * 0.4; px[0] = px[1] = px[2] = N8(v); }, { repeat: [3, 1] });
+    } else if (kind === 'perikymata') { // enamel: fine horizontal growth lines + faint mottling
+      const f = noiseField(N, 3, 48, seeded(31), 2), c = noiseField(N, 8, 8, seeded(32), 2);
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.35 + (c[i] - 0.5) * 0.65; px[0] = px[1] = px[2] = N8(v); }, { repeat: [4, 1] });
+    } else throw new Error('Unknown texture ' + kind);
+    return (TEX[kind] = t);
+  };
+  const noiseTexture = DK.texture;
+  // Albedo variation maps are the bump textures re-used as a light multiply (white ± a few %): same pattern, subtle tone.
+  const mapTexture = kind => { const k = 'map:' + kind; if (TEX[k]) return TEX[k]; const src = DK.texture(kind).image.data, N = DK.texture(kind).image.width; const t = dataTexture(N, (i, px) => { const v = 0.955 + (src[i * 4] / 255 - 0.5) * 0.09; px[0] = px[1] = px[2] = N8(v); }, { repeat: [DK.texture(kind).repeat.x, DK.texture(kind).repeat.y] }); return (TEX[k] = t); };
+
   DK.mat = function (name, extra) {
     const p = Object.assign({}, MAT_PRESETS[name] || { color: name }, extra || {});
     const c = typeof p.color === 'string' ? (DK.COLORS[p.color] !== undefined ? DK.COLORS[p.color] : p.color) : p.color;
     const Mat = p.clearcoat ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
-    const m = new Mat({ color: DK.color(c), roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.3 } : {}), ...(p.bump ? { bumpMap: noiseTexture(p.bump), bumpScale: p.bump === 'pores' ? 0.06 : 0.025 } : {}), transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
+    const m = new Mat({ color: DK.color(c), roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.35 } : {}),
+      ...(p.bump ? { bumpMap: noiseTexture(p.bump), bumpScale: p.bumpScale ?? 0.03 } : {}), ...(p.map ? { map: mapTexture(p.map) } : {}),
+      transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
     m.userData.capColor = p.cap !== undefined ? p.cap : c;
-    if (p.rim) { // cool, translucent-looking edge (enamel, ceramics): mixes toward rim colour at grazing angles
-      const [r, g, b, k] = p.rim;
+    if (p.rim || p.core) { // view-dependent tints: cool translucent edge at grazing angles (enamel, ceramics), warm core where the surface faces the viewer (dentin glowing through enamel, blood under gingiva)
+      const v4 = a => a.map(x => x.toFixed(3)).join(',');
+      const code = (p.rim ? `{ vec4 R = vec4(${v4(p.rim)}); gl_FragColor.rgb = mix(gl_FragColor.rgb, R.rgb, pow(fr, 2.5) * R.a); }` : '') +
+        (p.core ? `{ vec4 C = vec4(${v4(p.core)}); gl_FragColor.rgb *= mix(vec3(1.0), C.rgb, pow(1.0 - fr, 1.5) * C.a); }` : '');
       m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
-        `{ float fr = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.5); gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)}), fr * ${k.toFixed(3)}); }\n#include <dithering_fragment>`); };
-      m.customProgramCacheKey = () => 'rim' + p.rim.join(',');
+        `{ float fr = 1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0); ${code} }\n#include <dithering_fragment>`); };
+      m.customProgramCacheKey = () => 'tint' + code.length + (p.rim || '') + (p.core || '');
     }
     return m;
   };
 
   /* ---------- geometry helpers ---------- */
   function gridGeometry(rows, cols, fn, closeTop, closeBottom) {
-    // fn(i,j) -> [x,y,z]; rows along meridian (0..rows), cols around (0..cols-1, wraps)
-    const pos = [], idx = [];
-    for (let i = 0; i <= rows; i++) for (let j = 0; j < cols; j++) pos.push(...fn(i, j));
-    const at = (i, j) => i * cols + (j % cols);
+    // fn(i,j) -> [x,y,z]; rows along meridian (0..rows), cols around (0..cols-1, wraps). Column `cols` repeats column 0
+    // so the surface carries seamless UVs (u around, v along); the seam normals are averaged afterwards.
+    const pos = [], uv = [], idx = [], W = cols + 1;
+    for (let i = 0; i <= rows; i++) for (let j = 0; j <= cols; j++) { pos.push(...fn(i, j % cols)); uv.push(j / cols, i / rows); }
+    const at = (i, j) => i * W + j;
     for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
       const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
       idx.push(a, b, d, b, c, d);
     }
     const addCap = (row, pt, flip) => {
-      const ci = pos.length / 3; pos.push(...pt);
+      const ci = pos.length / 3; pos.push(...pt); uv.push(0.5, row ? 1 : 0);
       for (let j = 0; j < cols; j++) { const a = at(row, j), b = at(row, j + 1); flip ? idx.push(ci, b, a) : idx.push(ci, a, b); }
     };
     if (closeBottom) addCap(0, closeBottom, false);
     if (closeTop) addCap(rows, closeTop, true);
     const g = new T.BufferGeometry();
     g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
+    const n = g.attributes.normal, v = new T.Vector3(), w = new T.Vector3();
+    for (let i = 0; i <= rows; i++) { const a = at(i, 0), b = at(i, cols); v.fromBufferAttribute(n, a).add(w.fromBufferAttribute(n, b)).normalize(); n.setXYZ(a, v.x, v.y, v.z); n.setXYZ(b, v.x, v.y, v.z); }
     return g;
   }
   DK.gridGeometry = gridGeometry;
@@ -150,9 +202,10 @@
 
   /* ---------- teeth ---------- */
   // Crown surface: superellipse rings from cervix (y=0) to occlusal; relief(xn,zn) adds cusps/edges.
+  const CROWN_COLS = 96;
   function crownGeometry(c, inset, open) {
     inset = inset || { side: 0, top: 0, reliefScale: 1, topScale: 1 };
-    const rows = 40, cols = 64, H = c.crownL - inset.top;
+    const rows = 56, cols = CROWN_COLS, H = c.crownL - inset.top;
     const aC = c.mdC / 2 - inset.side * 0.4, bC = c.blC / 2 - inset.side * 0.4;
     const aM = c.md / 2 - inset.side, bM = c.bl / 2 - inset.side;
     const n = c.squareness || 2.4;
@@ -191,7 +244,7 @@
   }
   function rootGeometry(r, scale) { // r: {x,z,len,ra,rb,apex:[dx,dz],start}; scale shrinks radii (canal / pdl)
     scale = scale || { k: 1, add: 0, minR: 0.05, endShort: 0 };
-    const rows = 36, cols = 32, start = r.start ?? 0.6, L = r.len - (scale.endShort || 0);
+    const rows = 48, cols = 48, start = r.start ?? 0.6, L = r.len - (scale.endShort || 0);
     return gridGeometry(rows, cols, (i, j) => {
       const t = 1 - i / rows, th = j / cols * Math.PI * 2; // i=0 apex → i=rows top (outward normals)
       const tip = Math.sqrt(Math.max(0, 1 - Math.pow(t, r.tipSharp || 9)));
@@ -333,58 +386,139 @@
   };
 
   /* ---------- bone & soft tissue blocks ---------- */
-  function trabecularTexture(colA, colB) {
-    const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d');
-    // a connected lattice of thin struts (trabeculae) around rounded marrow spaces, drawn tileable
-    const N = 512, A = '#' + new T.Color(colA).getHexString(), B = '#' + new T.Color(colB).getHexString();
-    cv.width = cv.height = N; x.fillStyle = A; x.fillRect(0, 0, N, N);
-    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    const blob = (cx, cy, r) => { for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { x.beginPath(); const k = 9; for (let i = 0; i <= k; i++) { const a = i / k * Math.PI * 2, rr = r * (0.75 + rnd() * 0.45); x[i ? 'lineTo' : 'moveTo'](cx + ox + Math.cos(a) * rr, cy + oy + Math.sin(a) * rr * (0.7 + rnd() * 0.5)); } x.closePath(); x.fill(); } };
-    x.fillStyle = B; for (let k = 0; k < 520; k++) blob(rnd() * N, rnd() * N, 9 + rnd() * 13);   // marrow spaces cover most of the area, leaving thin struts
-    x.globalAlpha = 0.08; x.fillStyle = '#6b3f22'; for (let k = 0; k < 220; k++) blob(rnd() * N, rnd() * N, 4 + rnd() * 8); x.globalAlpha = 1; // marrow depth
-    const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(70, 70); t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t; // cap plane is 400 mm → ~5.7 mm tiles
-  }
-  function blockGeometry(w, h, d, crestCurve, topScallop) { // centered x,z; top at y=0 with rounded crest
-    const g = new T.BoxGeometry(w, h, d, 40, 12, 24); const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      let x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-      const top = (y + h / 2) / h; // 0 bottom → 1 top
-      const zc = z / (d / 2);
-      y = y - h / 2; // top at 0
-      y -= Math.pow(Math.abs(zc), 2.2) * crestCurve * top; // rounded ridge crest
-      if (topScallop) y += topScallop(x, z) * top;
-      z *= lerp(1, 0.86, Math.pow(top, 3)); // narrower toward crest
-      p.setXYZ(i, x, y, z);
+  const TRAB_MM = 6;   // one trabecular tile = 6 mm of bone
+  function trabecularTexture(colA, colB) { // colA: bone struts, colB: marrow spaces
+    const N = 512, G = 12, rnd = seeded(7), seeds = [];
+    for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) seeds.push([(gx + 0.1 + rnd() * 0.8) / G * N, (gy + 0.1 + rnd() * 0.8) / G * N]);
+    const wx = noiseField(N, 5, 5, seeded(8), 3), wz = noiseField(N, 5, 5, seeded(9), 3), thick = noiseField(N, 6, 6, seeded(10), 2), fine = noiseField(N, 32, 32, seeded(12), 2);
+    const A = new T.Color(colA), B = new T.Color(colB), D = new T.Color(colB).multiplyScalar(0.82), E = new T.Color(colA).multiplyScalar(0.93);
+    const cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d'), img = x.createImageData(N, N), d = img.data, cell = N / G;
+    // Worley lattice: marrow spaces are Voronoi cells, bone is the ridge between them (F2 − F1 small). Cells stretched
+    // vertically (trabeculae align with load), warped by low-frequency noise so nothing looks like a grid.
+    for (let py = 0; py < N; py++) for (let pxl = 0; pxl < N; pxl++) {
+      const i = py * N + pxl, X = pxl + (wx[i] - 0.5) * 34, Y = py + (wz[i] - 0.5) * 34;
+      const gx = Math.floor(X / cell), gy = Math.floor(Y / cell); let f1 = 1e9, f2 = 1e9;
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+        const cx = ((gx + ox) % G + G) % G, cy = ((gy + oy) % G + G) % G, sd = seeds[cy * G + cx];
+        let dx = sd[0] - X, dy = sd[1] - Y; dx -= Math.round(dx / N) * N; dy -= Math.round(dy / N) * N;
+        const dist = Math.hypot(dx * 1.2, dy * 0.85); if (dist < f1) { f2 = f1; f1 = dist; } else if (dist < f2) f2 = dist;
+      }
+      const edge = f2 - f1, t = 3 + thick[i] * 9, k = clamp((edge - t) / 1.5, 0, 1), m = smooth(0, 12, edge - t), fn = 0.96 + fine[i] * 0.08;
+      const c = k < 1 ? (k > 0 ? new T.Color().lerpColors(A, D, k) : (edge < t * 0.55 ? A : E)) : new T.Color().lerpColors(D, B, m);
+      d[i * 4] = N8(c.r * fn); d[i * 4 + 1] = N8(c.g * fn); d[i * 4 + 2] = N8(c.b * fn); d[i * 4 + 3] = 255;
     }
-    g.computeVertexNormals(); return g;
+    x.putImageData(img, 0, 0);
+    const tex = new T.CanvasTexture(cv); tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.anisotropy = 8; tex.mm = TRAB_MM; return tex;
   }
+  // Closed outline of a rounded rectangle: fn(s) → [x,z], s in [0,1), from (+hw,0) toward +z (same sense as the crown rings).
+  function roundedRect(hw, hd, r) {
+    r = Math.min(r, hw, hd); const sx = hw - r, sz = hd - r, arc = Math.PI / 2 * r, Q = Math.PI / 2;
+    const segs = [[2 * sz, u => [hw, -sz + 2 * sz * u]], [arc, u => [sx + r * Math.cos(u * Q), sz + r * Math.sin(u * Q)]], [2 * sx, u => [sx - 2 * sx * u, hd]],
+      [arc, u => [-sx + r * Math.cos(Q + u * Q), sz + r * Math.sin(Q + u * Q)]], [2 * sz, u => [-hw, sz - 2 * sz * u]], [arc, u => [-sx + r * Math.cos(2 * Q + u * Q), -sz + r * Math.sin(2 * Q + u * Q)]],
+      [2 * sx, u => [-sx + 2 * sx * u, -hd]], [arc, u => [sx + r * Math.cos(3 * Q + u * Q), -sz + r * Math.sin(3 * Q + u * Q)]]];
+    const P = segs.reduce((a, g) => a + g[0], 0) || 1;
+    return s => { let L = s * P; for (let k = 0; k < 8; k++) { const [len, f] = segs[k]; if (len <= 1e-9) continue; if (L <= len || k === 7) return f(clamp(L / len, 0, 1)); L -= len; } return segs[0][1](0); };
+  }
+  // Alveolar-ridge block: rounded-rectangle plan (vertical edges rounded by `rc`), walls tapering slightly toward a domed
+  // crest `crest` mm high. Centred in x,z; crest at y=0, flat bottom at y=−h. topFn(x,z) displaces the top (scallops, cuffs).
+  function blockGeometry(w, h, d, crest, topFn, rc) {
+    rc = rc ?? Math.min(1.8, w / 4, d / 4); crest = Math.min(crest || 0.001, h * 0.6);
+    const wallRows = 22, crestRows = 18, rows = wallRows + crestRows, cols = 160, outlines = [];
+    return gridGeometry(rows, cols, (i, j) => {
+      const s = j / cols; let y, hd;
+      if (i <= wallRows) { const t = i / wallRows; y = -h + (h - crest) * t; hd = d / 2; }
+      else { const t = (i - wallRows) / crestRows; y = -crest + crest * Math.sin(t * Math.PI / 2); hd = d / 2 * Math.cos(t * Math.PI / 2); }
+      const up = clamp((y + h) / h, 0, 1); hd *= lerp(1, 0.9, Math.pow(up, 2.5)); hd = Math.max(hd, 0.03);
+      const o = outlines[i] || (outlines[i] = roundedRect(w / 2, hd, rc)), [x, z] = o(s);
+      if (topFn) y += topFn(x, z) * Math.pow(smooth(0.25, 1, up), 2);
+      return [x, y, z];
+    }, [0, topFn ? topFn(0, 0) : 0, 0], [0, -h, 0]);
+  }
+  DK.blockGeometry = blockGeometry;
   // Alveolar bone block: cortical shell + cancellous core. Top (crest) at y=0.
   DK.bone = function (o) {
-    o = Object.assign({ width: 24, height: 22, depth: 11, cortical: 1.2, crest: 1.5, scallop: null }, o);
+    o = Object.assign({ width: 24, height: 22, depth: 11, cortical: 1.2, crest: 1.5, scallop: null, round: null }, o);
     const grp = new T.Group(); grp.name = 'Alveolar bone';
     const cort = DK.mat('bone', { cap: DK.COLORS.corticalCap });
     const canc = DK.mat('bone', { color: DK.COLORS.cancellous });
-    const outer = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop), cort); outer.name = 'Cortical bone';
-    const inner = new T.Mesh(blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, o.scallop), canc); inner.name = 'Cancellous bone';
-    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xf2e6cb, 0xd6a77a);
+    const outer = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop, o.round ?? undefined), cort); outer.name = 'Cortical bone';
+    const inner = new T.Mesh(blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, o.scallop, o.round ?? undefined), canc); inner.name = 'Cancellous bone';
+    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xeae4d6, 0xd2c3a8);
     inner.material.visible = false; // only seen in section
     grp.add(outer, inner); grp.userData.layers = { cortical: outer, cancellous: inner };
     return grp;
   };
+  // Gingiva block. `around`: teeth (or an implant collar) it hugs — [{x, z, md, bl, rise?, n?}] in the block's frame: the top
+  // rises by `rise` mm (default 0.8) into a free gingival margin along each cervical outline and a papilla where two meet.
   DK.gingiva = function (o) {
-    o = Object.assign({ width: 24, height: 4, depth: 12, crest: 1.6, scallop: null }, o);
+    o = Object.assign({ width: 24, height: 4, depth: 12, crest: 1.6, scallop: null, around: null, round: null }, o);
     const m = DK.mat('gingiva', { cap: o.capColor ?? DK.COLORS.gingivaCap, color: o.color ?? DK.COLORS.gingiva }); // inflamed: color 0xd0606f
-    const mesh = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop), m); mesh.name = 'Gingiva';
+    let top = o.scallop;
+    if (o.around && o.around.length) {
+      const cuff = (x, z) => {
+        let v = 0;
+        o.around.forEach(t => { const a = t.md / 2, b = t.bl / 2, n = t.n || 2.3, rho = Math.pow(Math.pow(Math.abs(x - t.x) / a, n) + Math.pow(Math.abs(z - t.z) / b, n), 1 / n);
+          const dist = (rho - 1) * Math.min(a, b); v += (t.rise ?? 0.8) * smooth(1.7, 0.1, dist); });
+        return Math.min(v, 1.35 * Math.max(...o.around.map(t => t.rise ?? 0.8)));
+      };
+      top = o.scallop ? (x, z) => o.scallop(x, z) + cuff(x, z) : cuff;
+    }
+    const mesh = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, top, o.round ?? undefined), m); mesh.name = 'Gingiva';
     return mesh;
   };
 
   /* ---------- section (clipping with solid stencil caps) ---------- */
   // removeToward: direction of the half that is cut away (camera should look from that side). Cut sits at coordinate `pos` along it.
-  // capGroups: ordered outermost → innermost: [{objects:[Object3D...], color, texture}]
+  // capGroups: ordered outermost → innermost: [{objects:[Object3D...], color, texture, kind}]
+  // kind (optional): 'dentin' | 'enamel' | 'pulp' | 'cortical' | 'gingiva' | 'metal' | 'plain' — the procedural grain drawn on the
+  // cut face; inferred from the colour (DK.COLORS.*Cap) or the material when omitted. A texture gives a mapped face (trabecular bone).
+  const CAP_KINDS = { plain: 0, dentin: 1, enamel: 2, pulp: 3, cortical: 4, gingiva: 5, metal: 6, map: 7 };
+  const CAP_VS = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
+  const CAP_FS = `
+    uniform vec3 uColor; uniform int uKind; uniform sampler2D uNoise; uniform sampler2D uMap; uniform float uMapScale;
+    uniform sampler2D uId; uniform vec2 uRes; uniform float uPx; uniform float uMyId; uniform float uIdPass;
+    uniform mat4 uFrame; uniform vec3 uU; uniform vec3 uV; varying vec3 vW;
+    vec3 nz(vec2 p){ return texture2D(uNoise, p).rgb; }
+    void main(){
+      if (uIdPass > 0.5) { gl_FragColor = vec4(uMyId, 0.0, 0.0, 1.0); return; }
+      vec2 q = vec2(dot(vW, uU), dot(vW, uV));
+      vec3 l = (uFrame * vec4(vW, 1.0)).xyz;
+      vec3 col = uColor;
+      if (uKind == 1 || uKind == 2) { // dentinal tubules / enamel rods radiate from the pulp, tilting up toward the cusps
+        float r = length(l.xz) + 1e-4; vec2 dir = l.xz / r; float yy = l.y + smoothstep(-1.0, 4.0, l.y) * 0.5 * r;
+        float a = nz(dir * 0.42 + vec2(yy * 0.33, yy * 0.19)).r, b = nz(dir * 1.7 + vec2(yy * 0.55, -yy * 0.31) + r * 0.02).b;
+        float g = (a - 0.5) * 0.9 + (b - 0.5) * 0.5;
+        col *= 1.0 + g * (uKind == 1 ? 0.17 : 0.09) + (nz(q * 0.05).g - 0.5) * (uKind == 1 ? 0.09 : 0.04);
+      } else if (uKind == 3) { vec3 n1 = nz(q * 0.11), n2 = nz(q * 0.4); col *= 1.0 + ((n1.g - 0.5) * 0.5 + (n2.r - 0.5) * 0.3) * 0.4; }
+      else if (uKind == 4) { vec3 n1 = nz(q * 0.35), n2 = nz(q * 0.07); col *= (1.0 - smoothstep(0.66, 0.74, n1.b) * 0.16) * (1.0 + (n2.g - 0.5) * 0.08 + (n1.r - 0.5) * 0.05); }
+      else if (uKind == 5) { vec3 n1 = nz(q * 0.6), n2 = nz(q * 0.08); col *= 1.0 + (n1.r - 0.5) * 0.08 + (n2.g - 0.5) * 0.12; }
+      else if (uKind == 6) { col *= 1.0 + (nz(vec2(q.x * 0.015, q.y * 0.9)).r - 0.5) * 0.14; }
+      else if (uKind == 7) { vec3 m = texture2D(uMap, q * uMapScale).rgb; col *= pow(m, vec3(2.2)); }
+      // boundary lines between layers and a soft inner shadow, from the cap-id buffer of this frame
+      vec2 px = uPx / uRes, sc = gl_FragCoord.xy / uRes; float edge = 0.0, ao = 0.0;
+      for (int k = 0; k < 8; k++) { float an = float(k) * 0.7854; vec2 dd = vec2(cos(an), sin(an));
+        edge += abs(texture2D(uId, sc + dd * px * 1.5).r - uMyId) > 0.002 ? 1.0 : 0.0;
+        ao += abs(texture2D(uId, sc + dd * px * 5.0).r - uMyId) > 0.002 ? 1.0 : 0.0; }
+      col *= 1.0 - edge * 0.05 - ao * 0.02;
+      gl_FragColor = vec4(col, 1.0);
+      #include <encodings_fragment>
+    }`;
+  function capKind(cg) {
+    if (cg.kind) return cg.kind; if (cg.texture) return 'map';
+    const c = cg.color, C = DK.COLORS;
+    if (c === C.dentinCap || c === C.dentin || c === C.cementum) return 'dentin'; if (c === C.enamelCap || c === C.enamel) return 'enamel'; if (c === C.pulpCap || c === C.pulp) return 'pulp';
+    if (c === C.corticalCap || c === C.cortical) return 'cortical'; if (c === C.gingivaCap || c === C.gingiva) return 'gingiva';
+    let metal = false; cg.objects.forEach(o => o.traverse(m => { if (m.isMesh && m.material && m.material.metalness > 0.5) metal = true; }));
+    return metal ? 'metal' : 'plain';
+  }
+  function toothFrameOf(objects) { for (const o of objects) { let p = o; while (p) { if (p.userData && p.userData.spec && p.userData.layers) return p; p = p.parent; } } return null; }
   function makeSection(fig, removeToward, capGroups) {
     const dir = new T.Vector3(...removeToward).normalize();
     const plane = new T.Plane(dir.clone().negate(), 1e5);
     const caps = [];
+    // r128 cannot resize a depth+stencil target in place (INVALID_OPERATION after setSize), so it is re-created when the size changes
+    const makeRT = (w, h) => new T.WebGLRenderTarget(w, h, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, format: T.RGBAFormat, stencilBuffer: true, depthBuffer: true });
+    let idRT = makeRT(4, 4);
     let order = 1;
     capGroups.forEach((cg, k) => {
       const base = order; order += 3;
@@ -392,21 +526,37 @@
         if (!m.isMesh || m.userData.isStencil) return;
         const src = m.material; m.material = src.clone(); m.material.onBeforeCompile = src.onBeforeCompile; m.material.customProgramCacheKey = src.customProgramCacheKey; // r128 clone() drops shader hooks
         m.material.clippingPlanes = [plane]; m.material.clipShadows = true;
-        const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; return s; };
+        const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; s.layers.enable(1); return s; };
         m.add(mk(T.BackSide, T.IncrementWrapStencilOp), mk(T.FrontSide, T.DecrementWrapStencilOp));
       }));
-      const capMat = new T.MeshBasicMaterial({ color: DK.color(cg.color), toneMapped: false, map: cg.texture || null, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k });
+      const kind = capKind(cg);
+      const capMat = new T.ShaderMaterial({ vertexShader: CAP_VS, fragmentShader: CAP_FS, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k,
+        uniforms: { uColor: { value: DK.color(cg.color ?? 0xffffff) }, uKind: { value: CAP_KINDS[kind] ?? 0 }, uNoise: { value: DK.texture('grain') }, uMap: { value: cg.texture || DK.texture('grain') }, uMapScale: { value: 1 / ((cg.texture && cg.texture.mm) || TRAB_MM) },
+          uId: { value: idRT.texture }, uRes: { value: new T.Vector2(4, 4) }, uPx: { value: 1 }, uMyId: { value: (k + 1) / 255 }, uIdPass: { value: 0 }, uFrame: { value: new T.Matrix4() }, uU: { value: new T.Vector3(1, 0, 0) }, uV: { value: new T.Vector3(0, 1, 0) } } });
       const cap = new T.Mesh(new T.PlaneGeometry(400, 400), capMat); cap.renderOrder = base + 1; cap.onAfterRender = r => r.clearStencil();
-      cap.userData.isStencil = true; fig.scene.add(cap); caps.push(cap);
+      cap.userData.isStencil = true; cap.userData.frame = toothFrameOf(cg.objects); cap.layers.enable(1); cap.frustumCulled = false; fig.scene.add(cap); caps.push(cap);
     });
     const api = {
-      plane, caps, enabled: false, offset: 0,
+      plane, caps, enabled: false, offset: 0, idRT,
       set(enabled, offset) {
         api.enabled = enabled; if (offset !== undefined) api.offset = offset;
-        plane.constant = enabled ? api.offset : 1e5;
+        plane.constant = enabled ? api.offset - 0.03 : 1e5;   // clipped geometry stops just behind the cap, so nothing z-fights it
         const pt = dir.clone().multiplyScalar(api.offset);
-        caps.forEach(c => { c.visible = enabled; c.position.copy(pt); c.lookAt(pt.clone().add(plane.normal)); });
+        caps.forEach(c => { c.visible = enabled; c.position.copy(pt); c.lookAt(pt.clone().add(plane.normal)); c.updateMatrixWorld(true);
+          const e = c.matrixWorld.elements; c.material.uniforms.uU.value.set(e[0], e[1], e[2]); c.material.uniforms.uV.value.set(e[4], e[5], e[6]); });
         if (api.onChange) api.onChange();
+      },
+      // cap-id pass: draws every cap's id (stencilled exactly like the visible frame) into a buffer the caps then read for edges
+      prepass(renderer, camera) {
+        if (!api.enabled) return;
+        const sz = renderer.getDrawingBufferSize(new T.Vector2());
+        if (idRT.width !== sz.x || idRT.height !== sz.y) { idRT.dispose(); idRT = makeRT(sz.x, sz.y); api.idRT = idRT; }
+        // while drawing into idRT the caps must not sample it (feedback loop → the draw is rejected): point uId elsewhere for the pass
+        caps.forEach(c => { const u = c.material.uniforms; u.uIdPass.value = 1; u.uId.value = u.uNoise.value; u.uRes.value.copy(sz); u.uPx.value = renderer.getPixelRatio(); if (c.userData.frame) u.uFrame.value.copy(c.userData.frame.matrixWorld).invert(); });
+        const mask = camera.layers.mask; camera.layers.set(1);
+        renderer.setRenderTarget(idRT); renderer.render(fig.scene, camera); renderer.setRenderTarget(null);
+        camera.layers.mask = mask;
+        caps.forEach(c => { c.material.uniforms.uIdPass.value = 0; c.material.uniforms.uId.value = idRT.texture; });
       }
     };
     api.set(false, 0);
@@ -431,7 +581,7 @@
   .dk-labels{position:absolute;inset:0;pointer-events:none}.dk-labels svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
   .dk-label{position:absolute;transform:translate(-50%,-50%);font:600 12.5px/1.15 "Instrument Sans",ui-sans-serif,system-ui,sans-serif;color:var(--ink);background:var(--panel);box-shadow:var(--shadow);border-radius:7px;padding:4px 8px;white-space:nowrap;opacity:0}
   .dk-label small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:1px}
-  .dk-label.hl{color:var(--accent)}
+  .dk-label.hl,.dk-label.accent{color:var(--accent)}
   .dk-info{position:absolute;left:14px;top:14px;max-width:min(320px,62%);background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;opacity:0;transform:translateY(-4px);transition:opacity .18s ease,transform .18s ease;pointer-events:none}
   .dk-info.on{opacity:1;transform:none}.dk-info b{display:block;margin-bottom:2px;font-weight:600}
   .dk-ov{position:absolute;pointer-events:none;color:var(--ink)}
@@ -511,25 +661,28 @@
     const info = $('.dk-info'), panel = $('.dk-panel'), readout = $('.dk-readout'), caption = $('.dk-ov-cap'), actions = $('.dk-actions');
     if (still) stage.style.aspectRatio = String(aspect);
     const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const isDark = () => css('--stage') === '#0E0E0C';
+    const accentHex = () => isDark() ? DK.COLORS.accentDark : DK.COLORS.accent;
 
     let renderer;
     try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true, stencil: true, preserveDrawingBuffer: true }); }
     catch (e) { stage.innerHTML = '<p style="padding:24px">This figure needs WebGL, which is not available in this viewer.</p>'; throw e; }
     let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(pixelRatio);
-    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
-    renderer.autoClearStencil = true;
+    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = isDark() ? 0.98 : 1.04;
+    renderer.autoClearStencil = true; renderer.shadowMap.autoUpdate = false;
     stage.insertBefore(renderer.domElement, labelLayer);
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(26, 1, 0.5, 2000);
     // studio lighting: a soft procedural environment (reflections on enamel, metal, moist tissue) + a shadow-casting key
     scene.environment = studioEnvironment(renderer);
-    scene.add(new T.HemisphereLight(0xfffaf0, 0x5d554b, 0.25));
-    const key = new T.DirectionalLight(0xfff4e6, 1.7); key.position.set(45, 80, 60); scene.add(key, key.target);
+    scene.add(new T.HemisphereLight(0xfff8ee, 0x6b6056, 0.4));
+    const key = new T.DirectionalLight(0xfff5e8, 1.05); key.position.set(45, 80, 60); scene.add(key, key.target);
     key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.04; key.shadow.radius = 3;
-    const fill = new T.DirectionalLight(0xdce6f5, 0.3); fill.position.set(-70, 15, -10); scene.add(fill);
-    const rim = new T.DirectionalLight(0xffffff, 0.6); rim.position.set(-20, 40, -80); scene.add(rim);
+    const fill = new T.DirectionalLight(0xdce6f5, 0.35); fill.position.set(-70, 15, -10); scene.add(fill);
+    const rim = new T.DirectionalLight(0xffffff, 0.4); rim.position.set(-20, 40, -80); scene.add(rim);
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+    function renderFrame() { if (section) section.prepass(renderer, camera); renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); }
 
     const world = new T.Group(); scene.add(world);
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -569,7 +722,7 @@
       obj.traverse(m => { if (m.isMesh) m.userData.part = p; });
       if (!p.inPlace) world.add(obj); // inPlace: annotate a sub-object already in the scene (no explode motion)
       if (p.label) {
-        p.el = document.createElement('div'); p.el.className = 'dk-label'; p.el.innerHTML = p.name + (p.sub ? `<small>${p.sub}</small>` : '');
+        p.el = document.createElement('div'); p.el.className = 'dk-label' + (p.accent ? ' accent' : ''); p.el.innerHTML = p.name + (p.sub ? `<small>${p.sub}</small>` : '');
         labelLayer.appendChild(p.el);
         p.line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); p.line.setAttribute('stroke-width', '1'); svg.appendChild(p.line);
         p.dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); p.dot.setAttribute('r', '2.5'); svg.appendChild(p.dot);
@@ -749,11 +902,11 @@
       if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
       fitCenter.copy(orbit.target);
       placeCam();
-      renderer.render(scene, camera);
+      renderFrame();
       layoutLabels(e, dt);
     }
     function layoutLabels(e, dt) {
-      const W = stage.clientWidth, H = stage.clientHeight, lineCol = css('--muted') || '#888';
+      const W = stage.clientWidth, H = stage.clientHeight, lineCol = css('--muted') || '#888', accentHex2 = () => css('--accent') || '#0E3A5C';
       const ctr = tmp.copy(fitCenter).project(camera), cx = (ctr.x + 1) / 2 * W;
       const occlTest = (frameNo++ % 6) === 0;
       const placed = [];
@@ -791,8 +944,9 @@
         p.el.style.opacity = p.alpha; p.el.style.left = p.lx + 'px'; p.el.style.top = p.lyc + 'px';
         p.ex2 = p.lx - p.side * p.w / 2;
         p.line.setAttribute('x1', p.ax); p.line.setAttribute('y1', p.ay); p.line.setAttribute('x2', p.ex2); p.line.setAttribute('y2', p.lyc);
-        p.line.setAttribute('stroke', lineCol); p.line.style.opacity = p.alpha;
-        p.dot.setAttribute('cx', p.ax); p.dot.setAttribute('cy', p.ay); p.dot.setAttribute('fill', lineCol); p.dot.style.opacity = p.alpha;
+        const col = p.accent ? accentHex2() : lineCol;
+        p.line.setAttribute('stroke', col); p.line.style.opacity = p.alpha;
+        p.dot.setAttribute('cx', p.ax); p.dot.setAttribute('cy', p.ay); p.dot.setAttribute('fill', col); p.dot.setAttribute('r', p.accent ? '3.2' : '2.5'); p.dot.style.opacity = p.alpha;
       });
     }
     function frame(now) {
@@ -802,6 +956,8 @@
     }
 
     /* ----- export: composite the WebGL canvas and the HTML overlays into one 2D canvas ----- */
+    let heldScale = null;   // storyboard / recording keep the renderer at the export scale for the whole batch
+    function setRenderScale(pr) { renderer.setPixelRatio(pr); renderer.setSize(stage.clientWidth, stage.clientHeight, false); }
     function composite(scale) {
       scale = scale || pixelRatio;
       const W = stage.clientWidth, H = stage.clientHeight, cv = document.createElement('canvas');
@@ -809,21 +965,26 @@
       const g = cv.getContext('2d'); g.scale(scale, scale);
       const vg = g.createRadialGradient(W / 2, H * 0.46, 0, W / 2, H * 0.46, Math.hypot(W * 0.75, H * 0.7) / 1.35); vg.addColorStop(0, css('--stage-hi')); vg.addColorStop(1, css('--stage'));
       g.fillStyle = vg; g.fillRect(0, 0, W, H);
+      // export at the export scale (not an upscaled screen render): re-render at that pixel ratio, then restore
+      const pr = Math.min(scale, 8192 / Math.max(W, H)), re = Math.abs(pr - renderer.getPixelRatio()) > 1e-3;
+      if (re) { setRenderScale(pr); renderFrame(); }
       g.drawImage(renderer.domElement, 0, 0, W, H);
+      if (re && heldScale === null) { setRenderScale(pixelRatio); renderFrame(); }
       const sr = stage.getBoundingClientRect();
       const text = (el, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillText(el, x, y); };
       const fontOf = el => { const s = getComputedStyle(el); return `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`; };
       parts.forEach(p => {
         if (!p.el || p.alpha < 0.02) return;
-        g.globalAlpha = p.alpha; g.strokeStyle = css('--muted'); g.lineWidth = 1;
+        const lc = p.accent ? css('--accent') : css('--muted');
+        g.globalAlpha = p.alpha; g.strokeStyle = lc; g.lineWidth = p.accent ? 1.5 : 1;
         g.beginPath(); g.moveTo(p.ax, p.ay); g.lineTo(p.ex2, p.lyc); g.stroke();
-        g.fillStyle = css('--muted'); g.beginPath(); g.arc(p.ax, p.ay, 2.5, 0, Math.PI * 2); g.fill();
+        g.fillStyle = lc; g.beginPath(); g.arc(p.ax, p.ay, p.accent ? 3.2 : 2.5, 0, Math.PI * 2); g.fill();
         const r = p.el.getBoundingClientRect(), x = r.left - sr.left, y = r.top - sr.top;
         g.save(); g.shadowColor = 'rgba(10,10,8,.10)'; g.shadowBlur = 12; g.shadowOffsetY = 3; g.fillStyle = css('--stage') === '#0E0E0C' ? '#1C1B18' : '#FFFFFF';
         g.beginPath(); g.roundRect ? g.roundRect(x, y, r.width, r.height, 7) : g.rect(x, y, r.width, r.height); g.fill(); g.restore();
         const cs = getComputedStyle(p.el), padL = parseFloat(cs.paddingLeft), padT = parseFloat(cs.paddingTop), small = p.el.querySelector('small');
         const fs = parseFloat(cs.fontSize);
-        text(p.name, x + padL, y + padT + fs * 0.92, fontOf(p.el), p.el.classList.contains('hl') ? css('--accent') : css('--ink'));
+        text(p.name, x + padL, y + padT + fs * 0.92, fontOf(p.el), p.el.classList.contains('hl') || p.accent ? css('--accent') : css('--ink'));
         if (small && getComputedStyle(small).display !== 'none') { const sm = small.getBoundingClientRect(); text(small.textContent, sm.left - sr.left, sm.top - sr.top + parseFloat(getComputedStyle(small).fontSize) * 0.92, fontOf(small), css('--muted')); }
       });
       g.globalAlpha = 1;
@@ -881,6 +1042,8 @@
     }
 
     const fig = { T, scene, world, camera, renderer, orbit, stage, mode, part, parts, enableSection, slider, toggle, button, standardControls, setReadout,
+      // brand accent for the one thing a figure points at (theme-aware): a linear THREE.Color for materials, and the CSS hex
+      accent: DK.color(accentHex()), accentHex: accentHex(), dark: isDark(),
       get section() { return section; },
       explode(v) { explodeTarget = v; if (fig.explodeSlider) fig.explodeSlider.value = v; },
       onFrame(f) { frameHooks.push(f); },
@@ -923,7 +1086,7 @@
         const cv = document.createElement('canvas'); cv.width = cols * pw + (cols - 1) * gut; cv.height = head + rows * ph + (rows - 1) * gut + foot;
         const g = cv.getContext('2d'); g.fillStyle = css('--line'); g.fillRect(0, 0, cv.width, cv.height);
         g.fillStyle = css('--stage'); g.fillRect(0, 0, cv.width, head); g.fillRect(0, cv.height - foot, cv.width, foot);
-        const wasFrozen = frozen; frozen = true; player = null;
+        const wasFrozen = frozen; frozen = true; player = null; heldScale = scale;
         const font = (w, px) => `${w} ${px * scale}px "Instrument Sans", ui-sans-serif, system-ui, sans-serif`;
         proc.forEach((st, i) => {
           apply(c.segs[st.shot].to);
@@ -939,7 +1102,7 @@
         g.textBaseline = 'middle'; g.font = font(600, 22); g.fillStyle = css('--ink'); g.fillText(o.title, 20 * scale, head / 2 + 4 * scale);
         g.font = font(400, 12); g.fillStyle = css('--muted'); g.fillText(o.footer, 20 * scale, cv.height - foot / 2);
         g.textAlign = 'right'; g.fillText('Made with dental-explainer by Sixmonth', cv.width - 20 * scale, cv.height - foot / 2); g.textAlign = 'left';
-        ovs.forEach(e => { e.style.visibility = ''; }); apply(c.end); update(0); frozen = wasFrozen;
+        ovs.forEach(e => { e.style.visibility = ''; }); heldScale = null; setRenderScale(pixelRatio); apply(c.end); update(0); frozen = wasFrozen;
         return cv;
       },
       get duration() { return story ? compile(story, startState || homeState()).total : 0; },
@@ -1049,7 +1212,7 @@
   // Prepared implant bed: a closed cylinder (top at y = 0) to put in a section group after the bone, so the cut
   // face shows the hole. osteotomy.set(radius, depth) resizes it; depth 0 hides it.
   DK.osteotomy = function (o) {
-    o = Object.assign({ color: 0x5b2a25 }, o);
+    o = Object.assign({ color: 0x5f4a44 }, o);
     const g = new T.CylinderGeometry(1, 1, 1, 40); g.translate(0, -0.5, 0);
     const m = new T.Mesh(g, DK.mat('pdl', { color: o.color, cap: o.color })); m.name = 'Osteotomy';
     m.set = (radius, depth) => { m.visible = depth > 0.02; m.scale.set(Math.max(radius, 0.01), Math.max(depth, 0.01), Math.max(radius, 0.01)); };
@@ -1077,11 +1240,11 @@
     if (!o.hollow) geo = crownGeometry(s);
     else {
       const A = crownGeometry(s, null, true), B = crownGeometry(s, prepInset(o), true);
-      const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = 64;
-      const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia);
+      const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = CROWN_COLS;
+      const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia), uv = Array.from(A.attributes.uv.array).concat(Array.from(B.attributes.uv.array));
       for (let i = 0; i < ib.length; i += 3) idx.push(ib[i] + off, ib[i + 2] + off, ib[i + 1] + off); // inner surface faces inward
-      for (let j = 0; j < cols; j++) { const o0 = j, o1 = (j + 1) % cols, i0 = off + j, i1 = off + (j + 1) % cols; idx.push(o0, o1, i0, o1, i1, i0); } // margin ring
-      geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+      for (let j = 0; j < cols; j++) { const o0 = j, o1 = j + 1, i0 = off + j, i1 = off + j + 1; idx.push(o0, o1, i0, o1, i1, i0); } // margin ring (row 0 of each surface)
+      geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
     }
     const mesh = new T.Mesh(geo, DK.mat(material || 'zirconia')); mesh.name = 'Crown';
     return mesh;
@@ -1131,7 +1294,7 @@ const nerve = DK.tube(path.map(p => [p[0], p[1] - 0.2, p[2] - 0.1]), 0.75, DK.ma
 const artery = DK.tube(path.map(p => [p[0], p[1] + 0.75, p[2] + 0.35]), 0.32, DK.mat('artery'), tubeOpts);
 const vein = DK.tube(path.map(p => [p[0], p[1] + 0.6, p[2] - 0.55]), 0.36, DK.mat('vein'), tubeOpts);
 canal.add(lumen, nerve, artery, vein);
-const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4 });
+const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4, around: [{ x: 1 + 5.5 + 3.5, z: 0, md: 5, bl: 7, rise: 0.8 }, { x: 1 - 5.5 - 5.25, z: 0, md: 8, bl: 9, rise: 0.8 }, { x: 1, z: 0, md: 5.6, bl: 5.6, rise: 0.6 }] });
 gum.position.set(-1, 1.1, 0);
 
 const t35 = DK.tooth(35); t35.group.position.x = 5.5 + 3.5;      // contact-to-contact spacing
@@ -1153,7 +1316,7 @@ fig.part(canal, { name: 'Inferior alveolar canal', sub: 'nerve, artery, vein', a
 fig.part(gum, { name: 'Gingiva', anchor: [12, -0.2, 5.6], info: 'Peri-implant soft tissue seals around the abutment collar (transmucosal part).' });
 fig.part(t35.group, { name: '35', sub: '2nd premolar', anchor: [0, 6, 2], label: true, info: 'Mandibular second premolar: usually one root, one canal (≈24% have two or more).' });
 fig.part(t37.group, { name: '37', sub: '2nd molar', anchor: [0, 6, 2], info: 'Mandibular second molar: two roots (mesial, distal), often closer together than on the first molar.' });
-fig.part(implant, { name: 'Implant body', sub: 'Ø4.1 × 10 mm', anchor: [2.2, -5, 0], explode: [0, 0, 0], info: 'Titanium fixture, threaded into bone. Osseointegration typically 3–6 months before conventional loading.' });
+fig.part(implant, { name: 'Implant body', sub: 'Ø4.1 × 10 mm', anchor: [2.2, -5, 0], explode: [0, 0, 0], accent: true, info: 'Titanium fixture, threaded into bone. Osseointegration typically 3–6 months before conventional loading.' });
 fig.part(abut, { name: 'Abutment', sub: 'internal hex', anchor: [2.8, 1.6, 0], explode: [0, 9, 0], info: 'Transmucosal connector. The hex engages the implant so the abutment cannot rotate.' });
 fig.part(screw, { name: 'Abutment screw', anchor: [1.3, 0.8, 0], explode: [0, 19, 0], info: 'Holds the abutment to the implant. Tightening torque is manufacturer-specific (e.g. 35 Ncm for one major system).' });
 fig.part(crown, { name: 'Crown', sub: 'zirconia, cement-retained', anchor: [-3, 6.5, 4.5], explode: [0, 29, 0], info: 'Restores occlusion; shaped like the lost 36 (5 cusps, wider mesio-distally than bucco-lingually).' });

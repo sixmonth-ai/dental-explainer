@@ -21,7 +21,7 @@ const nerve = DK.tube(path.map(p => [p[0], p[1] - 0.2, p[2] - 0.1]), 0.75, DK.ma
 const artery = DK.tube(path.map(p => [p[0], p[1] + 0.75, p[2] + 0.35]), 0.32, DK.mat('artery'), tubeOpts);
 const vein = DK.tube(path.map(p => [p[0], p[1] + 0.6, p[2] - 0.55]), 0.36, DK.mat('vein'), tubeOpts);
 canal.add(lumen, nerve, artery, vein);
-const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4 });
+const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4, around: [{ x: 1 + 5.5 + 3.5, z: 0, md: 5, bl: 7, rise: 0.8 }, { x: 1 - 5.5 - 5.25, z: 0, md: 8, bl: 9, rise: 0.8 }, { x: 1, z: 0, md: 5.6, bl: 5.6, rise: 0.6 }] });
 gum.position.set(-1, 1.1, 0);
 
 const t35 = DK.tooth(35); t35.group.position.x = 5.5 + 3.5;      // contact-to-contact spacing
@@ -43,7 +43,7 @@ fig.part(canal, { name: 'Inferior alveolar canal', sub: 'nerve, artery, vein', a
 fig.part(gum, { name: 'Gingiva', anchor: [12, -0.2, 5.6], info: 'Peri-implant soft tissue seals around the abutment collar (transmucosal part).' });
 fig.part(t35.group, { name: '35', sub: '2nd premolar', anchor: [0, 6, 2], label: true, info: 'Mandibular second premolar: usually one root, one canal (≈24% have two or more).' });
 fig.part(t37.group, { name: '37', sub: '2nd molar', anchor: [0, 6, 2], info: 'Mandibular second molar: two roots (mesial, distal), often closer together than on the first molar.' });
-fig.part(implant, { name: 'Implant body', sub: 'Ø4.1 × 10 mm', anchor: [2.2, -5, 0], explode: [0, 0, 0], info: 'Titanium fixture, threaded into bone. Osseointegration typically 3–6 months before conventional loading.' });
+fig.part(implant, { name: 'Implant body', sub: 'Ø4.1 × 10 mm', anchor: [2.2, -5, 0], explode: [0, 0, 0], accent: true, info: 'Titanium fixture, threaded into bone. Osseointegration typically 3–6 months before conventional loading.' });
 fig.part(abut, { name: 'Abutment', sub: 'internal hex', anchor: [2.8, 1.6, 0], explode: [0, 9, 0], info: 'Transmucosal connector. The hex engages the implant so the abutment cannot rotate.' });
 fig.part(screw, { name: 'Abutment screw', anchor: [1.3, 0.8, 0], explode: [0, 19, 0], info: 'Holds the abutment to the implant. Tightening torque is manufacturer-specific (e.g. 35 Ncm for one major system).' });
 fig.part(crown, { name: 'Crown', sub: 'zirconia, cement-retained', anchor: [-3, 6.5, 4.5], explode: [0, 29, 0], info: 'Restores occlusion; shaped like the lost 36 (5 cusps, wider mesio-distally than bucco-lingually).' });

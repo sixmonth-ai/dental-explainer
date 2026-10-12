@@ -14,7 +14,7 @@ const bone = DK.bone({ width: 22, height: 19, depth: 12.5, cortical: 1.3, crest:
 bone.position.y = CREST;
 const pdl = DK.pdl(s, 0.25); pdl.traverse(m => { if (m.isMesh) m.material.visible = false; }); // only seen in section
 tooth.group.add(pdl);
-const gum = DK.gingiva({ width: 22, height: 3.2, depth: 13.2, crest: 1.3 });
+const gum = DK.gingiva({ width: 22, height: 3.2, depth: 13.2, crest: 1.3, around: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, rise: 0.8 }] });   // free gingival margin hugs the crown
 gum.position.y = 1.2;
 
 // whole objects (these move when exploded)

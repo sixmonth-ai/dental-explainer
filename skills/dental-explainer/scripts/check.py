@@ -44,7 +44,7 @@ def main():
                 print("SKIP: three.js did not load (no access to cdnjs?). Use --three-local or rely on the checklist.")
                 b.close(); sys.exit(2)
             try:
-                pg.wait_for_function("window.__dkReady === true", timeout=20000)
+                pg.wait_for_function("window.__dkReady === true", timeout=90000)   # software GL compiles every shader on the first frame
             except Exception:
                 print("FAIL: the figure never finished starting.")
                 print("\n".join(errors) or "(no JS error was reported)"); b.close(); sys.exit(1)

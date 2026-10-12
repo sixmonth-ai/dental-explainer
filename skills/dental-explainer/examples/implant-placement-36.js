@@ -22,7 +22,7 @@ const path = [[-18, CANAL_Y - 0.6, 0.4], [-6, CANAL_Y, 0.2], [6, CANAL_Y + 0.3, 
 const lumen = DK.tube(path, CANAL_R, DK.mat('pdl', { color: 0xf0dcc4, cap: 0xf0dcc4 }), { caps: false });
 const nerve = DK.tube(path.map(p => [p[0], p[1] - 0.2, p[2] - 0.1]), 0.75, DK.mat('nerve'), { caps: false });
 canal.add(lumen, nerve);
-const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4 });
+const gum = DK.gingiva({ width: 34, height: 3.4, depth: 11.6, crest: 1.4, around: [{ x: 1 + 5.5 + 3.5, z: 0, md: 5, bl: 7, rise: 0.8 }, { x: 1 - 5.5 - 5.25, z: 0, md: 8, bl: 9, rise: 0.8 }] });
 gum.position.set(-1, 1.1, 0);
 const t35 = DK.tooth(35); t35.group.position.x = 5.5 + 3.5;
 const t37 = DK.tooth(37); t37.group.position.x = -(5.5 + 5.25);
@@ -46,7 +46,7 @@ const crown = DK.restorationCrown(36, 'zirconia', { hollow: false });
 
 fig.part(pilot, { inPlace: true, name: 'Pilot drill', sub: `Ø${PILOT} mm`, anchor: [0, -6, 0], info: 'First drill: sets the position, angle and depth of the implant bed.' });
 fig.part(final, { inPlace: true, name: 'Final drill', sub: `Ø${FINAL} mm (system-specific)`, anchor: [0, -6, 0], info: 'Sequential drills widen the bed; the final size depends on the implant system and bone density.' });
-fig.part(implant, { inPlace: true, name: 'Implant', sub: `Ø${IMPLANT.diameter} × ${IMPLANT.length} mm`, anchor: [IMPLANT.diameter / 2, -5, 0], info: 'Threaded in to the depth of the bed.' });
+fig.part(implant, { inPlace: true, name: 'Implant', sub: `Ø${IMPLANT.diameter} × ${IMPLANT.length} mm`, anchor: [IMPLANT.diameter / 2, -5, 0], accent: true, info: 'Threaded in to the depth of the bed.' });
 fig.part(heal, { inPlace: true, name: 'Healing abutment', anchor: [2.3, 2, 0], info: 'Shapes the gingiva while the implant integrates.' });
 fig.part(abut, { inPlace: true, name: 'Abutment', anchor: [2.8, 1.2, 0], info: 'Connects the crown to the implant; the hex stops it rotating.' });
 fig.part(crown, { inPlace: true, name: 'Crown', sub: 'zirconia', anchor: [-3, 6.5, 0], info: 'Restores the occlusion of 36.' });

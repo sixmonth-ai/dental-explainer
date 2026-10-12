@@ -6,6 +6,8 @@
   "author": { "name": "Sixmonth", "url": "https://sixmonth.ai" },
   "homepage": "https://github.com/sixmonth-ai/dental-explainer",
   "repository": "https://github.com/sixmonth-ai/dental-explainer",
+  "privacyPolicyUrl": "https://www.sixmonth.ai/privacy/",
+  "supportUrl": "https://www.sixmonth.ai/contact/",
   "license": "MIT",
   "keywords": ["dental", "dentistry", "3d", "education", "implants", "endodontics", "periodontics", "anatomy"]
 }

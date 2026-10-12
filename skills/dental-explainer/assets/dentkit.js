@@ -8,27 +8,30 @@
   const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
   const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   DK.util = { clamp, lerp, smooth, ease };
+  // Hex colours are written in sRGB (as designers pick them); three r128 treats raw hex as linear, which washes
+  // everything out on an sRGB canvas. DK.color converts. Use it for any custom material colour.
+  DK.color = hex => new T.Color(hex).convertSRGBToLinear();
 
   /* ---------- palette & materials ---------- */
   DK.COLORS = {
-    enamel: 0xf2f0ea, enamelCap: 0xe9edf2, dentin: 0xe2c27e, dentinCap: 0xd9a95a,
-    cementum: 0xdcc08a, pulp: 0xd9534f, pulpCap: 0xc0392b, nerve: 0xf2c94c, artery: 0xc0392b, vein: 0x3c6fb4,
-    pdl: 0xb5566a, gingiva: 0xe58f9a, gingivaCap: 0xd46a78, cortical: 0xeee6d3, corticalCap: 0xe8dcc0,
+    enamel: 0xefe9dc, enamelCap: 0xeef1f5, dentin: 0xe2c27e, dentinCap: 0xe2bd7c,
+    cementum: 0xd6ba86, pulp: 0xd9534f, pulpCap: 0xc0392b, nerve: 0xf2c94c, artery: 0xc0392b, vein: 0x3c6fb4,
+    pdl: 0xc27a88, gingiva: 0xd8707e, gingivaCap: 0xd67786, cortical: 0xdcc8a2, corticalCap: 0xeadfc6,
     cancellous: 0xd8b98a, titanium: 0xa9adb3, titaniumDark: 0x7d828a, zirconia: 0xf6f3ec, ceramic: 0xf1ede2,
     gold: 0xd4a843, steel: 0xc3c7cc, nickelTi: 0x9aa0a6, gutta: 0xe07b39, composite: 0xf0e7d0, rubberDam: 0x2f80ed, caries: 0x6b4a2b
   };
   const MAT_PRESETS = {
-    enamel: { color: 'enamel', roughness: 0.4, metalness: 0, clearcoat: 0.6 },
+    enamel: { color: 'enamel', roughness: 0.34, metalness: 0, clearcoat: 0.85, rim: [0.84, 0.89, 0.97, 0.38] },
     dentin: { color: 'dentin', roughness: 0.6 },
-    root: { color: 'cementum', roughness: 0.7 },
+    root: { color: 'cementum', roughness: 0.62 },
     pulp: { color: 'pulp', roughness: 0.5 },
-    gingiva: { color: 'gingiva', roughness: 0.55 },
-    bone: { color: 'cortical', roughness: 0.8 },
+    gingiva: { color: 'gingiva', roughness: 0.42, clearcoat: 0.3, bump: 'stipple' },
+    bone: { color: 'cortical', roughness: 0.82, bump: 'pores' },
     titanium: { color: 'titanium', roughness: 0.32, metalness: 0.85 },
     titaniumDark: { color: 'titaniumDark', roughness: 0.35, metalness: 0.85 },
     gold: { color: 'gold', roughness: 0.3, metalness: 0.9 },
     steel: { color: 'steel', roughness: 0.25, metalness: 0.9 },
-    zirconia: { color: 'zirconia', roughness: 0.3 },
+    zirconia: { color: 'zirconia', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },
     ceramic: { color: 'ceramic', roughness: 0.25, clearcoat: 0.8 },
     nerve: { color: 'nerve', roughness: 0.5 },
     artery: { color: 'artery', roughness: 0.45 },
@@ -41,12 +44,32 @@
     fiber: { color: 0xeeeadc, roughness: 0.35 },
     cement: { color: 0xd9e4ea, roughness: 0.6 }
   };
+  const NOISE = {};
+  function noiseTexture(kind) {
+    if (NOISE[kind]) return NOISE[kind];
+    const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d');
+    let seed = kind === 'pores' ? 11 : 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = '#808080'; x.fillRect(0, 0, N, N);
+    const dots = kind === 'pores' ? 900 : 2600;
+    for (let i = 0; i < dots; i++) { // pores (bone) or stippling (gingiva): small soft dimples, tiled seamlessly
+      const px = rnd() * N, py = rnd() * N, r = kind === 'pores' ? 1 + rnd() * 2.6 : 0.8 + rnd() * 1.4, v = kind === 'pores' ? 40 + rnd() * 50 : 90 + rnd() * 40;
+      for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { const gr = x.createRadialGradient(px + ox, py + oy, 0, px + ox, py + oy, r); gr.addColorStop(0, `rgb(${v},${v},${v})`); gr.addColorStop(1, 'rgba(128,128,128,0)'); x.fillStyle = gr; x.fillRect(px + ox - r, py + oy - r, r * 2, r * 2); }
+    }
+    const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(kind === 'pores' ? 3 : 4, kind === 'pores' ? 3 : 4);
+    return (NOISE[kind] = t);
+  }
   DK.mat = function (name, extra) {
     const p = Object.assign({}, MAT_PRESETS[name] || { color: name }, extra || {});
     const c = typeof p.color === 'string' ? (DK.COLORS[p.color] !== undefined ? DK.COLORS[p.color] : p.color) : p.color;
     const Mat = p.clearcoat ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
-    const m = new Mat({ color: c, roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.35 } : {}), transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
+    const m = new Mat({ color: DK.color(c), roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.3 } : {}), ...(p.bump ? { bumpMap: noiseTexture(p.bump), bumpScale: p.bump === 'pores' ? 0.06 : 0.025 } : {}), transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
     m.userData.capColor = p.cap !== undefined ? p.cap : c;
+    if (p.rim) { // cool, translucent-looking edge (enamel, ceramics): mixes toward rim colour at grazing angles
+      const [r, g, b, k] = p.rim;
+      m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
+        `{ float fr = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.5); gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(${r.toFixed(3)}, ${g.toFixed(3)}, ${b.toFixed(3)}), fr * ${k.toFixed(3)}); }\n#include <dithering_fragment>`); };
+      m.customProgramCacheKey = () => 'rim' + p.rim.join(',');
+    }
     return m;
   };
 
@@ -305,11 +328,14 @@
   /* ---------- bone & soft tissue blocks ---------- */
   function trabecularTexture(colA, colB) {
     const cv = document.createElement('canvas'); cv.width = cv.height = 256; const x = cv.getContext('2d');
-    x.fillStyle = '#' + new T.Color(colB).getHexString(); x.fillRect(0, 0, 256, 256); // marrow spaces
-    x.strokeStyle = '#' + new T.Color(colA).getHexString(); x.lineCap = 'round';      // trabeculae
+    // a connected lattice of thin struts (trabeculae) around rounded marrow spaces, drawn tileable
+    const N = 512, A = '#' + new T.Color(colA).getHexString(), B = '#' + new T.Color(colB).getHexString();
+    cv.width = cv.height = N; x.fillStyle = A; x.fillRect(0, 0, N, N);
     let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-    for (let k = 0; k < 220; k++) { x.lineWidth = 3 + rnd() * 6; x.beginPath(); const px = rnd() * 256, py = rnd() * 256, a = rnd() * 6.28, l = 10 + rnd() * 30; x.moveTo(px, py); x.quadraticCurveTo(px + Math.cos(a + 1) * l, py + Math.sin(a + 1) * l, px + Math.cos(a) * l * 1.6, py + Math.sin(a) * l * 1.6); x.stroke(); }
-    const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(50, 50); t.encoding = T.sRGBEncoding; return t; // cap plane is 400 mm → 8 mm tiles
+    const blob = (cx, cy, r) => { for (const ox of [-N, 0, N]) for (const oy of [-N, 0, N]) { x.beginPath(); const k = 9; for (let i = 0; i <= k; i++) { const a = i / k * Math.PI * 2, rr = r * (0.75 + rnd() * 0.45); x[i ? 'lineTo' : 'moveTo'](cx + ox + Math.cos(a) * rr, cy + oy + Math.sin(a) * rr * (0.7 + rnd() * 0.5)); } x.closePath(); x.fill(); } };
+    x.fillStyle = B; for (let k = 0; k < 520; k++) blob(rnd() * N, rnd() * N, 9 + rnd() * 13);   // marrow spaces cover most of the area, leaving thin struts
+    x.globalAlpha = 0.08; x.fillStyle = '#6b3f22'; for (let k = 0; k < 220; k++) blob(rnd() * N, rnd() * N, 4 + rnd() * 8); x.globalAlpha = 1; // marrow depth
+    const t = new T.CanvasTexture(cv); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(70, 70); t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t; // cap plane is 400 mm → ~5.7 mm tiles
   }
   function blockGeometry(w, h, d, crestCurve, topScallop) { // centered x,z; top at y=0 with rounded crest
     const g = new T.BoxGeometry(w, h, d, 40, 12, 24); const p = g.attributes.position;
@@ -333,7 +359,7 @@
     const canc = DK.mat('bone', { color: DK.COLORS.cancellous });
     const outer = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop), cort); outer.name = 'Cortical bone';
     const inner = new T.Mesh(blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, o.scallop), canc); inner.name = 'Cancellous bone';
-    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xf1e6cc, 0xc9925f);
+    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xf2e6cb, 0xd6a77a);
     inner.material.visible = false; // only seen in section
     grp.add(outer, inner); grp.userData.layers = { cortical: outer, cancellous: inner };
     return grp;
@@ -357,11 +383,12 @@
       const base = order; order += 3;
       cg.objects.forEach(obj => obj.traverse(m => {
         if (!m.isMesh || m.userData.isStencil) return;
-        m.material = m.material.clone(); m.material.clippingPlanes = [plane]; m.material.clipShadows = true;
+        const src = m.material; m.material = src.clone(); m.material.onBeforeCompile = src.onBeforeCompile; m.material.customProgramCacheKey = src.customProgramCacheKey; // r128 clone() drops shader hooks
+        m.material.clippingPlanes = [plane]; m.material.clipShadows = true;
         const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; return s; };
         m.add(mk(T.BackSide, T.IncrementWrapStencilOp), mk(T.FrontSide, T.DecrementWrapStencilOp));
       }));
-      const capMat = new T.MeshBasicMaterial({ color: cg.color, toneMapped: false, map: cg.texture || null, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k });
+      const capMat = new T.MeshBasicMaterial({ color: DK.color(cg.color), toneMapped: false, map: cg.texture || null, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k });
       const cap = new T.Mesh(new T.PlaneGeometry(400, 400), capMat); cap.renderOrder = base + 1; cap.onAfterRender = r => r.clearStencil();
       cap.userData.isStencil = true; fig.scene.add(cap); caps.push(cap);
     });
@@ -383,14 +410,14 @@
   // Sixmonth tokens: ink #0A0A08, blanc sale #F1EEE6, cream #F5F3EE, accent #0E3A5C (light) / #5A8FB8 (dark).
   const FONT_URL = 'https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap';
   const CSS = `
-  :root{--bg:#F1EEE6;--stage:#F7F5F0;--ink:#0A0A08;--muted:#6E6A62;--line:#DDD8CC;--accent:#0E3A5C;--panel:rgba(255,255,255,.82);--shadow:0 6px 24px rgba(10,10,8,.08),0 1px 2px rgba(10,10,8,.06)}
-  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0A0A08;--stage:#121210;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}}
-  :root[data-theme="dark"]{--bg:#0A0A08;--stage:#121210;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}
+  :root{--bg:#F1EEE6;--stage:#E9E4D9;--stage-hi:#FAF8F4;--ink:#0A0A08;--muted:#6E6A62;--line:#DDD8CC;--accent:#0E3A5C;--panel:rgba(255,255,255,.82);--shadow:0 6px 24px rgba(10,10,8,.08),0 1px 2px rgba(10,10,8,.06)}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0A0A08;--stage:#0E0E0C;--stage-hi:#1D1C19;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}}
+  :root[data-theme="dark"]{--bg:#0A0A08;--stage:#0E0E0C;--stage-hi:#1D1C19;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}
   *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
   .dk{max-width:1120px;margin:0 auto;padding:20px 16px 14px}
   .dk-head{padding:0 4px 12px}.dk-title{font-size:22px;line-height:1.2;font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
   .dk-sub{color:var(--muted);margin:4px 0 0;max-width:68ch;text-wrap:pretty}
-  .dk-frame{position:relative;background:var(--stage);border-radius:16px;overflow:hidden}
+  .dk-frame{position:relative;background:radial-gradient(ellipse 75% 70% at 50% 46%,var(--stage-hi) 0%,var(--stage) 100%);border-radius:16px;overflow:hidden}
   .dk-stage{position:relative;width:100%;height:min(70vh,620px);min-height:380px;touch-action:none;cursor:grab}.dk-stage.drag{cursor:grabbing}
   .dk-still .dk-stage{height:auto;min-height:0;cursor:default}
   .dk-stage canvas{display:block;width:100%;height:100%}
@@ -431,6 +458,21 @@
   .dk-actions .dk-btn{border:1px solid var(--line)}
   @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-psteps{width:100%;justify-content:center}.dk-psteps:not(:empty)+.dk-pmain:not(:empty){border-left:0;padding-left:0;margin-left:0}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:min(62vh,520px);min-height:320px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
 
+  // A soft studio as an environment map: warm overhead softbox, cool side strip, dim floor. No image files needed.
+  function studioEnvironment(renderer) {
+    const env = new T.Scene(), basic = c => new T.MeshBasicMaterial({ color: c, side: T.BackSide });
+    const sky = new T.SphereGeometry(50, 32, 16), col = [], p = sky.attributes.position;
+    for (let i = 0; i < p.count; i++) { const y = p.getY(i) / 50, c = new T.Color().lerpColors(new T.Color(0x1c1a17), new T.Color(0x8a857c), clamp((y + 0.35) / 1.2, 0, 1)); col.push(c.r, c.g, c.b); }
+    sky.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+    env.add(new T.Mesh(sky, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
+    const panel = (w, h, c, pos) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: c, side: T.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); env.add(m); };
+    panel(40, 26, 0xfff6e8, [10, 38, 20]);   // key softbox
+    panel(10, 40, 0xdfe9ff, [-40, 8, -6]);   // cool strip
+    panel(30, 8, 0xffffff, [0, 18, -40]);    // rim
+    const pm = new T.PMREMGenerator(renderer), tex = pm.fromScene(env, 0.02).texture; pm.dispose();
+    return tex;
+  }
+
   const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
   const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray'];
 
@@ -468,15 +510,20 @@
     catch (e) { stage.innerHTML = '<p style="padding:24px">This figure needs WebGL, which is not available in this viewer.</p>'; throw e; }
     let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(pixelRatio);
-    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     renderer.autoClearStencil = true;
     stage.insertBefore(renderer.domElement, labelLayer);
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(26, 1, 0.5, 2000);
-    scene.add(new T.HemisphereLight(0xfffaf0, 0x6d6458, 0.55));
-    const key = new T.DirectionalLight(0xfff6ea, 1.25); key.position.set(45, 80, 60); scene.add(key);
-    const fill = new T.DirectionalLight(0xdce6f5, 0.4); fill.position.set(-70, 15, -10); scene.add(fill);
-    const rim = new T.DirectionalLight(0xffffff, 0.75); rim.position.set(-20, 40, -80); scene.add(rim);
+    // studio lighting: a soft procedural environment (reflections on enamel, metal, moist tissue) + a shadow-casting key
+    scene.environment = studioEnvironment(renderer);
+    scene.add(new T.HemisphereLight(0xfffaf0, 0x5d554b, 0.25));
+    const key = new T.DirectionalLight(0xfff4e6, 1.7); key.position.set(45, 80, 60); scene.add(key, key.target);
+    key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.04; key.shadow.radius = 3;
+    const fill = new T.DirectionalLight(0xdce6f5, 0.3); fill.position.set(-70, 15, -10); scene.add(fill);
+    const rim = new T.DirectionalLight(0xffffff, 0.6); rim.position.set(-20, 40, -80); scene.add(rim);
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+
     const world = new T.Group(); scene.add(world);
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -553,6 +600,14 @@
         return { c, d: size.length() / 2 / Math.sin(Math.min(fov, fov * asp) / 2) * (margin || 0.85) * (still ? 1.15 : 1) };
       });
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base); });
+      world.updateMatrixWorld(true);
+      const box = new T.Box3(); parts.forEach(p => { if (!p.inPlace) box.expandByObject(p.obj); });
+      if (!box.isEmpty()) {
+        const c = box.getCenter(new T.Vector3()), r = box.getSize(new T.Vector3()).length() / 2 + 2;
+        key.target.position.copy(c); key.position.copy(c).add(new T.Vector3(45, 80, 60).setLength(r * 3));
+        Object.assign(key.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: r, far: r * 5 }); key.shadow.camera.updateProjectionMatrix();
+      }
+      world.traverse(m => { if (m.isMesh && !m.userData.isStencil) { m.castShadow = m.material.visible !== false; m.receiveShadow = true; } });
     }
     function hover(e) {
       const r = renderer.domElement.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
@@ -745,7 +800,8 @@
       const W = stage.clientWidth, H = stage.clientHeight, cv = document.createElement('canvas');
       cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
       const g = cv.getContext('2d'); g.scale(scale, scale);
-      g.fillStyle = css('--stage'); g.fillRect(0, 0, W, H);
+      const vg = g.createRadialGradient(W / 2, H * 0.46, 0, W / 2, H * 0.46, Math.hypot(W * 0.75, H * 0.7) / 1.35); vg.addColorStop(0, css('--stage-hi')); vg.addColorStop(1, css('--stage'));
+      g.fillStyle = vg; g.fillRect(0, 0, W, H);
       g.drawImage(renderer.domElement, 0, 0, W, H);
       const sr = stage.getBoundingClientRect();
       const text = (el, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillText(el, x, y); };
@@ -756,7 +812,7 @@
         g.beginPath(); g.moveTo(p.ax, p.ay); g.lineTo(p.ex2, p.lyc); g.stroke();
         g.fillStyle = css('--muted'); g.beginPath(); g.arc(p.ax, p.ay, 2.5, 0, Math.PI * 2); g.fill();
         const r = p.el.getBoundingClientRect(), x = r.left - sr.left, y = r.top - sr.top;
-        g.save(); g.shadowColor = 'rgba(10,10,8,.10)'; g.shadowBlur = 12; g.shadowOffsetY = 3; g.fillStyle = css('--stage') === '#121210' ? '#1C1B18' : '#FFFFFF';
+        g.save(); g.shadowColor = 'rgba(10,10,8,.10)'; g.shadowBlur = 12; g.shadowOffsetY = 3; g.fillStyle = css('--stage') === '#0E0E0C' ? '#1C1B18' : '#FFFFFF';
         g.beginPath(); g.roundRect ? g.roundRect(x, y, r.width, r.height, 7) : g.rect(x, y, r.width, r.height); g.fill(); g.restore();
         const cs = getComputedStyle(p.el), padL = parseFloat(cs.paddingLeft), padT = parseFloat(cs.paddingTop), small = p.el.querySelector('small');
         const fs = parseFloat(cs.fontSize);

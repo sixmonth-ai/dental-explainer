@@ -24,14 +24,14 @@ const INFO = {
 };
 const gap = Math.hypot(at('MB1', CUT).x - at('MB2', CUT).x, at('MB1', CUT).z - at('MB2', CUT).z);
 ['MB1', 'MB2', 'DB', 'P'].forEach(n => {
-  const m = new THREE.Mesh(new THREE.CircleGeometry(n === 'MB2' ? 0.42 : 0.34, 32), new THREE.MeshBasicMaterial({ color: n === 'MB2' ? 0xC2410C : 0x0E3A5C, transparent: true, toneMapped: false }));
+  const m = new THREE.Mesh(new THREE.CircleGeometry(n === 'MB2' ? 0.42 : 0.34, 32), new THREE.MeshBasicMaterial({ color: DK.color(n === 'MB2' ? 0xC2410C : 0x0E3A5C), transparent: true, toneMapped: false }));
   m.rotation.x = -Math.PI / 2; tooth.group.add(m); markers[n] = m;
   labelOf[n] = fig.part(m, { inPlace: true, name: n, sub: n === 'MB2' ? `${gap.toFixed(1)} mm palatal to MB1` : '', anchor: [0, 0, 0], info: INFO[n],
     when: (e, sec) => sec.enabled });
 });
 
 // classic triangular access outline joining MB1, DB and P (a flat ribbon: WebGL lines are always 1 px)
-const tri = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: 0x0E3A5C, transparent: true, toneMapped: false, side: THREE.DoubleSide }));
+const tri = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: DK.color(0x0E3A5C), transparent: true, toneMapped: false, side: THREE.DoubleSide }));
 tooth.group.add(tri);
 function ribbon(pts, w) {
   const v = [];

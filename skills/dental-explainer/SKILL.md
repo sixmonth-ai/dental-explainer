@@ -135,7 +135,7 @@ Your reply: one line naming the teaching point. For interactive, add one line on
   - Ordering in `enableSection` is outermost → innermost (bone, cancellous, gingiva, PDL, enamel, dentin, pulp). For restorations: crown, then own tooth, then core, then root filling, then post.
 - **Orientation:** a single maxillary tooth is shown crown up (extracted-tooth convention) unless it is drawn in the jaw. Teeth in the jaw are mirrored with `scale.y = -1`. Say which in the subtitle.
 - **Context, but quiet.** Bone and gingiva frame the subject; the X-ray state (`xray` in a story beat, or a toggle) lets the viewer see through them.
-- **Markers and outlines** that must keep an exact colour (orifices, access outlines, arrows) use `MeshBasicMaterial({ toneMapped: false })`. Use flat ribbons, not `THREE.Line`: WebGL lines are always 1 px. Lift markers ~0.1 mm above a cut face so it doesn't cover them.
+- **Markers and outlines** that must keep an exact colour (orifices, access outlines, arrows) use `MeshBasicMaterial({ color: DK.color(hex), toneMapped: false })`; always wrap custom colours in `DK.color()`. Use flat ribbons, not `THREE.Line`: WebGL lines are always 1 px. Lift markers ~0.1 mm above a cut face so it doesn't cover them.
 - **Colours** come from `DK.COLORS` / `DK.mat` so every figure looks like one family. The page uses Sixmonth's palette; light and dark themes are automatic. Highlight the one thing that matters (e.g. MB2) with a warm accent (`0xC2410C`) and keep the rest in ink blue (`0x0E3A5C`).
 - **Mobile:** the page is responsive. ≤ 6 labels per frame keeps the 390 px view readable.
 

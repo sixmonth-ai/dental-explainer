@@ -1,44 +1,73 @@
 #!/usr/bin/env python3
 """Optional verification (only where Python Playwright + Chromium exist): load a figure, fail on JS errors,
-and save screenshots of several states so Claude can LOOK at them before delivering.
+and save screenshots of the states that matter, plus ONE contact sheet (sheet.png) to look at before delivering.
 
 usage: python3 check.py figure.html [--out shots/] [--three-local three.min.js] [--dark] [--offset MM]
-       (--offset is the default cut for section states that don't set their own)
-       [--state 'name={"explode":0.5,"section":true,"offset":1.2,"theta":0.3,"phi":0.4,"xray":true}' ...]
-Custom --state entries are shot in addition to the defaults (use --only to shoot just them).
-State keys: explode, section, offset, theta, phi, dist (zoom factor, <1 = closer), xray, click (list of button labels to press).
-States: assembled, exploded, sectioned (if the figure has a section), occlusal-ish view, mobile width.
-three.js loads from cdnjs unless --three-local is given. If it can't load, prints "SKIP: ..." and exits 2.
+       [--state 'name={"explode":0.5,"section":true,"offset":1.2,"theta":0.3,"phi":0.4,"xray":true}' ...] [--only]
+       [--step 2 ...] [--seek 4.5 ...]
+States shot by default, only where the figure has the feature:
+  procedures: every step's key frame (what the stepper shows at the end of each step);
+  otherwise:  assembled, exploded (explode slider), section (cut), top, xray (x-ray objects);
+  plus one mobile (390 px) shot.
+--step i / --seek t add a step's key frame or any story time. Custom --state keys: explode, section, offset, theta, phi,
+dist (zoom factor, <1 = closer), xray, click (list of button labels to press), step, seek. --only shoots just the custom ones.
+Uses the GPU when there is one (--soft forces software GL). three.js is cached after the first run; if it can't load,
+prints "SKIP: ..." and exits 2.
 """
-import argparse, pathlib, sys
-from playwright.sync_api import sync_playwright
+import argparse, base64, json, pathlib, sys, time
 
-CDN = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-STATES = [
+DEFAULT = [
     ("assembled", {"explode": 0, "section": False}),
-    ("exploded", {"explode": 1, "section": False}),
-    ("section", {"explode": 0, "section": True, "offset": 0}),
-    ("side", {"explode": 0.5, "theta": 1.57, "phi": 1.45, "section": False}),
+    ("exploded", {"explode": 1, "section": False, "_needs": "explode"}),
+    ("section", {"explode": 0, "section": True, "offset": 0, "_needs": "section"}),
     ("top", {"explode": 0, "phi": 0.35, "section": False}),
-    ("xray", {"explode": 0, "section": False, "xray": True}),
+    ("xray", {"explode": 0, "section": False, "xray": True, "_needs": "xray"}),
 ]
+
+
+def shoot(pg, st, offset):
+    f = "window.__dkFig"
+    if "seek" in st or "step" in st:
+        t = st["seek"] if "seek" in st else pg.evaluate(f"{f}.steps[{int(st['step'])}].t")
+        pg.evaluate(f"{f}.seek({t})")
+        pg.wait_for_timeout(120)
+        return
+    if st.get("section") and "offset" not in st:
+        st = dict(st, offset=offset)
+    pg.evaluate(f"{f}.setState({json.dumps(dict({'home': True}, **{k: v for k, v in st.items() if not k.startswith('_') and k != 'click'}))})")
+    pg.evaluate(f"{f}.xray(null, {str(bool(st.get('xray'))).lower()})")
+    for label in st.get("click", []):   # press custom buttons by their text, e.g. "click":["Gingiva"]
+        pg.get_by_role("button", name=label, exact=True).first.click()
+    pg.wait_for_timeout(350)
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("page"); ap.add_argument("--out", default="shots"); ap.add_argument("--three-local"); ap.add_argument("--dark", action="store_true"); ap.add_argument("--offset", type=float, default=0)
     ap.add_argument("--state", action="append", default=[]); ap.add_argument("--only", action="store_true")
+    ap.add_argument("--step", action="append", type=int, default=[]); ap.add_argument("--seek", action="append", type=float, default=[])
+    ap.add_argument("--soft", action="store_true")
     a = ap.parse_args()
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("SKIP: Playwright is not installed. Rely on the checklist."); sys.exit(2)
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import _browser
     out = pathlib.Path(a.out); out.mkdir(parents=True, exist_ok=True)
     url = pathlib.Path(a.page).resolve().as_uri()
-    errors = []
+    custom = [(s.split("=", 1)[0], json.loads(s.split("=", 1)[1])) for s in a.state]
+    custom += [(f"step{i + 1}", {"step": i}) for i in a.step] + [(f"t{t:g}", {"seek": t}) for t in a.seek]
+    errors, shots = [], []; t_start = time.time()
+    three = _browser.three_path(a.three_local)
     with sync_playwright() as p:
-        b = p.chromium.launch(args=["--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"])
+        b, gl = _browser.launch(p, a.soft)
+        print(f"renderer: {gl}", flush=True)
         for width, tag in [(1100, ""), (390, "-mobile")]:
             pg = b.new_page(viewport={"width": width, "height": 900}, color_scheme="dark" if a.dark else "light")
             pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
             pg.on("console", lambda m: errors.append(f"console.{m.type}: {m.text}") if m.type == "error" else None)
-            if a.three_local:
-                pg.route(CDN, (lambda p: (lambda r: r.fulfill(path=p, content_type="application/javascript")))(a.three_local))
+            _browser.route_three(pg, three)
             pg.goto(url)
             if not pg.evaluate("typeof THREE !== 'undefined'"):
                 print("SKIP: three.js did not load (no access to cdnjs?). Use --three-local or rely on the checklist.")
@@ -48,29 +77,28 @@ def main():
             except Exception:
                 print("FAIL: the figure never finished starting.")
                 print("\n".join(errors) or "(no JS error was reported)"); b.close(); sys.exit(1)
-            has_section = pg.evaluate("!!(window.__dkFig && window.__dkFig.section)")
-            custom = [(s.split('=', 1)[0], __import__('json').loads(s.split('=', 1)[1])) for s in a.state]
-            states = (custom if a.only else STATES + custom) if not tag else [STATES[0], STATES[2]]
-            no_explode = pg.evaluate('!!window.__dkFig.noExplode')
+            has = pg.evaluate("(() => { const f = window.__dkFig; return { section: !!f.section, explode: !f.noExplode && !!f.explodeSlider, xray: !!f.hasXray, steps: (f.steps || []).map(s => s.label) }; })()")
+            if has["steps"]:
+                defaults = [(f"step{i + 1}-{lbl.lower().replace(' ', '-')[:20]}", {"step": i}) for i, lbl in enumerate(has["steps"])]
+            else:
+                defaults = [(n, s) for n, s in DEFAULT if not s.get("_needs") or has[s["_needs"]]]
+            states = (custom if a.only else defaults + custom) if not tag else (custom[-1:] if a.only and custom else defaults[-1:])
             for name, st in states:
-                if st.get("section") and not has_section:
-                    continue
-                if name == 'exploded' and no_explode:
-                    continue
-                st = dict(st, offset=a.offset) if st.get("section") and "offset" not in st else st
-                pg.evaluate(f"window.__dkFig.setState({__import__('json').dumps(dict({'home': True}, **st))})")
-                pg.evaluate(f"window.__dkFig.xray(null, {str(bool(st.get('xray'))).lower()})")
-                for label in st.get('click', []):   # press custom buttons by their text, e.g. "click":["Gingiva"]
-                    pg.get_by_role("button", name=label, exact=True).first.click()
-                pg.wait_for_timeout(350)
+                shoot(pg, st, a.offset)
                 f = out / f"{name}{tag}.png"
                 pg.screenshot(path=str(f), full_page=True)
-                print("shot", f)
+                shots.append(f); print("shot", f, flush=True)
             pg.close()
+        # one contact sheet of every shot, so a single look covers the whole check
+        imgs = "".join(f'<figure><img src="data:image/png;base64,{base64.b64encode(s.read_bytes()).decode()}"><figcaption>{s.stem}</figcaption></figure>' for s in shots)
+        pg = b.new_page(viewport={"width": 1800, "height": 900})
+        pg.set_content(f"""<style>body{{margin:0;background:#fff;font:600 15px sans-serif;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}}
+            figure{{margin:0}}img{{width:100%;max-height:640px;object-fit:contain;object-position:top;border:1px solid #ddd}}figcaption{{padding:2px 4px}}</style>{imgs}""")
+        pg.screenshot(path=str(out / "sheet.png"), full_page=True); print("sheet", out / "sheet.png")
         b.close()
     if errors:
         print("\n".join(errors)); sys.exit(1)
-    print("OK: no JS errors")
+    print(f"OK: no JS errors ({len(shots)} shots in {time.time() - t_start:.1f}s)")
 
 if __name__ == "__main__":
     main()

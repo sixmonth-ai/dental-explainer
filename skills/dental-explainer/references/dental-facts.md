@@ -272,6 +272,24 @@ The eruption sequence for primary teeth is central incisor, lateral incisor, **1
 
 ---
 
+## 14. Crown preparation (full coverage)
+Reductions depend on the **crown material** and differ between sources and manufacturers. Show them as "typical" or "about", name the material, and never present one set as universal.
+
+| Material | Incisal / occlusal | Axial (facial) | Finish line |
+|---|---|---|---|
+| Glass-ceramic (e.g. lithium disilicate), anterior | 1.5–2.0 mm (some guides 1.0–1.5) | 1.0–1.5 mm | Rounded shoulder or deep chamfer, ~1.0 mm [V, Ivoclar e.max chairside guide; U Toronto] |
+| Metal-ceramic, anterior | ~2.0 mm | ~1.2–1.5 mm facial; lingual ≥0.7 mm (1.0 mm under porcelain) | Facial shoulder (radial), lingual chamfer [V, student guides and reviews; textbook values U] |
+| Monolithic zirconia | 1.0–1.5 mm (minimum thickness quoted 0.5–1.0 mm) | ~0.5–1.0 mm | Light chamfer 0.3–0.5 mm (feather edge possible) [V, Spear; lab guides] |
+
+- **Total occlusal convergence (taper)**: recommended about **10–20°** total (Goodacre et al. 2001); 2–6° is the old, rarely achieved ideal. Measured student and clinical preps average ~15° anteriors and ~19° molars [V, CRDSP 2014 review; typodont study via search, U for exact numbers]. In the kit, `DK.prep` / `DK.prepMorph` keep the crown's own wall shape: say "slight taper", don't quote a degree off the model.
+- **Wall height**: resistance needs enough axial wall; about 3 mm is the usual minimum for anteriors and premolars, about 4 mm for molars [U, standard teaching].
+- **Margin placement**: supragingival or at the gingival margin when esthetics allow; for esthetics, at most ~0.5 mm into the sulcus. Keep the margin clear of the supracrestal tissue attachment (≈2 mm above the bone crest, section 6) [U, standard teaching].
+- **Anterior sequence (canine, incisor)** [U, standard teaching]: depth-orientation grooves → incisal reduction (canine: along both cusp slopes, edge angled ~45° lingually on maxillary teeth) → facial reduction **in two planes** (cervical and incisal halves follow the facial curvature) → lingual concavity with a wheel / football diamond (~0.7–1.0 mm) → lingual axial wall above the cingulum (keeps retention) → proximal reduction → margin refined, angles rounded.
+- **Burs** [U, standard teaching]: tapered round-end diamond for axial walls and chamfers; flat-end tapered diamond for shoulders; wheel or football (egg) diamond for the lingual concavity of anteriors; fine-grit or flame diamonds for finishing. High speed with water spray.
+- **Pulp**: young teeth have larger pulps; the remaining dentin over the pulp should stay thick enough to protect it (≥~1 mm is commonly quoted) [U]. Don't draw a prep that reaches a pulp horn.
+
+---
+
 ## Sources
 - Dental notation (FDI, Universal, Palmer, mappings): https://en.wikipedia.org/wiki/Dental_notation
 - Wheeler's crown and root lengths (excerpt): https://medicalsutras.in/post/dimensions-of-teeth-methods-of-measurement
@@ -317,3 +335,8 @@ The eruption sequence for primary teeth is central incisor, lateral incisor, **1
 - Gutta-percha after post space: https://doi.org/10.1155/2015/708639
 - MB1–MB2 orifice distance: https://pmc.ncbi.nlm.nih.gov/articles/PMC6400017
 - 2017 AAP/EFP staging table: https://www.dentalcare.com/en-us/ce-courses/ce610/requirements-periodontitis-case
+- Glass-ceramic preparation guide (Ivoclar IPS e.max chairside, via Glidewell): https://co.glidewelldental.com/wp-content/uploads/sites/7/2021/12/Chairside-Preparation-Guide-for-IPS-emax.pdf
+- All-ceramic crown preparation (University of Toronto DPES): https://dpes.dentistry.utoronto.ca/node/1212.html
+- Monolithic zirconia preparation design (Spear Education): https://www.speareducation.com/spear-review/2012/10/posterior-full-contour-zirconia-crowns-preparation-design
+- Total occlusal convergence and margin design, review (2014): https://doi.org/10.3844/crdsp.2014.10.16
+- Metal-ceramic preparation (student guide): https://www.dentalkart.com/blogs/tooth-preparation

@@ -126,8 +126,8 @@ dental-explainer/
     │   ├── dental-facts.md      verified values and sources: the correction layer
     │   └── kit-api.md           drawing-kit reference
     ├── assets/dentkit.js        3D kit (loads three.js r128 from cdnjs)
-    ├── examples/                four finished figures, .js source and .html pages
-    └── scripts/                 build.py (assemble a page) · render.py (PNG / MP4) · check.py (screenshot and error check)
+    ├── examples/                seven finished figures, .js source and .html pages
+    └── scripts/                 build.py (assemble a page) · render.py (PNG / MP4 / contact sheet, GPU when available) · check.py (screenshot and error check)
 ```
 
 <br>

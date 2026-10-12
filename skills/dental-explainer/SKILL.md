@@ -17,9 +17,10 @@ Files in this skill:
   - `molar-36-section.js`: tissue layers in section with a movable cut.
   - `left-side-dentition.js`: a row of teeth with FDI and Universal numbering and mirrored maxillary teeth.
   - `post-core-crown-45.js`: restorative stack (root filling, fibre post, core, ferrule, hollow crown).
+  - `crown-prep-13.js`: a **tooth preparation** procedure: the crown reduced step by step with `DK.prepMorph`, a moving `DK.bur`, a ghost of the removed tooth, the margin, then the crown seated. Start here for any prep (crown, veneer, onlay).
 - `scripts/build.py`: wraps your figure script into a standalone page (`--mode interactive|image|video`).
-- `scripts/render.py`: turns an image or video page into a `.png` or `.mp4` (needs Playwright + Chromium).
-- `scripts/check.py`: headless screenshots and a JS-error check for interactive pages.
+- `scripts/render.py`: turns an image or video page into a `.png` or `.mp4`; `--sheet 12` makes a contact sheet of a video in seconds (needs Playwright + Chromium; uses the GPU when there is one).
+- `scripts/check.py`: a JS-error check and screenshots of the states that matter (every step of a procedure), combined into one `sheet.png`.
 
 ## 1. Ask first
 
@@ -46,7 +47,7 @@ Never ask about things you can decide yourself (colours, camera angles, which pr
 ## 2. Plan
 
 1. **Pin down the teaching point in one sentence.** "Why MB2 is missed", "how an abutment seats in an internal-hex implant". The figure must make it visible: through explode (assembly and sequence), a section (layers and inside), or a comparison (variation).
-2. **Get the numbers from `references/dental-facts.md`, not from memory.** Tooth number and system, crown and root lengths, root and canal counts, distances. If a value isn't in the file and you aren't sure of it, leave it out or label it "approximate". "Tooth 36" without a system means **FDI**. Universal stops at 32.
+2. **Get the numbers from `references/dental-facts.md`, not from memory.** Tooth number and system, crown and root lengths, root and canal counts, distances, crown-prep reductions (§14). If a value isn't in the file and you aren't sure of it, leave it out or label it "approximate". "Tooth 36" without a system means **FDI**. Universal stops at 32. **A tooth type without a number** ("a canine", "a molar"): don't ask; pick the maxillary right tooth (canine → 13, first molar → 16) unless the request says lower, and state the number in the subtitle.
 3. **Plan the geometry.**
    - **Assembly figures** (implants, restorations, ortho appliances): each part with its material, size in mm, position in the tooth frame (CEJ at y = 0, +x mesial, +z buccal), explode vector, and insertion order. Bone and gingiva drop away (−y) on explode.
    - **Section figures** (anatomy, endo, perio): the cut plane and range, the layers in section-group order, and what each label points at.
@@ -72,7 +73,7 @@ Never add: usage hints ("drag to rotate"), "Fig. N" eyebrows, explanations of wh
 
 ## 4. Build
 
-Write the figure script (plain JS, `figure.js`) against the kit, starting from the closest example. Use `DK.tooth(fdi)` and the presets instead of inventing shapes. Compute every number shown from the same constants that place the geometry.
+Write the figure script (plain JS, `figure.js`) against the kit, starting from the closest example. **If an example already is the request** (same procedure or structure, e.g. a canine crown prep), copy the file and change only what differs (tooth, numbers, title) with small edits instead of retyping it. Use `DK.tooth(fdi)` and the presets instead of inventing shapes. Compute every number shown from the same constants that place the geometry.
 
 **Interactive panel**: only what the teaching point needs, usually 2–4 controls:
 - `standardControls({ explode, section })` adds the explode slider and/or the cut toggle and slider, plus a reset button. Pass `explode: false` when nothing comes apart.
@@ -91,15 +92,24 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - Steps: `fig.procedure([{ label: 'Pilot drill', caption, beats: [...] }, …])`. Give each step a camera too: settle (`zoom`, `focus`, a few degrees of `theta`) on where the action is in its first beat, act in the middle beat, let the tool leave in the last. Labels are 1–2 words. Mark the beat that best shows each step with `key: true` (the storyboard panel uses it; default is the step's last beat). Tools leave between steps (move them back up and hide them), so each step starts clean.
 - One mode each: interactive shows a stepper (‹ 2/6 Pilot drill › ▶) and plays step 1 on load; video plays every step with its caption (a procedure video may run 15–25 s); image becomes a numbered storyboard of all steps.
 - Clinical sequence and sizes come from the facts file. Anything system-specific (drill sizes, torque) is labelled as such, never presented as universal.
+- **Preparations** (crown, onlay, veneer): copy `examples/crown-prep-13.js`. `DK.prepMorph` does the reduction as two params (incisal/occlusal, then axial), `DK.bur` is the tool (tip at its origin), a translucent ghost of `DK.crownGeometry(spec)` shows what was removed, and `DK.restorationCrown(spec, material, sameNumbers)` seats on the prep exactly.
+- **Framing:** the camera fits regular parts only. Keep the subject (the tooth) a regular part and give context blocks `fit: false`; never put every object in `fig.world`.
 
 **Assemble the page**: `python3 scripts/build.py figure.js -o <name>.html --mode <image|video|interactive> [--aspect 16:9|1:1|4:5|9:16] --title "<title>"`.
 Without code execution, write the HTML yourself: `<!doctype html>…<body>`, then `<script>window.DK_MODE = 'image';</script>` (the chosen mode), then `<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>`, then a `<script>` holding **the full, unmodified contents of `assets/dentkit.js`**, then a `<script>` with your figure code. Never abridge the kit.
 
 ## 5. Verify
 
-- **Interactive:** if Python Playwright and Chromium are available, run `python3 scripts/check.py <name>.html --out shots`, with `--state 'name={"section":true,"offset":-2.6,"theta":0.3,"phi":0.5,"dist":0.8}'` for the views your figure is about. It must print `OK`. **Look at the PNGs.** Fix overlaps, labels that don't point at their part, parts poking through other parts, and empty framing.
-- **Image / video:** render it (below) and look at the PNG, or at a few frames of the video (`ffmpeg -ss <t> -i clip.mp4 -frames:v 1 f.png`). Check that captions don't sit on the model.
-- If a script prints `SKIP` (no Playwright, or no access to cdnjs), skip the visual check and rely on the checklist.
+One look per build; every check below takes seconds on a machine with a GPU.
+- **Interactive:** `python3 scripts/check.py <name>.html --out shots` (add `--state 'name={"section":true,"offset":-2.6,"theta":0.3,"phi":0.5,"dist":0.8}'` for a view your figure is about, `--step i` / `--seek t` for a moment of a procedure). It must print `OK`. **Look at `shots/sheet.png`** (all shots in one image). Fix overlaps, labels that don't point at their part, parts poking through other parts, and empty framing.
+- **Image:** render the PNG (below) and look at it.
+- **Video:** `python3 scripts/render.py <name>.html -o sheet.png --sheet 12` and look at the sheet (12 moments plus every step's key frame, stamped with times). Fix, re-check with a sheet, and render the MP4 **once**, at the end. Check that captions don't sit on the model.
+- If a script prints `SKIP` (no Playwright, or no access to cdnjs), skip the visual check and go through these instead, because nobody will look before the user does:
+  - the subject is a regular part (not `inPlace`), so the camera has something to frame; context blocks have `fit: false`;
+  - every label's anchor is in the part's own frame and on its surface, not inside another part;
+  - each step sets what it changes and moves its tool back out (tools hidden when parked);
+  - ghost or marker materials use `fig.accent` (theme-aware) or a `toneMapped: false` basic material, opacity ≥ 0.15;
+  - the accuracy checklist below.
 - Always run the accuracy checklist below and fix what fails.
 
 ## 6. Deliver
@@ -133,7 +143,7 @@ Your reply: one line naming the teaching point. For interactive, add one line on
   - Mesio-distal for crown and pulp anatomy, furcations and restorations: `removeToward [0,0,1]`.
   - Axial (horizontal) for canal orifices, access outlines and root cross-sections: `removeToward [0,1,0]`, viewed from above at a slight tilt (`phi ≈ 0.4–0.6`) so the roots below give depth.
   - Ordering in `enableSection` is outermost → innermost (bone, cancellous, gingiva, PDL, enamel, dentin, pulp). For restorations: crown, then own tooth, then core, then root filling, then post.
-- **Orientation:** a single maxillary tooth is shown crown up (extracted-tooth convention) unless it is drawn in the jaw. Teeth in the jaw are mirrored with `scale.y = -1`. Say which in the subtitle.
+- **Orientation:** a single maxillary tooth is shown crown up (extracted-tooth / model convention), **also with bone and gingiva around it** for a procedure; say "crown up" in the subtitle. Mirror into the jaw (`scale.y = -1`, crown down) only when the jaw itself is the point (sinus, palate, a whole arch).
 - **Context, but quiet.** Bone and gingiva frame the subject; the X-ray state (`xray` in a story beat, or a toggle) lets the viewer see through them.
 - **Markers and outlines** that must keep an exact colour (orifices, access outlines, arrows) use `MeshBasicMaterial({ color: DK.color(hex), toneMapped: false })`; always wrap custom colours in `DK.color()`. Use flat ribbons, not `THREE.Line`: WebGL lines are always 1 px. Lift markers ~0.1 mm above a cut face so it doesn't cover them.
 - **Colours** come from `DK.COLORS` / `DK.mat` so every figure looks like one family. The page uses Sixmonth's palette; light and dark themes are automatic. Highlight the one thing that matters (e.g. MB2) with a warm accent (`0xC2410C`) and keep the rest in ink blue (`0x0E3A5C`).
@@ -142,10 +152,11 @@ Your reply: one line naming the teaching point. For interactive, add one line on
 ## What the kit can't do (say so instead of faking it)
 - Patient-specific anatomy from scans or radiographs. Figures are parametric and population-average. If the user uploads a CBCT or STL, explain this limit. You may still match key measurements they give (implant size, bone height).
 - Photorealistic soft tissue, faces, or histology at cell level. Draw a schematic and say it's schematic.
+- Wall-by-wall tooth preparation. `DK.prepMorph` reduces the incisal/occlusal surface and then all axial walls together; depth grooves, the lingual concavity and separate labial / lingual / proximal passes can't be shown. Merge them into one "axial walls" step and name what it covers in the caption.
 - Exact proprietary implant geometries. Draw a generic implant of the stated diameter, length and connection, and don't use brand names on it.
 
 ## Platform notes
 - **Claude (web, desktop):** needs code execution for `build.py`. `render.py` and `check.py` need Playwright, which is often missing; they then print `SKIP` and you deliver the HTML page (its Download button makes the PNG or video in the viewer's browser). three.js loads from cdnjs, which artifacts allow.
-- **Claude Code:** everything runs locally; install Playwright (`pip install playwright && playwright install chromium`) and ffmpeg for direct PNG and MP4 output.
+- **Claude Code:** everything runs locally; install Playwright (`pip install playwright && playwright install chromium`) and ffmpeg for direct PNG and MP4 output. The scripts use the GPU when there is one and cache three.js after the first run.
 - **ChatGPT:** same workflow. If canvas preview doesn't run the CDN script, deliver the `.html` file for download.
 - **No file tools at all:** output the full HTML (see "Assemble the page") in one code block and tell the user to save it as `.html` and open it in a browser.

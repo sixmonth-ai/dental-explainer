@@ -27,21 +27,26 @@ fig.part(tooth.group, { name: 'Tooth 36', label: false, info: 'Lower left first 
 fig.part(L.pulp, { inPlace: true, name: 'Necrotic pulp', anchor: [0.6, 1.4, 0], info: 'Dead, infected pulp. The tooth itself no longer feels, but the ligament around the apex does.', when: () => pulpState.necrosis > 0.5 && L.pulp.visible });
 
 // --- the canal space: access cavity, de-roofed chamber, canals that widen as they are shaped, then the fillings
-const VOID = 0x5f5750, FLUID = 0xb7c0c2;
-const access = DK.accessCavity(s, { k: 0 });
-const chamberVoid = new THREE.Mesh(L.pulp.userData.chamber.geometry, DK.mat('pdl', { color: VOID, cap: VOID })); chamberVoid.position.copy(L.pulp.userData.chamber.position); chamberVoid.visible = false;
-const canals = ['MB', 'ML', 'D'].map(n => DK.canalShape(s, n, Object.assign({ color: VOID }, SHAPE)));
+// empty space is painted in the stage tone with a thin ink rim (a slightly larger copy in the section group before it)
+const EMPTY = DK.voidColor(fig), CANAL_INK = 0x5f5750, FLUID = 0xb7c0c2, chamberGeo = L.pulp.userData.chamber.geometry, chamberPos = L.pulp.userData.chamber.position;
+const access = DK.accessCavity(s, { k: 0, color: EMPTY });
+const accessRim = DK.accessCavity(s, { k: 0, material: 'ink', grow: 1.05, lift: 0.01 });
+const chamberVoid = new THREE.Mesh(chamberGeo, DK.mat('pdl', { color: EMPTY, cap: EMPTY, roughness: 0.95 })); chamberVoid.position.copy(chamberPos);
+const chamberRim = new THREE.Mesh(DK.inflateGeometry(chamberGeo, 0.12), DK.mat('pdl', { color: DK.RIM, cap: DK.RIM })); chamberRim.position.copy(chamberPos);
+const canals = ['MB', 'ML', 'D'].map(n => DK.canalShape(s, n, Object.assign({ color: CANAL_INK }, SHAPE)));
 const fillings = ['MB', 'ML', 'D'].map(n => DK.rootFilling(s, n, SHAPE));
 const resto = DK.accessCavity(s, { material: 'composite', lift: 0.16 });
-const chamberResto = new THREE.Mesh(L.pulp.userData.chamber.geometry, DK.mat('composite', { cap: 0xe9dfc4 })); chamberResto.position.copy(chamberVoid.position);
+const chamberResto = new THREE.Mesh(chamberGeo, DK.mat('composite', { cap: 0xf1e4c6 })); chamberResto.position.copy(chamberPos);
 const path = DK.canalAccessPath(s, CANAL, { ref: REF, short: SHORT }), WL = path.wl, PATH = path.points, END = PATH[PATH.length - 1];
 const wlMark = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), new THREE.MeshBasicMaterial({ color: fig.accent, toneMapped: false })); wlMark.position.set(END[0], END[1], END[2] + 0.25); wlMark.visible = false;
-[access, chamberVoid, ...canals, ...fillings, resto, chamberResto, wlMark].forEach(o => tooth.group.add(o));
+[accessRim, chamberRim, access, chamberVoid, ...canals, ...fillings, resto, chamberResto, wlMark].forEach(o => tooth.group.add(o));
 const mb = canals[0], midY = -6, midMB = DK.canalAt(s, 'MB', midY);
 fig.part(access, { inPlace: true, name: 'Access cavity', anchor: [access.opening.x, access.opening.y, access.opening.z], dim: false, info: `${access.outline.shape[0].toUpperCase() + access.outline.shape.slice(1)} opening, wider mesially, that de-roofs the pulp chamber for straight-line access to all three canals.` });
 fig.part(mb, { inPlace: true, name: 'Shaped canal', sub: `${SHAPE.size}/.${Math.round(SHAPE.taper * 100).toString().padStart(2, '0')} at the apex`, anchor: [midMB.x + 0.3, midY, CUT], dim: false, info: 'Continuously tapering, narrowest at the apex; the foramen keeps its original size and position.', when: () => mb.visible && mb.userData.k > 0.5 });
 fig.part(fillings[0], { inPlace: true, name: 'Root filling', sub: 'gutta-percha + sealer', anchor: [midMB.x + 0.3, midY, CUT], dim: false, info: 'Gutta-percha and sealer fill the shaped canal to working length; all three canals are filled.', when: () => fillings[0].visible });
 fig.part(resto, { inPlace: true, name: 'Restoration', anchor: [resto.opening.x, resto.opening.y, resto.opening.z], dim: false, info: 'The coronal seal matters as much as the root filling; a root-treated molar usually gets cuspal coverage (crown or onlay) afterwards.', when: () => resto.visible });
+const healMark = new THREE.Mesh(new THREE.SphereGeometry(0.01, 4, 4), new THREE.MeshBasicMaterial({ visible: false })); healMark.position.set(apexM[0], apexM[1] - 1.2, CUT); tooth.group.add(healMark);
+fig.part(healMark, { inPlace: true, name: 'Healed bone', anchor: [0, 0, 0], dim: false, info: 'Bone fills the lesion in over months to years; reviewed radiographically from a year on.', when: () => lesion.userData.k < 0.05 });
 fig.part(wlMark, { inPlace: true, name: 'Working length', sub: `${DK.mm(WL)}, ${SHORT} mm short of the apex`, anchor: [0, 0, 0], accent: true, dim: false, info: 'Measured from the cusp tip to the apical constriction with an apex locator and a radiograph.', when: () => wlMark.visible });
 
 // --- instruments (fig.world, bent along the canal path by params)
@@ -60,18 +65,18 @@ fig.part(cone, { inPlace: true, name: 'Gutta-percha cone', sub: `${SHAPE.size}/.
 
 // --- params
 const pulpState = { necrosis: 0 };
-const PULP = DK.color(DK.COLORS.pulp), NECRO = DK.color(0x857570);
-fig.param('necrosis', 0, v => { pulpState.necrosis = v; L.pulp.traverse(m => { if (m.isMesh && !m.userData.isStencil) m.material.color.copy(PULP).lerp(NECRO, v); }); DK.capColor(fig.section, 6, v > 0.5 ? 0x7a6a66 : DK.COLORS.pulpCap); });
+const PULP = DK.color(DK.COLORS.pulp), NECRO = DK.color(0x6b5d59);
+fig.param('necrosis', 0, v => { pulpState.necrosis = v; L.pulp.traverse(m => { if (m.isMesh && !m.userData.isStencil) m.material.color.copy(PULP).lerp(NECRO, v); }); DK.capColor(fig.section, 6, v > 0.5 ? 0x6e615d : DK.COLORS.pulpCap); });
 fig.param('lesion', 1, k => lesion.set(k));
 // what is in the canal space: pulp → empty (void) → root filling and restoration. One sync keeps the solids from overlapping.
 const st = { pulp: 1, access: 0, fill: 0, resto: 0 };
 const sync = () => { const gone = st.pulp < 0.5, filled = st.fill > 0.5, restored = st.resto > 0.5;
-  L.pulp.visible = !gone; chamberVoid.visible = gone && !restored; canals.forEach(c => { c.visible = gone && !filled; }); fillings.forEach(f => { f.visible = filled; });
-  access.visible = st.access > 0.02 && !restored; resto.visible = chamberResto.visible = restored; };
-fig.param('access', 0, k => { st.access = k; access.set(k); sync(); });
+  L.pulp.visible = !gone; chamberVoid.visible = gone && !restored; chamberRim.visible = gone; canals.forEach(c => { c.visible = gone && !filled; }); fillings.forEach(f => { f.visible = filled; });
+  access.visible = st.access > 0.02 && !restored; accessRim.visible = st.access > 0.02; resto.visible = chamberResto.visible = restored; };
+fig.param('access', 0, k => { st.access = k; access.set(k); accessRim.set(k); sync(); });
 fig.param('pulp', 1, v => { st.pulp = v; sync(); });
 fig.param('shape', 0, k => canals.forEach(c => c.set(k)));
-fig.param('fluid', 0, k => { const col = DK.color(VOID).lerp(DK.color(FLUID), k); [chamberVoid, ...canals, access].forEach(o => o.material.color.copy(col)); DK.capColor(fig.section, 7, k > 0.5 ? FLUID : VOID); });
+fig.param('fluid', 0, k => { [chamberVoid, access].forEach(o => o.material.color.copy(DK.color(EMPTY)).lerp(DK.color(FLUID), k)); canals.forEach(o => o.material.color.copy(DK.color(CANAL_INK)).lerp(DK.color(FLUID), k)); DK.capColor(fig.section, 8, k > 0.5 ? FLUID : EMPTY); DK.capColor(fig.section, 9, k > 0.5 ? FLUID : CANAL_INK); });
 fig.param('fill', 0, v => { st.fill = v; sync(); });
 fig.param('resto', 0, v => { st.resto = v; sync(); });
 fig.param('wlmark', 0, v => { wlMark.visible = v > 0.5; });
@@ -90,9 +95,11 @@ fig.enableSection([0, 0, 1], [
   { objects: [L.enamel], color: DK.COLORS.enamelCap },
   { objects: [L.root, L.dentin], color: DK.COLORS.dentinCap },
   { objects: [L.pulp], color: DK.COLORS.pulpCap },
-  { objects: [access, chamberVoid, ...canals], color: VOID },
+  { objects: [accessRim, chamberRim], color: DK.RIM, kind: 'plain' },
+  { objects: [access, chamberVoid], color: EMPTY, kind: 'plain' },
+  { objects: canals, color: CANAL_INK, kind: 'plain' },
   { objects: fillings, color: DK.COLORS.gutta },
-  { objects: [resto, chamberResto], color: 0xe9dfc4 }
+  { objects: [resto, chamberResto], color: 0xf1e4c6, kind: 'plain' }
 ]);
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-3.5, 3.5], offset: CUT } });
 fig.xray([bone, gum, L.enamel, L.dentin, L.root], false);
@@ -134,8 +141,8 @@ fig.procedure([
     { dur: 2.4, hold: 0.4, set: { cone: WL }, labels: ['Gutta-percha cone'] },
     { dur: 0.6, hold: 1.6, zoom: 0.95, focus: FOCUS_TOOTH, set: { cone: -40, fill: 1 }, labels: ['Root filling'], key: true }] },
   { label: 'Restoration', caption: 'A sealed coronal restoration; the bone heals over months to years.', beats: [
-    { dur: 1.4, hold: 1.0, zoom: 0.85, focus: FOCUS_CROWN, set: { resto: 1 }, labels: ['Restoration'] },
-    { dur: 2.0, hold: 0.2, zoom: 1, focus: 'auto', phi: 1.5, section: false, xray: 1, labels: [] },
-    { dur: 2.4, hold: 2.4, set: { lesion: 0 }, labels: ['Root filling', 'Restoration'], key: true }] }
+    { dur: 1.4, hold: 1.0, zoom: 0.8, focus: FOCUS_CROWN, set: { resto: 1 }, labels: ['Restoration'] },
+    { dur: 2.0, hold: 0.2, zoom: 0.95, focus: FOCUS_TOOTH, labels: ['Restoration', 'Root filling'] },
+    { dur: 2.4, hold: 2.4, set: { lesion: 0 }, labels: ['Restoration', 'Root filling', 'Healed bone'], key: true }] }
 ]);
 fig.start();

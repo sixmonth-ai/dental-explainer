@@ -132,7 +132,9 @@ Instruments have their **tip at the origin** and point up +y when straight, like
 | `DK.periapicalLesion({radius, color, seed})` → mesh | Apical periodontitis: an irregular closed blob to centre on an apex (a section group after the cancellous bone, before the tooth). `m.set(k)` scales it; animate k → 0 for healing. Dark enough to read as a radiolucency in the X-ray state. |
 | `DK.capColor(fig.section, groupIndex, hex)` | Recolour a cut face later: a pulp going necrotic, a canal filling with irrigant. |
 
-Pitfalls: the chamber and the canals exist twice (pulp, then a dark "void" copy); keep exactly one visible, and hide the void canals when the fillings appear or the filling sits inside a dark shell in X-ray. The kit's crowns carry cusp relief above `crownL`, so a working length measured from a cusp tip comes out ~1 mm longer than Wheeler's tooth length. In a mesio-distal cut, place the cut through the canal you treat (`offset` = the canal's z) and say which canal in the subtitle.
+**Empty space convention:** a cavity's cut face is painted as empty space, the stage tone of the theme (`DK.voidColor(fig)`: light ≈ #E9E4D9, dark ≈ #1D1C19), with a thin ink rim (`DK.RIM`) from a slightly larger copy in the section group just before it (`DK.accessCavity(spec, {material:'ink', grow:1.05, lift:0.01})`, `DK.inflateGeometry(chamberGeo, 0.12)`); void solids never stand proud of the crown (`lift` ≤ 0.03). Narrow canals may stay a darker line. A restoration that fills the same space is a later group (warm ivory cap), and the rim becomes its boundary line.
+
+Pitfalls: the chamber and the canals exist twice (pulp, then a "void" copy); keep exactly one visible, and hide the void canals when the fillings appear or the filling sits inside a dark shell in X-ray. The kit's crowns carry cusp relief above `crownL`, so a working length measured from a cusp tip comes out ~1 mm longer than Wheeler's tooth length. In a mesio-distal cut, place the cut through the canal you treat (`offset` = the canal's z) and say which canal in the subtitle.
 <!-- end topic: endo -->
 
 ## Pitfalls

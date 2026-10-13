@@ -1594,9 +1594,10 @@
   // the original canal (k = 0) to a continuously tapering preparation of ISO `size` and `taper` at the apex (k = 1):
   // m.set(k). Put it in a section group after the pulp (dark `color` = empty canal space), or pass material 'gutta'.
   DK.canalShape = function (spec, which, o) {
-    o = Object.assign({ size: 25, taper: 0.06, short: 0.5, color: 0x5a534c, material: null, k: 0, scale: 1 }, o);
+    o = Object.assign({ size: 25, taper: 0.06, short: 0.5, color: 0x5f5750, material: null, k: 0, scale: 1 }, o);
     const cs = canalSpecOf(spec, which), c = findCanal(spec, which), toY = -(cs.len - o.short - (c.short || 0));
-    const pts = DK.canalPath(spec, which, { from: o.from ?? cs.start, to: toY, n: 40 }), curve = curveOf(pts), L = curve.getLength();
+    // starts 0.5 mm above the orifice, inside the chamber, so the funnel merges with the chamber like the pulp mesh does
+    const pts = DK.canalPath(spec, which, { from: o.from ?? cs.start + 0.5, to: toY, n: 40 }), curve = curveOf(pts), L = curve.getLength();
     const y0 = pts[0][1], y1 = pts[pts.length - 1][1];
     const mat = o.material ? DK.mat(o.material) : DK.mat('pdl', { color: o.color, cap: o.color });
     const m = new T.Mesh(new T.BufferGeometry(), mat); m.name = o.material === 'gutta' ? 'Root filling' : 'Canal';
@@ -1648,9 +1649,19 @@
     const c = cs[0] || { r: 0.4 }, e = Math.max(0.5, (c.rbk || c.r) * 1.2), a = at(0);
     return { plane: 'occlusal', points: roundedPolygon([[a[0], a[1] + e], [a[0], a[1] - e]], 0.9, n), shape: 'oval' };
   };
+  // Empty space in a figure is painted in the stage tone of the theme (so a cut cavity reads as a hole, not a dark solid),
+  // with a thin ink rim: build the rim as a slightly larger copy in a section group just before the void.
+  DK.voidColor = fig => (fig && fig.dark) ? 0x1D1C19 : 0xE9E4D9;
+  DK.RIM = 0x3a3733;
+  DK.inflateGeometry = function (geo, d) { // copy of a geometry pushed `d` mm along its vertex normals (rims, outlines)
+    const g = geo.clone(); if (!g.attributes.normal) g.computeVertexNormals();
+    const p = g.attributes.position, n = g.attributes.normal;
+    for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) + n.getX(i) * d, p.getY(i) + n.getY(i) * d, p.getZ(i) + n.getZ(i) * d);
+    p.needsUpdate = true; g.computeBoundingSphere(); return g;
+  };
   DK.accessCavity = function (specOrFdi, o) {
-    o = Object.assign({ material: 'void', color: 0x5a534c, lift: 0.08, bottomScale: 0.85, k: 1 }, o);
-    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi, ol = DK.accessOutline(s, o), pts = ol.points, N = pts.length;
+    o = Object.assign({ material: 'void', color: 0xE9E4D9, lift: 0.03, bottomScale: 0.85, k: 1, grow: 1 }, o);
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi, ol = DK.accessOutline(s, o), pts = ol.points.map(p => [p[0] * o.grow, p[1] * o.grow]), N = pts.length;
     // frame: origin at the cavity floor, axis out of the tooth, (u, v) span the opening plane
     let origin, axis, u, v;
     if (ol.plane === 'lingual') { origin = new T.Vector3(0, s.crownL * 0.42, 0); const top = new T.Vector3(0, s.crownL * 0.4, -s.bl / 2); axis = top.clone().sub(origin).normalize(); u = new T.Vector3(1, 0, 0); v = new T.Vector3().crossVectors(axis, u).normalize(); }
@@ -1669,9 +1680,9 @@
     pos.push(0, 0, 0);
     const wallRing = w => rings + w, bottomCentre = (rings + W + 1) * N;
     for (let r = 0; r < rings + W; r++) for (let j = 0; j < N; j++) { const a = at(r, j), b = at(r, j + 1), c = at(r + 1, j + 1), d = at(r + 1, j); if (r > 0) idx.push(a, b, d); idx.push(b, c, d); }
-    for (let j = 0; j < N; j++) idx.push(at(wallRing(W), j + 1), at(wallRing(W), j), bottomCentre);
+    for (let j = 0; j < N; j++) idx.push(at(wallRing(W), j), at(wallRing(W), j + 1), bottomCentre);   // opposite to the top fan, so the floor faces outward (a flipped floor punches holes in the stencil cap)
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
-    const mat = o.material === 'composite' ? DK.mat('composite', { cap: 0xe9dfc4 }) : DK.mat('pdl', { color: o.color, cap: o.color });
+    const mat = o.material === 'composite' ? DK.mat('composite', { cap: 0xf1e4c6 }) : o.material === 'ink' ? DK.mat('pdl', { color: DK.RIM, cap: DK.RIM, roughness: 0.9 }) : DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.95 });
     const m = new T.Mesh(g, mat); m.name = o.material === 'composite' ? 'Coronal restoration' : 'Access cavity';
     const P = g.attributes.position;
     m.set = k => {

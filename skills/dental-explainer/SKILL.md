@@ -127,7 +127,11 @@ Guidance for specific areas. Read the one your figure is about.
 
 <!-- topic: arch -->
 ### Primary teeth, third molars, arch layouts and numbering charts
-_(reserved)_
+Facts: `dental-facts.md` §15 (with §1, §2, §5). Kit: `DK.toothPreset(51–85)`, `DK.arch`, `DK.toothNumbers`, `DK.dentitionAt`, `DK.impaction`.
+- **Numbering chart / whole arch / occlusal view:** copy `examples/numbering-chart.js`. `DK.arch({ jaw, dentition, thirdMolars })` lays the teeth out with contacts touching, correct chirality and the patient's right at −x; `placement: 'chart'` for the upper arch above the lower; numbers as sprites (`DK.toothNumbers`), one group per system, buttons to switch. Camera from above with a small `phi` and a looser `view.margin`. Subtitle must say which side is the patient's right.
+- **Primary or mixed dentition:** copy `examples/mixed-dentition-8y.js`. `DK.arch({ dentition: 'mixed', age, side, form: 'straight', successors: true })` picks the teeth from the AAPD chronology (present primary teeth carry `resorb`, successors `develop`) and places the successors in the bone; X-ray fades the bone. For the 20 primary teeth use `dentition: 'primary'` with the chart layout. A single primary tooth: `DK.tooth(DK.toothPreset(75, { resorb }))`; it has thin enamel, a large pulp with high mesial horns, no root trunk and flared roots by itself: don't scale a permanent tooth down.
+- **Third molars and impaction:** copy `examples/impacted-38.js`. `DK.toothPreset(38)` is a real third molar (short, fused, distally inclined roots; say "variable" in the subtitle). `DK.impaction({ fdi: 38, neighbour: 37, angulation, depth })` poses it by Winter's angulation and Pell & Gregory depth; drive `angle` and `depth` with `fig.param` so buttons and the story animate them, and show the inferior alveolar canal in the cut.
+- Watch for: Universal letters A–T (not numbers) for primary teeth; primary molars are replaced by premolars; left teeth are mirror images (the arch does it; a lone left tooth needs `scale.x = −1`); ≤ 6 leader labels per frame, so number sprites, not labels, for a chart.
 <!-- end topic: arch -->
 
 <!-- topic: caries -->

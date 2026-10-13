@@ -294,7 +294,104 @@ Reductions depend on the **crown material** and differ between sources and manuf
 
 <!-- topic: arch -->
 ## 15. Primary teeth, third molars, arch layouts and numbering charts
-_(reserved)_
+Numbering: §1 (FDI 51–85, Universal A–T, Palmer A–E). Counts: §2. Eruption: §5. This section adds dimensions, morphology, exfoliation and succession, third molars, impaction classes and arch form. In the kit: `DK.toothPreset(51–85)`, `DK.toothPreset(18/28/38/48)`, `DK.arch`, `DK.impaction`, `DK.dentitionAt`.
+
+### 15.1 Primary tooth dimensions (mm)
+Crown and root lengths are the Wheeler / Ash & Nelson carving averages **[U]** (only the maxillary central incisor, 6 / 10 / 16 mm overall, could be pinned to a source citing Ash & Nelson 2003 [V]). Crown widths are the **global means of 35 population samples (Lukacs 2023, males)** [V]; the Wheeler values differ from them by at most 0.3 mm. Cervical widths **[U]**.
+
+| Tooth (FDI) | Crown L | Root L | MD crown | BL crown | MD cervix | BL cervix |
+|---|---|---|---|---|---|---|
+| Max central incisor (51, 61) | 6.0 [V] | 10.0 [V] | 6.6 (6.59) | 5.0 (5.04) | 4.5 | 4.0 |
+| Max lateral incisor (52, 62) | 5.6 | 11.4 | 5.4 (5.38) | 4.8 (4.76) | 3.7 | 3.7 |
+| Max canine (53, 63) | 6.5 | 13.5 | 6.8 (6.83) | 6.0 (6.03) | 5.1 | 5.5 |
+| Max first molar (54, 64) | 5.1 | 10.0 | 7.4 (7.40) | 8.7 (8.65) | 5.2 | 6.9 |
+| Max second molar (55, 65) | 5.7 | 11.7 | 9.2 (9.22) | 10.0 (9.95) | 6.4 | 8.3 |
+| Mand central incisor (71, 81) | 5.0 | 9.0 | 4.2 (4.21) | 3.8–4.0 (3.83) | 3.0 | 3.5 |
+| Mand lateral incisor (72, 82) | 5.2 | 10.0 | 4.7 (4.69) | 4.3 (4.28) | 3.0 | 3.5 |
+| Mand canine (73, 83) | 6.0 | 11.5 | 5.9 (5.94) | 5.5 (5.52) | 3.7 | 4.0 |
+| Mand first molar (74, 84) | 6.0 | 9.8 | 8.1 (8.12) | 7.3 (7.33) | 6.5 | 5.3 |
+| Mand second molar (75, 85) | 5.5 | 11.3 | 10.2 (10.16) | 9.1 (9.09) | 7.2 | 6.4 |
+
+Cross-check on extracted teeth (Egypt): mean MD crown width 9.71 mm for the mandibular and 8.36 mm for the maxillary second primary molar; root : crown ratio about 1.8 in both [V]. Rules that follow: primary anterior crowns are **wider mesiodistally than they are tall**; the mandibular canine crown is about 0.5 mm shorter and its root at least 2 mm shorter than the maxillary canine's [V]; the primary second molars are the largest primary teeth and the mandibular one is wider MD than the permanent premolar that replaces it (leeway space) [V for size order; U for leeway wording].
+
+### 15.2 How primary teeth differ from permanent teeth (modelling rules)
+- **Enamel** is thin and of **even thickness, about 0.5–1 mm** (permanent 1.5–2.5 mm over cusps) [V]; a spectroscopic study gives means of 1.14 mm (primary) vs 2.58 mm (permanent) [V]. It ends abruptly at the cervix (a definite cervical ridge) rather than tapering [V].
+- **Dentin** is thinner, so the **pulp is proportionally larger**, follows the DEJ closely, and the **pulp horns are longer and more pointed than the cusps suggest**; the **mesial (mesiobuccal) horn is the highest** [V]. Thin dentin over the horns is why primary molar preparations expose pulps easily.
+- **Crowns** are short, bulbous and **constricted at the cervix**; primary molars are bell-shaped with pronounced buccal cervical ridges (strongest on the first molars) and a narrow occlusal table; the buccal and lingual surfaces converge occlusally [V].
+- **Roots** are longer and more slender in relation to the crown; anterior roots are narrow mesiodistally; **molar roots flare out beyond the crown outline** to make room for the developing premolar crown between them, and there is **practically no root trunk: the furcation lies immediately below the CEJ** [V].
+- **Cusp and root counts** [V]: primary maxillary first molar 4 cusps and 3 roots (MB, DB, palatal), unlike any permanent tooth; primary maxillary second molar resembles the permanent maxillary first molar (4 cusps plus a Carabelli tubercle, 3 roots); primary mandibular first molar is unique (4 cusps, 2 roots, strong mesiobuccal cervical bulge); primary mandibular second molar resembles the permanent mandibular first molar (5 cusps with **three buccal cusps of nearly equal size**, 2 roots).
+- Colour whiter / bluish-white; **no mamelons** on the incisors [V].
+- **Physiological root resorption** precedes exfoliation; the kit spreads it over the three years before the exfoliation age [U for the duration]. Resorption starts on the root surface facing the successor's crown (apical for incisors, inter-radicular for molars) [U].
+
+### 15.3 Exfoliation, succession and the mixed dentition (eruption in §5)
+Exfoliation (AAPD, Logan & Kronfeld) [V]: central incisors 7–8 y maxillary / 6–7 y mandibular; lateral incisors 8–9 / 7–8; canines 11–12 / 9–11; first molars 9–11 / 10–12; second molars 9–12 / 11–13. Permanent crown (enamel) completion [V]: incisors 4–5 y, canines 6–7 y, first premolars 5–6 y, second premolars 6–7 y, first molars 30–36 months, second molars 7–8 y; root completion: incisors 9–11 y, canines 12–15 y, premolars 12–14 y, first molars 9–10 y, second molars 14–16 y. Third molar calcification begins at 7–10 y [V].
+- **Successors** [V]: primary incisors and canines are replaced by the permanent teeth of the same name; **primary first and second molars are replaced by the first and second premolars**. Permanent molars have no predecessors. FDI arithmetic: successor = primary number − 40 (54 → 14, 75 → 35).
+- The successor crown forms **between the flared roots** of a primary molar and **lingual / apical** to a primary incisor or canine; its eruption drives the resorption [U, standard teaching].
+- **Mixed dentition** runs from the first permanent tooth (about 6 y: mandibular central incisor and first molars) to the loss of the last primary tooth (about 12 y). At **age 8** a typical lower quadrant holds permanent 31, 32, 36 and primary 73, 74, 75, with 33, 34, 35 and 37 forming in the bone (`DK.dentitionAt(8, { jaw: 'mandible' })`) [V from the tables above].
+
+### 15.4 Third molars
+- **Dimensions**: Wheeler crown / root length maxillary 6.5 / 11 mm, mandibular 7 / 11 mm (§3) [V]; Wheeler crown widths MD 8.5, BL 10 (maxillary) and MD 10, BL 9.5 (mandibular) [U]. A caliper study of extracted teeth found maxillary crown 7.23, root 10.76, MD 9.53, BL 8.61 mm and mandibular 7.65, 10.71, 9.70, 8.63 mm [V]. Molar MD width decreases from first to third molar (§3).
+- **Morphology** [V, Wheeler-based lecture]: third molars **vary more than any other teeth** and may bear little resemblance to their neighbours. The maxillary third molar is typically **heart-shaped** from the occlusal (3 functioning cusps: two buccal, one large lingual; distolingual cusp small or absent), with a shorter, narrower crown than the second molar and **roots fused into one tapered mass**, shorter and **inclined distally**. The mandibular third molar resembles the second molar but is smaller, with a shorter, often fused root portion, **bifurcation in the apical third**, more supplemental grooves, and irregular outlines. Say "variable" in any subtitle.
+- **Agenesis** (at least one third molar missing): **22.63%** worldwide (95% CI 20.6–24.8%; 92 studies, 63,314 subjects; Carter & Worthington 2015) [V]; it varies by population (highest in Asian samples).
+- **Impaction**: pooled prevalence **24.40%** of people (95% CI 19.0–30.8%; 49 studies, 83,484 subjects; Carter & Worthington 2016) [V]; odds **57.58% higher in the mandible** than in the maxilla; no sex difference [V]. Angulation of impacted third molars: **mesioangular 41.17%**, vertical 25.55%, distoangular 12.17%, horizontal 11.06% [V]. A 2024 meta-analysis of 98 studies found a higher pooled figure (36.9% per subject; Asia 43.1%, Europe 24.5%) [V].
+- **Eruption** 17–21 y (AAPD 17–30 y; §5); eruption after 25 is considered unlikely; root formation can continue up to 3 years after eruption [V].
+
+### 15.5 Impaction classifications
+- **Winter (1926)**: the angle between the long axis of the third molar and that of the second molar: **vertical, mesioangular, horizontal, distoangular**, plus inverted, buccal / lingual (transverse) [V]. Angle bands used in radiographic studies [V, Dentistry 3000 2025]: **vertical −10° to +10°, mesioangular 11–79°, horizontal 80–100°, distoangular −11° to −79°**; "other" beyond ±100°. Mesioangular is the most common and distoangular the hardest to remove in the mandible [V]. Winter's classification is the more reproducible of the two systems [V].
+- **Pell & Gregory (1933)**, mandible: *depth* **A** = occlusal surface level with (or above) the second molar's occlusal plane; **B** = between the occlusal plane and the second molar's cervical line; **C** = below the cervical line. *Ramus relation* **Class I** = enough space between the distal of the second molar and the anterior border of the ramus for the whole crown; **Class II** = less than the crown's MD width (the ramus covers part of the crown); **Class III** = the crown lies entirely within the ramus [V]. Some papers define the depth by the third molar's own CEJ relative to the bone level instead (A not buried, B partly, C fully) [V]: name the convention you draw.
+- Shiller's method measures the angle to the occlusal plane instead (0–10° vertical, 11–70° mesial or distal) [V].
+
+### 15.6 Arch form and arch width
+- The human dental arch is well described by the **beta function** (Braun et al. 1998; mean r = 0.98 against 40 casts) with two parameters: the arch **width W at the distal of the second molars** and the **depth D** from that line to the incisal point [V]. The kit draws `z = D · (3.0314 · (0.5 + x/W)^0.8 · (0.5 − x/W)^0.8 − 1)` (the 0.8 exponents and the normalising constant 4^0.8 = 3.0314 are the published form **[U]**) and chooses D so that the arch perimeter equals the sum of the tooth widths.
+- Arch widths, normal occlusion (cusp-tip landmarks; means vary by population by 1–3 mm) [V]:
+  | | Upper intercanine | Lower intercanine | Upper intermolar (first molars) | Lower intermolar |
+  |---|---|---|---|---|
+  | Primary dentition (Egypt) | 30.7 | 23.4 | – | – |
+  | Primary, 5-year-olds (Ecuador, second primary molars) | 29.9–30.1 | 21.6–24.0 | 39.6–42.9 | 35.6–37.0 |
+  | Permanent (Egypt) | 35.2 | 28.0 | 47.0 | 42.7 |
+  | Permanent (Iran) | 29.5 | 23.4 | 39.9 | 35.1 |
+  | Permanent (Pakistan, Bangladesh, maxillary only) | – | – | 45.3–49.2 | – |
+- Kit defaults for W (outer width at the distal molars, which is wider than the cusp-tip intermolar width): permanent maxilla 60, mandible 55; primary maxilla 44, mandible 40 mm, +6 mm when third molars are present [U, derived]. Arch width increases from the primary to the permanent dentition [V].
+- Sum of MD widths per half arch (from §3 and §15.1): permanent maxilla 55.5 mm (64 with the third molar), mandible 53 (63); primary maxilla 35.4, mandible 34.1 mm.
+
+### 15.7 Common AI mistakes (this topic)
+1. "Primary teeth have no roots" or "their roots are short stubs". They have long, slender roots (root : crown about 1.8); the roots **resorb** before exfoliation, which is why exfoliated teeth look rootless.
+2. Calling primary molars "premolars" or giving the primary dentition 24 teeth. 20 teeth, no premolars; the premolars replace the primary molars.
+3. Numbering primary teeth with the permanent numbers, or 1–20. FDI uses quadrants 5–8 (51–85); Universal uses letters **A–T** (A = upper right second molar, clockwise to T = lower right second molar); Palmer uses A–E in the quadrant bracket. Lowercase letters or "A1" style hybrids are not standard.
+4. Giving primary teeth permanent-tooth proportions: enamel 2 mm thick, a small pulp, a long root trunk. Enamel is about 1 mm, the pulp is large with high mesial horns, and the furcation sits just below the CEJ.
+5. Saying the primary maxillary first molar "looks like a small permanent first molar". It has a unique 4-cusp form; it is the **second** primary molars that resemble the permanent first molars.
+6. Treating the third molar as a copy of the second molar. It is smaller, more variable, often has fused and distally inclined roots, and is missing in about a quarter of people; impaction is the rule rather than the exception for mandibular third molars that do erupt late.
+7. Mixing up Winter and Pell & Gregory: Winter = angulation; Pell & Gregory = depth (A/B/C) and ramus relation (I/II/III). "Class B mesioangular" mixes the two systems and is fine as a combined description, but never call a depth an angulation.
+8. Mirroring a chart. The patient's right is on the viewer's left in every chart, occlusal view and frontal view; the upper arch is drawn above the lower.
+9. Placing left and right teeth as the same mesh. Left teeth are mirror images of right teeth; `DK.arch` mirrors them automatically, a single-tooth left-side figure needs `scale.x = −1` (or a right-side tooth number).
+10. Drawing the arch as a semicircle. The arch is parabolic / beta-shaped: the posterior segments run almost straight back, and the maxillary arch is wider and deeper than the mandibular arch.
+
+### Sources (section 15)
+- AAPD Dental Growth and Development table (Logan & Kronfeld 1933, adapted 2003): https://www.aapd.org/assets/1/7/RS_DentGrowthandDev.pdf
+- Lukacs JR. Morphogenetic fields and variation in deciduous tooth crown size. Dental Anthropology 2023;36(1) (Table 3, global means of 35 samples): https://journal.dentalanthropology.org/index.php/jda/article/download/344/316
+- Deciduous maxillary central incisor 6 / 10 / 16 mm (citing Ash & Nelson 2003): https://en.wikipedia.org/wiki/Maxillary_central_incisor
+- Primary vs permanent differences, enamel 0.5–1 mm, no root trunk (Al-Mustaqbal University lecture): http://uomus.edu.iq/uploads/lectures/9/97491f2725f94304afcc5b22e8cb3b92.pdf
+- Morphological considerations in primary teeth (University of Baghdad, pediatric dentistry lecture 12): https://codental.uobaghdad.edu.iq/wp-content/uploads/sites/14/2021/03/12-Morphological-considerations.pdf
+- The deciduous dentition (University of the Philippines Manila, after Nelson 2015 Wheeler's): https://vle.upm.edu.ph/pluginfile.php/238463/mod_resource/content/1/The%20Deciduous%20dentition.pdf
+- Primary teeth, Wheeler-based teaching file (Manara University): https://manara.edu.sy/downloads/files/1716301793_16.pdf
+- Enamel and dentin volumes in primary teeth (micro-CT; cites 1.14 / 2.58 mm enamel means): https://doi.org/10.5272/jimab.2025313.6380
+- Differences between primary and permanent teeth (slide summary): https://www.slideshare.net/MathewThomasMaliael/differences-between-primary-and-permanent-teeth
+- Egyptian primary molars, MD widths and root : crown ratio: https://dx.doi.org/10.21608/edj.2018.76919
+- Third molar morphology (Wheeler-based lectures, Mustansiriyah University): https://uomustansiriyah.edu.iq/media/lectures/3/3_2017_12_08!10_51_48_AM.pdf ; https://uomustansiriyah.edu.iq/media/lectures/3/3_2017_12_08!10_47_17_AM.pdf
+- Third molar measurements (extracted teeth, Pell & Gregory subgroups): https://pmc.ncbi.nlm.nih.gov/articles/PMC10698364
+- Third molar agenesis meta-analysis (Carter & Worthington 2015, J Dent Res): https://journals.sagepub.com/doi/10.1177/0022034515581644
+- Third molar impaction meta-analysis (Carter & Worthington 2016, J Dent Res; summary): https://www.nationalelfservice.net/dentistry/oral-and-maxillofacial-surgery/prevalence-of-third-molar-impaction-worldwide/
+- Impaction prevalence 2024 meta-analysis (J Clin Med 13:7533): https://www.mdpi.com/2077-0383/13/24/7533
+- Winter angle bands and Pell & Gregory definitions as applied (Dentistry 3000, 2025): https://dentistry3000.pitt.edu/ojs/dentistry3000/article/view/946/344
+- Pell & Gregory depth and ramus classes (ADC study guide): https://open-exam-prep.com/study-guides/au-adc-written/oral-surgery/impacted-third-molars
+- Reproducibility of Winter vs Pell & Gregory: https://pmc.ncbi.nlm.nih.gov/articles/PMC3448327/
+- Third molars (eruption, root development, impaction complications): https://en.wikipedia.org/wiki/Mandibular_third_molar ; https://en.wikipedia.org/wiki/Impacted_wisdom_teeth
+- Braun S, Hnat WP, Fender DE, Legan HL. The form of the human dental arch. Angle Orthod 1998;68(1):29–36: https://angle-orthodontist.kglmeridian.com/view/journals/angl/68/1/article-p29.xml
+- Beta function parameters (Noroozi et al. 2001, Angle Orthod 71:386): https://angle-orthodontist.kglmeridian.com/view/journals/angl/71/5/article-p386.xml
+- Arch widths primary → permanent (Sharaf et al. 2022, Bull Natl Res Cent): https://bnrc.springeropen.com/articles/10.1186/s42269-022-00887-w
+- Arch widths, Iranian normal occlusion (Talebi et al. 2013): https://jdmt.mums.ac.ir/m/article_145_230d118ab92c41920a09b8c225233df4.pdf
+- Primary arch widths, 5-year-olds (Ecuador theses): https://dspace.unl.edu.ec/jspui/handle/123456789/21997 ; https://dspace.unl.edu.ec//handle/123456789/23371
+- Maxillary intermolar width, Pakistani normal occlusion: https://jbumdc.bahria.edu.pk/index.php/ojs/article/download/497/771/1334
 <!-- end topic: arch -->
 
 ---

@@ -27,3 +27,6 @@ Pitfalls:
 - For a mixed dentition with a straight bone block, size the block from `arch.halfLength` and leave room for the second-molar crypt behind the first molar (its crown is about 10 mm wide).
 - `DK.impaction` sets the pose, not the bone: give the figure a bone block whose crest is at the neighbour's CEJ − 1.8 and the inferior alveolar canal about 15–18 mm below the crest, then show the cut (`removeToward [0,0,1]`).
 - Third molars vary: say so in the subtitle. Primary teeth in a figure: name the exfoliation age in hover text, not the eruption age.
+
+- Permanent anterior crowns use a shared anatomical sampler (`spec.anteriorShape`): rounded incisal angles, a shallow lingual fossa/cingulum, and a mesially displaced canine cusp. The six presets retain their measured crown length and MD/BL crown and cervical widths. The same surface drives enamel, DEJ, preparations and restoration shells; when changing it, review the numbering chart, crown-prep-13 and veneer-11 alongside the arch heroes.
+- For gingiva on an arch, use `DK.gingivaArch(arch)` after placing the arch in the scene. It returns a closed world-space solid with a narrow scalloped margin, interdental papillae and a 3.4 mm attached band by default; jaw/chart mirroring is handled internally. Full API and appearance options are in `topics/ortho.md`.

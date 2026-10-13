@@ -3,11 +3,11 @@
 // up, left teeth mirrored), seen from the front and slightly above, patient's right on the viewer's left. The gingiva is
 // DK.gingivaArch below the crowns. Image-friendly: the story ends on the hero shot. Sizes in mm.
 const SLOT = '0.022', WIRE = '0.014';
-const HOME = { theta: 0.35, phi: 1.42 };
+const HOME = { theta: 0.52, phi: 1.20 };
 const fig = DK.figure({
   title: 'Brackets on the lower front teeth',
   subtitle: 'FDI 43–33 in the mouth. 0.022 in slots, 0.014 in NiTi aligning wire.',
-  view: Object.assign({ margin: 0.7 }, HOME)
+  view: Object.assign({ margin: 0.76 }, HOME)
 });
 const HEIGHT = { 1: 4.0, 2: 4.0, 3: 5.0 };   // slot centre from the incisal edge / cusp tip: MBT-style chart, average lower crowns (facts §19)
 
@@ -23,7 +23,7 @@ arch.teeth.forEach(({ fdi, tooth: t, spec: sp, slot }) => {
   [br, lig].forEach(o => { o.updateMatrix(); o.applyMatrix4(t.group.matrixWorld); });
   teeth.push({ fdi, t, n, br, lig });
   fig.part(br, { name: 'Bracket', sub: `twin, ${DK.SLOTS[SLOT].name} slot`, label: fdi === 31, anchor: [br.userData.width / 2 - 0.2, br.userData.tall / 2 - 0.12, br.userData.face + 0.05], dim: false, explode: n.clone().multiplyScalar(6).toArray(), labelOffset: [110, -60], info: `Twin bracket bonded ${HEIGHT[p]} mm from the incisal edge (MBT-style lower chart). Lower incisors are the narrowest teeth, so their brackets are the smallest.` });
-  fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', label: fdi === 42, anchor: [-(br.userData.width / 2 + 0.12), 0, br.userData.face + 0.3], explode: n.clone().multiplyScalar(9).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring over the four tie wings; it holds the wire in the slot.' });
+  fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', dim: false, label: fdi === 42, anchor: lig.userData.sidePoints[0], explode: n.clone().multiplyScalar(9).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring over the four tie wings; it holds the wire in the slot.' });
 });
 const ridge = DK.gingivaArch(arch);
 fig.part(ridge, { name: 'Gingiva', label: false, fit: false, info: 'Attached gingiva and the alveolar ridge (schematic).' });

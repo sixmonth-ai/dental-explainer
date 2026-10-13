@@ -45,6 +45,8 @@ const fig = DK.figure({ title, subtitle, view: { theta, phi }, footer });
 | `DK.bone({width, height, depth, cortical, crest, scallop, round})` | Alveolar ridge block (rounded vertical edges `round` mm, walls tapering to a domed crest `crest` mm high), crest at local y = 0. `scallop(x,z)` displaces the top (for example the dip between teeth). `.userData.layers.{cortical, cancellous}`. Cancellous is invisible except in section and carries a trabecular cap texture (`cancellous.userData.capTexture`). |
 | `DK.gingiva({width, height, depth, crest, color, capColor, scallop, around, round})` | Soft-tissue block of the same shape, top at local y = 0. `around: [{x, z, md, bl, rise?, n?}]` lists the cervical outlines (block frame, mm; `md`/`bl` = the tooth's `spec.mdC`/`spec.blC`, or the emergence diameter of an abutment) that the tissue hugs: the top rises by `rise` (default 0.8 mm) into a free gingival margin along each outline and a papilla where two meet. Inflamed gingiva: `color: 0xb98a88` (a touch redder, still muted). |
 
+Permanent anterior presets carry `anteriorShape: 'incisor' | 'canine'`. Their crown sampler rounds incisal corners and shapes the labial ridge and lingual cingulum within the measured dimensions; canines have a mesially displaced cusp at `crownL`. Enamel, DEJ/dentin, `prep`, `prepMorph`, `restorationCrown` and `veneerPrep` all inherit this surface.
+
 Other useful spec fields: `spec.trunk` (root trunk depth, CEJ to furcation, multi-rooted teeth only), `spec.crownL`, `spec.rootL`, `spec.md`, `spec.bl`, `spec.mdC`, `spec.blC`. `DK.util` has `{clamp, lerp, smooth, ease}`.
 
 **Bone loss:** lower the bone block (`bone.position.y = CEJ - lossMm`) for horizontal loss. Pass the same crest to `DK.pdl(spec, gap, crestY)`. Once the crest is deeper than `spec.trunk`, the furcation is visibly open. For a vertical defect, add a second, lower bone block on one side, or make a custom block with `DK.gridGeometry`.
@@ -85,6 +87,8 @@ Canal spec (in `spec.canals`): `{root: index, dx, dz (offset from the root centr
 | `DK.COLORS` | Palette hex values (enamelCap, dentinCap, pulpCap, corticalCap, gingivaCap, nerve, artery, vein, pdl, gutta, accent, accentDark …). The palette is deliberately restrained — muted ivories, greys and dusty tones from the brand's off-white / ink world — so a figure reads as one calm object. Keep custom colours in that family; loud reds, candy pinks or saturated oranges break the look. |
 | `fig.accent`, `fig.accentHex`, `fig.dark` | The brand accent for the current theme as a linear `THREE.Color` (for a marker material) and as CSS hex, plus whether the page is in dark mode. One accent per figure: the thing the viewer must find. A second, warm emphasis (`0xB4541A`) is allowed only when a figure truly needs two. |
 | `DK.mm(v)` | Formats a number as `"2.5 mm"`. |
+
+`DK.gingivaArch(arch, opts)` produces a closed, scalloped world-space gingival band for either jaw (default `height:3.4`, `rise:1.6`). `DK.alignerArch` now defaults to `opacity:0.16`, casts against outer enamel/attachment surfaces, and includes polished trim-edge children. Keep its clear material rather than overriding with an opaque restorative material. Rounded bracket/tube bodies retain the exact `DK.SLOTS` dimensions. See `references/topics/ortho.md` for all options.
 
 ## Topic modules
 

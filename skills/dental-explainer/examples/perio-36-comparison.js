@@ -10,7 +10,7 @@ const GAP = 18;                            // centre-to-centre spacing of the tw
 const fig = DK.figure({
   title: 'Healthy periodontium vs periodontitis',
   subtitle: 'FDI 36 (Universal 19), mesio-distal cut. Furcation involvement on the right.',
-  view: { theta: 0.28, phi: 1.36 }
+  view: { theta: 0.28, phi: 1.36, margin: 1.0 }   // a little looser than default, so neither block is cropped
 });
 
 // ---------- healthy set (viewer's left) ----------
@@ -26,13 +26,13 @@ const mesialSurface = DK.toothSurfaceAt(s, -0.5, 0).x;          // x of the mesi
 const loss = DK.boneLoss({
   horizontal: D.horizontal,
   defects: [{ x: mesialSurface + 0.5, z: 0, depth: D.defect, rx: 3.2, rz: 4.5, walls: 3, profile: 'angular' }],   // 3-wall infrabony defect on the mesial
-  furcations: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, roots: s.roots, from: 'through', bottom: -(s.trunk + 2.5 + CREST), width: 1.5 }]
+  furcations: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, roots: s.roots, from: 'through', bottom: -(s.trunk + 3.5 + CREST), width: 1.5 }]
 });
 const boneD = DK.perioBone({ width: 15.5, height: 19, depth: 12.5, cortical: 1.3, crest: 1.6, loss }); boneD.position.set(GAP / 2, CREST, 0);
 const crestAt = (x, z) => CREST + boneD.crestAt(x, z);            // crest height in the tooth frame
 const deepest = crestAt(mesialSurface + 0.2, 0);                   // the mesial defect floor
 const gumD = DK.perioGingiva(s, { margin: D.margin, crest: deepest - 0.6, inflamed: 1, width: 16.1, depth: 13.2 }); gumD.position.x = GAP / 2;
-const pdlD = DK.perioPdl(s, 0.25, r => Math.min(crestAt(r.x + r.ra + 0.2, 0), crestAt(r.x - r.ra - 0.2, 0))); tD.group.add(pdlD);
+const pdlD = DK.perioPdl(s, 0.25, r => Math.min(crestAt(r.x + r.ra + 0.2, 0), crestAt(r.x - r.ra - 0.2, 0)) + 0.2); tD.group.add(pdlD);
 const wrap = th => Math.abs(((th + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI);   // angle from the mesial (0..π)
 const pocket = DK.pocket(s, { margin: D.margin, base: th => DK.util.lerp(D.baseD, D.baseM, DK.util.smooth(1.4, 0.6, wrap(th))), width: 0.5 }); tD.group.add(pocket);
 const calcSub = DK.calculus(s, { kind: 'sub', from: -1.6, to: -5.2, sides: ['mesial', 'distal'], n: 12, size: 0.42, seed: 3 }); tD.group.add(calcSub);
@@ -47,8 +47,8 @@ fig.part(gumD, { name: 'Inflamed gingiva', label: false, fit: false, info: 'Red,
 const cutOn = (e, sec) => sec && sec.enabled;
 fig.part(sulcus, { inPlace: true, name: 'Sulcus', sub: 'PD 2 mm, CAL 0', anchor: (e, sec) => [mesialSurface + 0.4, 1.0, (sec.enabled ? sec.offset : 0) + 0.1], when: cutOn, dim: false, info: 'Healthy probing depth ≤ 3 mm; the probe stops in the junctional epithelium near the CEJ.' });
 fig.part(pdlH, { inPlace: true, name: 'Bone crest', sub: '~2 mm below the CEJ', anchor: (e, sec) => [mesialSurface + 1.6, CREST - 0.3, (sec.enabled ? sec.offset : 0) + 0.1], when: cutOn, dim: false, info: 'In health the crest sits 1–2 mm apical to the CEJ, with ~2 mm of supracrestal attachment above it.' });
-fig.part(pocket, { inPlace: true, name: 'Pocket', sub: `PD ${DK.mm(D.margin - D.baseM)}, CAL ${DK.mm(-D.baseM)}`, anchor: (e, sec) => [mesialSurface + 0.45, -3.6, (sec.enabled ? sec.offset : 0) + 0.1], when: cutOn, dim: false, accent: true, info: 'Probing depth is measured from the gingival margin; attachment loss (CAL) from the CEJ. Here the margin has receded 1 mm, so CAL = PD + 1.' });
-fig.part(tD.layers.root, { inPlace: true, name: 'Furcation', sub: 'through-and-through (Class III)', anchor: (e, sec) => [0, -(s.trunk + 1.4), (sec.enabled ? sec.offset : 0) + 0.1], when: cutOn, dim: false, info: 'Bone lost between the roots, buccal to lingual: Hamp Class III. The trunk of a lower first molar is only ~2–4 mm, so furcations open early.' });
+fig.part(pocket, { inPlace: true, name: 'Pocket', sub: `PD ${DK.mm(D.margin - D.baseM)}, CAL ${DK.mm(-D.baseM)}`, anchor: (e, sec) => [mesialSurface + 0.45, -2.4, (sec.enabled ? sec.offset : 0) + 0.1], labelOffset: [130, -78], when: cutOn, dim: false, accent: true, info: 'Probing depth is measured from the gingival margin; attachment loss (CAL) from the CEJ. Here the margin has receded 1 mm, so CAL = PD + 1.' });
+fig.part(tD.layers.root, { inPlace: true, name: 'Furcation', sub: 'through-and-through (Class III)', anchor: (e, sec) => [-0.3, -(s.trunk + 1.6), (sec.enabled ? sec.offset : 0) + 0.1], labelOffset: [-110, 70], when: cutOn, dim: false, info: 'Bone lost between the roots, buccal to lingual: Hamp Class III. The trunk of a lower first molar is only ~2–4 mm, so furcations open early.' });
 fig.part(boneD, { inPlace: true, name: 'Bone loss', sub: `${DK.mm(-deepest)} below the CEJ`, anchor: (e, sec) => [mesialSurface + 2.6, deepest - 0.4, (sec.enabled ? sec.offset : 0) + 0.1], when: cutOn, dim: false, info: 'Horizontal loss plus a mesial angular (infrabony) defect. Lost bone does not grow back by itself.' });
 fig.part(calcSub, { inPlace: true, name: 'Calculus', sub: 'subgingival', anchor: [calcSub.children[0].position.x, calcSub.children[0].position.y, calcSub.children[0].position.z], dim: false, info: 'Mineralised biofilm on the root: dark, hard, inside the pocket. Supragingival calculus is paler and sits at the margin.' });
 

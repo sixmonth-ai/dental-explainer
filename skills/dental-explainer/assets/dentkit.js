@@ -1612,25 +1612,31 @@
     const lossFn = typeof o.loss === 'function' ? o.loss : DK.boneLoss(o.loss || {});
     let k = clamp(o.level, 0, 1);
     const top = (x, z) => (o.scallop ? o.scallop(x, z) : 0) + k * lossFn(x, z);
+    // the cancellous core follows the crest with a cortical lining that thins from `cortical` (health) to nothing inside a defect (the lamina dura is lost there)
+    const innerTop = (x, z) => { const L = top(x, z); return L + o.cortical - lerp(o.cortical, 0.05, clamp(-L / 1.5, 0, 1)); };
     const bone = DK.bone(Object.assign({}, o, { scallop: top }));
     const outer = bone.userData.layers.cortical, inner = bone.userData.layers.cancellous;
     const rebuild = (mesh, g) => { const p = mesh.geometry.attributes.position; p.array.set(g.attributes.position.array); p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); g.dispose(); };
     bone.set = v => {
       k = clamp(v, 0, 1);
       rebuild(outer, blockGeometry(o.width, o.height, o.depth, o.crest, top, o.round ?? undefined));
-      rebuild(inner, blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, top, o.round ?? undefined));
+      rebuild(inner, blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, innerTop, o.round ?? undefined));
       bone.userData.level = k; return bone;
     };
+    bone.set(k);
     bone.crestAt = (x, z) => top(x, z);
     bone.userData.level = k; bone.userData.loss = lossFn;
     return bone;
   };
   // PDL whose top follows the bone crest root by root: tops = [y per root] (tooth frame) or a function (root, index) → y.
-  // pdl.set(tops) moves the tops later (animatable, e.g. as DK.perioBone lowers the crest).
+  // pdl.set(tops) moves the tops later (animatable, e.g. as DK.perioBone lowers the crest). The shell dives into the root over
+  // the last ~0.9 mm below `top` (no rim on the cut), so pass the crest itself (or a little above it).
   DK.perioPdl = function (spec, gap, tops) {
     gap = gap ?? 0.2; const grp = new T.Group(); grp.name = 'PDL'; const m = DK.mat('pdl');
     const topOf = (t, r, i) => (typeof t === 'function' ? t(r, i) : (Array.isArray(t) ? t[i] : t)) ?? -1.4;
-    const geo = (r, top) => rootGeometry(Object.assign({}, r, { start: Math.min(r.start ?? 0.6, top) }), { k: 1, add: gap, minR: gap, endShort: -gap });
+    const geo = (r, top) => { const start = Math.min(r.start ?? 0.6, top), rr = Object.assign({}, r, { start }), L = r.len + gap, rows = 48, cols = 48, [cx, cz] = rootCenter(rr, start);
+      return gridGeometry(rows, cols, (i, j) => { const t = 1 - i / rows, y = start - t * (L + start), dive = smooth(start - 0.9, start, y);
+        return rootRing(rr, t, j / cols * Math.PI * 2, { k: 1, add: lerp(gap, -0.4, dive), minR: gap, endShort: 0 }, L); }, [cx, start + 0.01, cz], null); };
     spec.roots.forEach((r, i) => grp.add(new T.Mesh(geo(r, topOf(tops, r, i)), m)));
     grp.set = t => { spec.roots.forEach((r, i) => { const g2 = geo(r, topOf(t, r, i)), p = grp.children[i].geometry.attributes.position; p.array.set(g2.attributes.position.array); p.needsUpdate = true; grp.children[i].geometry.computeVertexNormals(); grp.children[i].geometry.computeBoundingSphere(); g2.dispose(); }); return grp; };
     return grp;
@@ -1655,9 +1661,10 @@
       return { inf, top, height, crest: Math.min(1.3, height * 0.4), topFn: o.scallop ? (x, z) => o.scallop(x, z) + cuff(x, z) : cuff }; };
     const sh = shape();
     const g = DK.gingiva(Object.assign({ width: o.width, height: sh.height, depth: o.depth, crest: sh.crest, round: o.round, scallop: sh.topFn, capColor: sh.inf > 0.5 ? 0xb8847f : 0xc39692 }, o.extra || {}));
-    const apply = sh => { g.position.y = sh.top; g.material.color.copy(cH).lerp(cI, sh.inf); g.userData.margin = o.margin; g.userData.inflamed = sh.inf; };
-    g.set = o2 => { Object.assign(o, o2 || {}); const sh = shape(), g2 = blockGeometry(o.width, sh.height, o.depth, sh.crest, sh.topFn, o.round ?? undefined), p = g.geometry.attributes.position;
-      p.array.set(g2.attributes.position.array); p.needsUpdate = true; g.geometry.computeVertexNormals(); g.geometry.computeBoundingSphere(); g2.dispose(); apply(sh); return g; };
+    const apply = sh => { g.material.color.copy(cH).lerp(cI, sh.inf); g.userData.margin = o.margin; g.userData.inflamed = sh.inf; };
+    g.position.y = sh.top; const top0 = sh.top;   // position is set once; set() moves the vertices instead (a regular part's position is reset every frame)
+    g.set = o2 => { Object.assign(o, o2 || {}); const sh = shape(), g2 = blockGeometry(o.width, sh.height, o.depth, sh.crest, sh.topFn, o.round ?? undefined), p = g.geometry.attributes.position, dy = sh.top - top0;
+      p.array.set(g2.attributes.position.array); for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + dy); p.needsUpdate = true; g.geometry.computeVertexNormals(); g.geometry.computeBoundingSphere(); g2.dispose(); apply(sh); return g; };
     apply(sh); return g;
   };
   // Point on the tooth's outer surface at height y (tooth frame) and angle th (0 = mesial, π/2 = buccal): {x, z}. Below the

@@ -25,13 +25,13 @@ const mesial = DK.toothSurfaceAt(s, -0.5, 0).x;                             // x
 const LOSS = DK.boneLoss({                                                   // the full (Stage IV) loss; bone.set(k) morphs toward it
   horizontal: 3.2,
   defects: [{ x: mesial + 0.6, z: 0, depth: 7.0, rx: 3.4, rz: 4.5, walls: 3 }],
-  furcations: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, roots: s.roots, from: 'through', bottom: -(s.trunk + 2.4 + CREST), width: 1.5 }]
+  furcations: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, roots: s.roots, from: 'through', bottom: -(s.trunk + 3.6 + CREST), width: 1.5 }]
 });
 const bone = DK.perioBone({ width: 17, height: 19, depth: 12.5, cortical: 1.3, crest: 1.6, loss: LOSS, level: 0 }); bone.position.y = CREST;
 const crestMesial = () => CREST + bone.crestAt(mesial + 0.2, 0);            // crest at the mesial surface, tooth frame
 const gum = DK.perioGingiva(s, { margin: STAGES.health.margin, crest: CREST, width: 17.6, depth: 13.2 });   // its bottom follows the deepest crest (bone param)
 const pocket = DK.pocket(s, { margin: STAGES.health.margin, base: 0, width: 0.1 }); tooth.group.add(pocket);
-const pdl = DK.perioPdl(s, 0.25, CREST - 0.1); tooth.group.add(pdl);        // tops follow the crest (bone param)
+const pdl = DK.perioPdl(s, 0.25, CREST + 0.2); tooth.group.add(pdl);        // tops follow the crest (bone param)
 const cej = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 8), new THREE.MeshBasicMaterial({ color: DK.color(0x0A0A08), toneMapped: false })); tooth.group.add(cej);
 
 const P = Object.assign({}, STAGES.health, { probe: 30 });                  // the live state; probe = tip height above the pocket base (30 = parked)
@@ -43,10 +43,10 @@ fig.part(bone, { name: 'Bone', label: false, fit: false, info: 'Alveolar bone. B
 fig.part(gum, { name: 'Gingiva', label: false, fit: false, info: 'Health: pink, firm, PD ≤ 3 mm, < 10 % bleeding sites. Gingivitis: red, swollen, bleeds, but no attachment loss.' });
 fig.part(probe, { inPlace: true, name: 'Probe', sub: 'UNC-15, 1 mm marks', anchor: [0, 11.5, 0], accent: true, info: 'Read the mark at the gingival margin. Bands at 4–5, 9–10 and 14–15 mm. Light force, about 0.2–0.25 N.' });
 const z0 = (sec) => (sec.enabled ? sec.offset : 0) + 0.1;
-fig.part(pocket, { inPlace: true, name: 'Pocket base', anchor: (e, sec) => [DK.toothSurfaceAt(s, P.base, 0).x + 0.6, P.base, z0(sec)], when: (e, sec) => sec.enabled, dim: false, info: 'Where the probe stops: in periodontitis about 0.3–0.5 mm into the inflamed connective tissue, below the junctional epithelium.' });
+const pocketLabel = fig.part(pocket, { inPlace: true, name: 'Pocket base', anchor: (e, sec) => [DK.toothSurfaceAt(s, P.base, 0).x + 0.6, P.base, z0(sec)], when: (e, sec) => sec.enabled, dim: false, info: 'Where the probe stops: in periodontitis about 0.3–0.5 mm into the inflamed connective tissue, below the junctional epithelium.' });
 fig.part(gum, { inPlace: true, name: 'Gingival margin', anchor: (e, sec) => [DK.toothSurfaceAt(s, Math.max(P.margin, 0.2), Math.PI).x - 0.8, P.margin, z0(sec)], when: (e, sec) => sec.enabled, dim: false, info: 'Probing depth is measured from here, not from the CEJ.' });
 fig.part(cej, { inPlace: true, name: 'CEJ', anchor: [0, 0, 0], dim: false, info: 'The fixed reference for attachment loss: CAL = CEJ to pocket base = PD + recession.' });
-fig.part(bone, { inPlace: true, name: 'Bone crest', anchor: (e, sec) => [mesial + 2.8, crestMesial() - 0.3, z0(sec)], when: (e, sec) => sec.enabled, dim: false, info: 'Radiographic bone loss is read from the CEJ: about 2 mm is normal; the rest is loss, as a share of root length.' });
+const crestLabel = fig.part(bone, { inPlace: true, name: 'Bone crest', anchor: (e, sec) => [mesial + 2.8, crestMesial() - 0.3, z0(sec)], when: (e, sec) => sec.enabled, dim: false, info: 'Radiographic bone loss is read from the CEJ: about 2 mm is normal; the rest is loss, as a share of root length.' });
 fig.part(tooth.layers.root, { inPlace: true, name: 'Furcation', sub: 'Class III', anchor: (e, sec) => [0, -(s.trunk + 1.6), z0(sec)], when: (e, sec) => sec.enabled, dim: false, info: 'Bone lost between the roots, through and through (Hamp Class III): a Stage III complexity factor.' });
 
 fig.enableSection([0, 0, 1], [
@@ -74,7 +74,7 @@ fig.param('base', P.base, v => { P.base = v; pocket.set(null, v); place(); });
 fig.param('bone', 0, k => {                                                   // the crest drops; the gingiva fills what is lost; the PDL follows
   P.bone = k; bone.set(k);
   const deepest = Math.min(crestMesial(), CREST + bone.crestAt(0, 0), CREST + bone.crestAt(-mesial, 0));
-  gum.set({ crest: deepest - 0.4 }); pdl.set(r => CREST + Math.min(bone.crestAt(r.x + r.ra + 0.2, 0), bone.crestAt(r.x - r.ra - 0.2, 0)) - 0.1);
+  gum.set({ crest: deepest - 0.4 }); pdl.set(r => CREST + Math.min(bone.crestAt(r.x + r.ra + 0.2, 0), bone.crestAt(r.x - r.ra - 0.2, 0)) + 0.2);
 });
 fig.param('inflamed', 0, v => { P.inflamed = v; gum.set({ inflamed: v }); fig.section.caps[0].material.uniforms.uColor.value.copy(DK.color(0xc39692)).lerp(DK.color(0xb8847f), v); });
 const secChanged = fig.section.onChange; fig.section.onChange = () => { secChanged(); place(); };
@@ -87,6 +87,9 @@ fig.onFrame(() => {
   const vertical = Math.max(0, (CREST - crestMesial()) - 3.2 * P.bone);     // the angular part of the mesial defect (beyond the horizontal loss)
   const st = DK.perioStage({ cal: m.cal, rbl: m.rbl, pd: m.pd, furcation: P.bone > 0.75 ? 3 : 0, vertical, teethLost: P.bone >= 0.99 ? 5 : 0 });
   const warn = v => ({ cls: v ? 'warn' : 'ok' });
+  const setSub = (part, sub) => { part.sub = sub; part.el.innerHTML = part.name + `<small>${sub}</small>`; };
+  setSub(pocketLabel, `PD ${DK.mm(m.pd)} · CAL ${DK.mm(Math.max(0, m.cal))}`);
+  setSub(crestLabel, `${DK.mm(m.boneLoss)} below CEJ · ${Math.round(m.rbl)}% of root`);
   fig.setReadout([
     Object.assign({ k: 'Probing depth', v: DK.mm(m.pd) }, warn(m.pd > 3)),
     Object.assign({ k: 'Recession', v: DK.mm(Math.max(0, m.recession)) }, warn(m.recession > 0)),
@@ -99,32 +102,33 @@ fig.onFrame(() => {
 // --- the procedure: each step morphs the tissues with the probe out, then the probe goes in and reads the depth
 const stage = (name, extra) => Object.assign({ margin: STAGES[name].margin, base: STAGES[name].base, bone: STAGES[name].bone, inflamed: STAGES[name].inflamed }, extra || {});
 const OUT = { probe: 30 }, IN = { probe: 0 };
-const focusM = y => [mesial + 1.5, y, 0];
+// one camera for every step: the whole crown, the probe's working end and the crest stay in frame, so the storyboard reads as a series
+const CAM = { theta: 0.12, phi: 1.42, zoom: 0.8, focus: [1.2, -1.5, 0] };
 fig.procedure([
   { label: 'Health', caption: 'A shallow sulcus: PD 2 mm, no attachment loss.', beats: [
     { dur: 0, hold: 0.6, theta: 0.12, phi: 1.42, zoom: 1, section: false, labels: [] },
     { dur: 0, hold: 0, section: true, offset: 7 },
-    { dur: 1.8, hold: 0.3, offset: 1.0, zoom: 0.66, focus: focusM(0.5), labels: ['CEJ', 'Gingival margin'] },
+    Object.assign({ dur: 1.8, hold: 0.3, offset: 1.0, labels: ['CEJ', 'Gingival margin'] }, CAM),
     { dur: 1.4, hold: 1.4, set: IN, labels: ['Probe', 'CEJ', 'Gingival margin', 'Pocket base'], key: true }] },
   { label: 'Gingivitis', caption: 'Swollen margin: a deeper reading, but the attachment is intact (reversible).', beats: [
     { dur: 0.8, hold: 0, set: OUT, labels: [] },
     { dur: 1.6, hold: 0.2, set: stage('gingivitis'), labels: ['Gingival margin'] },
-    { dur: 1.2, hold: 1.4, set: IN, labels: ['Probe', 'Gingival margin', 'Pocket base', 'CEJ'], key: true }] },
+    { dur: 1.2, hold: 1.4, set: IN, labels: ['Gingival margin', 'Pocket base', 'CEJ'], key: true }] },
   { label: 'Stage I', caption: 'Attachment loss begins: CAL 1–2 mm, bone loss in the coronal third (< 15 %).', beats: [
     { dur: 0.8, hold: 0, set: OUT, labels: [] },
-    { dur: 1.8, hold: 0.2, set: stage('I'), zoom: 0.7, focus: focusM(-0.5), labels: ['Bone crest'] },
-    { dur: 1.2, hold: 1.4, set: IN, labels: ['Probe', 'Pocket base', 'CEJ', 'Bone crest'], key: true }] },
+    { dur: 1.8, hold: 0.2, set: stage('I'), labels: ['Bone crest'] },
+    { dur: 1.2, hold: 1.4, set: IN, labels: ['Pocket base', 'CEJ', 'Bone crest'], key: true }] },
   { label: 'Stage II', caption: 'CAL 3–4 mm, bone loss 15–33 % of the root, PD up to 5 mm.', beats: [
     { dur: 0.8, hold: 0, set: OUT, labels: [] },
-    { dur: 1.8, hold: 0.2, set: stage('II'), zoom: 0.76, focus: focusM(-1.5), labels: ['Bone crest'] },
-    { dur: 1.2, hold: 1.4, set: IN, labels: ['Probe', 'Pocket base', 'CEJ', 'Bone crest'], key: true }] },
+    { dur: 1.8, hold: 0.2, set: stage('II'), labels: ['Bone crest'] },
+    { dur: 1.2, hold: 1.4, set: IN, labels: ['Pocket base', 'CEJ', 'Bone crest'], key: true }] },
   { label: 'Stage III', caption: 'CAL ≥ 5 mm, loss past the coronal third, PD ≥ 6 mm, furcation Class II–III, recession.', beats: [
     { dur: 0.8, hold: 0, set: OUT, labels: [] },
-    { dur: 2.0, hold: 0.2, set: stage('III'), zoom: 0.84, focus: [mesial - 1, -3, 0], labels: ['Bone crest', 'Furcation'] },
-    { dur: 1.2, hold: 1.6, set: IN, labels: ['Probe', 'Pocket base', 'CEJ', 'Gingival margin', 'Furcation'], key: true }] },
+    { dur: 2.0, hold: 0.2, set: stage('III'), labels: ['Bone crest', 'Furcation'] },
+    { dur: 1.2, hold: 1.6, set: IN, labels: ['Pocket base', 'Gingival margin', 'Furcation', 'Bone crest'], key: true }] },
   { label: 'Stage IV', caption: 'Stage III findings plus ≥ 5 teeth lost and failing function: a whole-mouth diagnosis.', beats: [
     { dur: 0.8, hold: 0, set: OUT, labels: [] },
-    { dur: 2.0, hold: 0.2, set: stage('IV'), zoom: 0.9, focus: [mesial - 2, -3.5, 0], labels: ['Bone crest'] },
-    { dur: 1.2, hold: 2.0, set: IN, theta: 0.25, phi: 1.36, labels: ['Probe', 'Pocket base', 'CEJ', 'Gingival margin', 'Bone crest'], key: true }] }
+    { dur: 2.0, hold: 0.2, set: stage('IV'), labels: ['Bone crest'] },
+    { dur: 1.2, hold: 2.0, set: IN, labels: ['Pocket base', 'Gingival margin', 'CEJ', 'Bone crest'], key: true }] }
 ]);
 fig.start();

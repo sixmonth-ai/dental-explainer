@@ -160,7 +160,11 @@ Numbers from dental-facts.md §18 (connector sizes by material, pontic designs, 
 
 <!-- topic: ortho -->
 ### Orthodontics: brackets, archwires, aligners, tooth movement
-_(reserved)_
+Read dental-facts.md §9 and §19 first (slot and wire sizes are in **inches**, forces in grams, the PDL must be exaggerated to be seen).
+- **Fixed appliance** (brackets, tubes, ligatures, archwire, power chain): copy `examples/braces-upper-arch.js`. Teeth along a private arch helper, upper teeth crown-down in the mouth, `DK.bracket` at MBT-style heights (§19) with `DK.ligature`, `DK.molarTube` on the first molars, `DK.archwire` through each part's `wirePoint()`; parts explode along each tooth's outward normal, the wire forward. Say the slot and wire size in the subtitle; call heights "MBT-style", never universal. A single tooth with a bracket: build it in the tooth frame and label slot, wings, base.
+- **Tooth movement** (tipping vs bodily, pressure and tension sides, remodelling): copy `examples/tooth-movement-11.js`. A procedure of 4 steps (force → tipping → bodily → bone remodels) on a labio-lingual cut, the socket (`DK.pdl`) fixed while `DK.moveTooth` moves the tooth about `DK.centreOfResistance`; accent only on the pressure side. Subtitle must say "PDL width exaggerated".
+- **Aligners**: copy `examples/aligner-upper-arch.js`. One `DK.alignerArch` shell over the arch (0.5 mm, cast from a spine through the crowns), `DK.attachment` with the bevel that matches the movement (gingival bevel = extrusion); `DK.aligner` for a single tooth. The cut through an incisor is the teaching shot. Never show an aligner without attachments when the movement needs them.
+- Watch for: brackets "at the gum line"; rectangular steel as a first wire; a single force drawn as bodily movement; bone "pushed aside"; slot sizes quoted in mm.
 <!-- end topic: ortho -->
 
 <!-- topic: endo -->

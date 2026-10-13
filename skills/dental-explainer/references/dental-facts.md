@@ -499,7 +499,76 @@ _(reserved)_
 
 <!-- topic: prosth -->
 ## 18. Fixed prosthetics: bridges, veneers, inlays and onlays
-_(reserved)_
+Numbers depend on the material and the source; show them as "about" or "typical", name the material, and never present one set as universal. Tags: [V] confirmed on a fetched source listed under *Sources (§18)*; [U] standard teaching not pinned to a page.
+
+### Bridges (fixed partial dentures, FDPs)
+- **Terms** [U, Shillingburg / Rosenstiel]: **abutment** = the tooth (or implant) that supports the prosthesis; **retainer** = the part cemented or bonded to the abutment (usually a full crown; an onlay, inlay or a bonded wing in other designs); **pontic** = the artificial tooth replacing the missing one (Latin *pons*, bridge [V, Mir 2013]); **connector** = the joint between retainer and pontic (rigid, or non-rigid / precision attachment); **unit** = each retainer or pontic (a 3-unit bridge = 2 retainers + 1 pontic); **span** = the edentulous length bridged. A **cantilever** bridge has an abutment on one end only. A **resin-bonded (Maryland) bridge** holds the pontic by thin wings bonded to lingual/palatal enamel.
+- **Indications** [U]: short spans (1–2 pontics), sound or already-restored abutments with enough crown height and periodontal support, a patient who is not a candidate for (or declines) an implant. Against: long spans, tilted or mobile abutments, large pulps in the young, poor hygiene, heavy parafunction, intact abutments (prefer an implant or a resin-bonded bridge).
+- **Survival** [V, Pjetursson 2007]: conventional tooth-supported FDPs 93.8% at 5 years, 89.2% at 10 years. Cantilever FDPs about 81.8% at 10 years [U, Pjetursson 2004]. Resin-bonded bridges 91.3% at 5 years (debonding ≈15% at 5 years); zirconia-framework resin-bonded bridges 100% at 5 years in the pooled data; anterior single-retainer cantilever designs do best [V, Thoma 2017].
+- **Resin-bonded (Maryland) bridge, modern design** [V, Kern 2023]: a single-retainer zirconia wing about **0.7 mm** thick, connector ≥ 3 mm high × 2 mm; the preparation is minimal and in enamel only (a shallow proximal box or rest, superficial enamel removal); retention is adhesive (air abrasion, MDP primer) with no mechanical "drilling into" the abutment. Classic metal wings 0.5–0.7 mm [U].
+- **Ante's law** [V, Wikipedia; ADA/Dental Elf appraisal]: Ante 1926 ("the total pericemental area of the abutment teeth must equal or exceed that of the teeth to be replaced"), popularised in Johnston's *Modern Practice of Crown and Bridge Prosthodontics* (1938) [U]. **Contested**: teeth with a severely reduced but healthy periodontium can serve as abutments (Nyman & Lindhe) [U]; Lulic et al. 2007 (systematic review) found FDPs on severely reduced periodontal support survive about as well as others when periodontal health is maintained (10-year retention ≈95%) and concluded the law is **not supported** by evidence (evidence weak) [V appraisal; U for the exact figures]. Say "a traditional rule of thumb, not an evidence-based limit".
+
+### Connectors (minimum cross-section by material)
+| Material | 3-unit, anterior | 3-unit, posterior | Notes |
+|---|---|---|---|
+| Zirconia (3Y, IPS e.max ZirCAD IFU) | **9 mm²** | **12 mm²** | 2 pontics: 10 / 15 mm²; cantilever and Maryland: 10–15 mm²; vertical dimension greater than horizontal; basal (gingival) side rounded [V, Ivoclar ZirCAD IFU] |
+| Lithium disilicate (IPS e.max Press / CAD) | **16 mm²** | **16 mm²** (to the second premolar only) | height ≥ width [U, Ivoclar parameter charts via search] |
+| Metal-ceramic | ≈ 3 × 2.5–3 mm | ≈ 3 × 2.5–3 mm | textbook guidance; metal alone can be smaller [U] |
+| Other zirconia guidance | 7 mm² | 9 mm² | lab guides; many lectures teach 3 × 3 mm anterior, 4 × 4 mm posterior [U] |
+
+- **Height matters more than width**: beam stiffness scales with the cube of the occluso-gingival height [U, Shillingburg]; the ZirCAD IFU words it as "vertical dimension greater than horizontal" [V].
+- **Gingival embrasure radius**: a rounded embrasure raises fracture load; in a monolithic zirconia test, 9 mm² connectors with a 0.9 mm radius broke at 1327 N vs 1054 N with a sharp 0.25 mm radius, and 12 mm² connectors were adequate either way; the authors advise caution with the 9 mm² minimum [V, Hafezeqoran 2020]. Never thin a connector when opening the embrasure for hygiene.
+- In the kit: `DK.CONNECTORS` (zirconia 3 × 3 anterior / 4 × 3 posterior; lithium disilicate 4 × 4; metal-ceramic 3 × 2.5; gold 2.5 × 2.5 mm) and the label of `DK.bridge`'s connector are computed from these numbers.
+
+### Pontic designs [V, Mir 2013 (Rosenstiel's classification); U where noted]
+- **Mucosal contact**: **modified ridge lap** (contacts the ridge on the facial slope only, the lingual surface convex and clear of the ridge so floss passes: the default for anterior teeth, premolars and many molars); **ridge lap / saddle** (concave, hugs the ridge facially and lingually: uncleanable, **not recommended**); **ovate** (convex tissue surface seated in a prepared socket or ridge concavity, typically 1–1.5 mm into the tissue [U], giving an emergence-profile look: maxillary incisors, canines, premolars); **conical** (point contact, for thin ridges: molars without esthetic demand).
+- **No mucosal contact**: **sanitary / hygienic** (≥ 3 mm clearance from the ridge; < 2 mm traps food; posterior mandible, minimum occluso-gingival thickness of the pontic ≈ 3 mm [U]); **modified sanitary (Perel)**: arched gingival surface that keeps the connectors tall while staying off the ridge [U].
+- A pontic has **no root** and is **not attached to the gum**: it rests on or clears the mucosa and is carried by the connectors. In the kit, `DK.pontic` builds these shapes from the missing tooth's crown.
+
+### Veneers (porcelain laminate veneers)
+- **Types** [U]: **window** (intra-enamel, labial only, stops short of the incisal edge); **feathered / butt joint** (labial reduction carried to a reduced incisal edge, no palatal wrap); **incisal overlap / wrap** (edge reduced and the margin carried onto the palatal surface); "no-prep" and "minimal-prep" veneers exist for selected cases with space to add material [V, Smielak 2022 uses conventional vs no/minimal-prep categories].
+- **Depths** (maxillary central incisor): labial about **0.3 mm cervical, 0.5 mm middle, 0.7 mm incisal third** so the whole prep stays in enamel; laterals 0.1–0.3–0.5 mm, canines 0.4–0.6–0.8 mm [U, Operative Dentistry 2022 via abstract]; Ferrari 1992 (114 extracted teeth): "preparation of enamel should be 0.5 mm… resin bonds better to enamel than to dentin" [V abstract]. Clinicians commonly under-prepare the middle and incisal thirds: use 0.3 / 0.5 mm depth-cutter burs or a silicone index [U, BDJ]. **Incisal reduction** for a butt joint or overlap about **1.0–1.5 mm** (some teach up to 2.0) [U].
+- **Labial enamel thickness** of a maxillary central incisor: about 0.3–0.5 mm in the cervical third, 0.6–0.9 mm in the middle, 1.0–1.3 mm in the incisal third; CBCT: 0.48 ± 0.09 mm at 1 mm above the CEJ, 0.82 ± 0.16 mm at 3 mm (ages 18–40), thinner over 40 [U, PMC4283744; PMC11592583]. So a 0.3–0.7 mm prep stays in enamel only if it is shallower at the cervix.
+- **Why enamel**: failures (debonding, fracture) are associated with large exposed dentin areas; all-enamel margins carry the lowest risk [V, Alenezi 2021]. **Margin**: a light chamfer ~0.3–0.5 mm at or just above the gingival margin [U]. **Veneer thickness** 0.3–0.7 mm (minimum ~0.3–0.4 mm for pressed / milled lithium disilicate) [U].
+- **Survival**: cumulative 95.5% at 10 years (lower failure with incisal coverage) [V, Alenezi 2021]; pooled 89% at ~9 years, glass-ceramic 94% vs feldspathic 87% [U, Morimoto 2016]; 96% at 5–6 years, 93% at 10–11, 73% at 15–16 years [U, Layton & Walton 2007]. Veneers do not "last forever".
+
+### Inlays and onlays
+- **Definitions** [U]: an **inlay** sits within the cusps (intracoronal); an **onlay** covers at least one cusp; an **overlay / partial crown** covers all cusps. Cover a cusp when its remaining wall is thin (< ~2 mm) or the isthmus is wider than about half (two thirds: mandatory) of the intercuspal distance [U, Sturdevant rule for cast and amalgam].
+- **Ceramic / CAD-CAM rules** [V, Ahlers et al. 2009 as summarised by Komet]: minimum occlusal depth **1.5 mm**; minimum isthmus width **2.5 mm** (other sources 1.5–2 mm [U]); wall divergence (opening angle) **6–10°** (other sources up to 15° [U]); internal angles rounded; **no bevels**, no feather edges, butt-joint (90°) cavosurface margins; minimum ceramic thickness **2 mm** (1.5 mm over non-functional cusps [U]); remaining proximal enamel wall ≥ 2 mm or include it; cusps reduced flat (horizontally) with rounded edges. Pulpal floor 1.5–2 mm below the central fossa; proximal box gingival floor ~1 mm wide, about 1 mm above the CEJ and clear of the contact (~0.5 mm) [U].
+- **Cast gold** [U]: walls taper 2–5° per wall (Charbeneau), cavosurface and gingival bevels (gold is burnishable; ceramic is not), isthmus and depth as above.
+- In the kit: `DK.inlayPrep` / `DK.inlay` take `{isthmus, depth, boxes, boxFloor, cusps, reduction}`; the walls diverge ~8° (both sides), internal angles are what the lattice gives (slightly rounded), and there are no bevels.
+
+### Common AI mistakes (fixed prosthetics)
+1. Calling a veneer a crown. A veneer covers the labial face (± the incisal edge) at 0.3–0.7 mm; a crown covers every surface with 1–2 mm reduction and a full margin.
+2. Saying veneers need no tooth reduction. Only selected no-prep cases; a conventional veneer removes 0.3–0.7 mm of enamel, deeper toward the edge.
+3. Saying a bridge is "attached to the gum" or "implanted". A conventional bridge is cemented to prepared abutment teeth; the pontic has no root and only rests on or clears the mucosa.
+4. Saying a Maryland bridge is "drilled into" the teeth. Its preparation is minimal and in enamel; retention is adhesive.
+5. Giving one connector size for every material. Zirconia 9 / 12 mm², lithium disilicate 16 mm², metal-ceramic ~3 mm high; height matters more than width.
+6. Confusing inlay and onlay. Inlay = within the cusps; onlay = covers one or more cusps.
+7. Saying porcelain veneers "last forever". About 95% at 10 years in good hands, with fracture, debonding and caries as the failures.
+8. Quoting Ante's law as settled. It is a 1926 rule of thumb; the systematic review found no evidence for it.
+9. Presenting the ridge-lap (saddle) pontic as standard. It is the design textbooks say not to use; modified ridge lap, ovate or sanitary are the choices.
+10. Treating cantilever bridges as equal to conventional ones (≈82% vs ≈89% at 10 years), or lithium disilicate as suitable for molar bridges (it is limited to the second premolar).
+11. Drawing a pontic with a root, a veneer on the lingual surface, or an onlay with bevelled ceramic margins.
+
+### Sources (§18)
+- Pjetursson BE, Brägger U, Lang NP, Zwahlen M. Comparison of survival and complication rates of tooth-supported FDPs and implant-supported FDPs and single crowns. Clin Oral Implants Res 2007;18(Suppl 3):97-113. doi:10.1111/j.1600-0501.2007.01439.x (PMID 17594374) [V]
+- Pjetursson BE et al. Systematic review of cantilever FPDs. Clin Oral Implants Res 2004;15:667-676 [U]
+- Thoma DS, Sailer I, Ioannidis A, Zwahlen M, Makarov N, Pjetursson BE. Systematic review of resin-bonded FDPs. Clin Oral Implants Res 2017;28:1421-1432. doi:10.1111/clr.13007 (figures via https://nationalelfservice.net/dentistry/restorative-dentistry/resin-bonded-fixed-dental-prostheses-5-year-survival-rates ) [V]
+- Mine A et al. Critical review of long-term survival of fixed prostheses. Jpn Dent Sci Rev 2021. doi:10.1016/j.jdsr.2020.12.002, https://pmc.ncbi.nlm.nih.gov/articles/PMC7946345 [V]
+- Kern M. Resin-bonded zirconia bridges (interview). Inside Dentistry, March 2023. https://insidedentistry.net/2023/03/resin-bonded-zirconia-bridges [V]
+- Ivoclar Vivadent. IPS e.max ZirCAD Instructions for Use (connector table). https://www.proclinic.es/media/proclinic-es/annexes/ifu-emax-zirconia-1e51ec.pdf [V]; IPS e.max Press / CAD parameter charts (16 mm²) [U]
+- Hafezeqoran A et al. Effect of connector size and gingival embrasure radius on fracture resistance of monolithic zirconia FDPs. J Dent Res Dent Clin Dent Prospects 2020;14(4):218-222. doi:10.34172/joddd.2020.039 [V]
+- Oh WS, Anusavice KJ. Effect of connector design on fracture resistance of all-ceramic FPDs. J Prosthet Dent 2002;87:536-542 [U]
+- Ante IH. The fundamental principles of abutments. Mich State Dent Soc Bull 1926;8:14-23 (via https://en.wikipedia.org/wiki/Ante%27s_law ) [V]; Lulic M, Brägger U, Lang NP, Zwahlen M, Salvi GE. Ante's (1926) law revisited. Clin Oral Implants Res 2007;18(Suppl 3):63-72 (PMID 17594371) [U abstract]; appraisal: https://nationalelfservice.net/dentistry/restorative-dentistry/weak-evidence-finds-no-support-for-antes-law [V]
+- Mir S, Mir F, Naqash TA. Streamlined description of pontics. J Orofac Res 2013;3(2):100-101. doi:10.5005/jp-journals-10026-1074 [V]
+- Ferrari M, Patroni S, Balleri P. Measurement of enamel thickness in relation to reduction for etched laminate veneers. Int J Periodontics Restorative Dent 1992;12(5):407-413 [V abstract]
+- Operative Dentistry 2022;47(2) (veneer preparation depths by third) [U]; enamel thickness: PMC4283744, PMC11592583 [U]
+- Alenezi A, Alsweed M, Alsidrani S, Chrcanovic BR. Long-term survival and complications of porcelain laminate veneers. J Clin Med 2021;10(5):1074. doi:10.3390/jcm10051074 [V]
+- Morimoto S et al. Main clinical outcomes of feldspathic porcelain and glass-ceramic laminate veneers. Int J Prosthodont 2016;29:38-49 (PMID 26757327) [U]; Layton D, Walton T. Int J Prosthodont 2007 [U]
+- Smielak B et al. Survival of no-prep/minimal-prep vs conventional veneers. Clin Oral Investig 2022;26:3049-3059. doi:10.1007/s00784-021-04289-6 [V abstract]
+- Ahlers MO, Mörig G, Blunck U, Hajtó J, Pröbster L, Frankenberger R. Guidelines for the preparation of CAD/CAM ceramic inlays and partial crowns. Int J Comput Dent 2009;12:309-325 (PMID 20108869); summary: https://dentalproductsreport.com/preparation-rules-ceramic-inlays-and-partial-crowns [V]
+- Shillingburg HT et al. Fundamentals of Fixed Prosthodontics; Rosenstiel SF et al. Contemporary Fixed Prosthodontics; Sturdevant's Art and Science of Operative Dentistry (textbook teaching, not fetched) [U]
 <!-- end topic: prosth -->
 
 ---

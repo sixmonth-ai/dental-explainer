@@ -135,7 +135,11 @@ _(reserved)_
 
 <!-- topic: perio -->
 ### Periodontal disease
-_(reserved)_
+- **Healthy vs disease on one tooth** (bone loss, pocket, furcation, recession, calculus): copy `examples/perio-36-comparison.js`. Two sets side by side, one mesio-distal cut, `DK.perioBone` + `DK.boneLoss` for the crest (horizontal loss, angular defects with wall count, `furcations`), `DK.perioGingiva` for the margin (recession below 0, `inflamed`), `DK.pocket` for the dark slit, `DK.calculus`; readouts from `DK.perioMeasure`.
+- **Probing, staging, progression over time**: copy `examples/perio-probing-36.js`, a procedure whose steps morph `bone.set`, `gum.set`, `pocket.set` and move a `DK.probe` (tip at its origin, in front of the cut face). The readout (PD, recession, CAL, bone loss %, stage) is computed from the same params with `DK.perioMeasure` / `DK.perioStage`.
+- Numbers: facts §13 and §17. Healthy crest ~2 mm below the CEJ, sulcus PD ≤ 3 mm with CAL 0; 2017 AAP/EFP stages by interdental CAL (1–2 / 3–4 / ≥ 5 mm) and bone loss (< 15 / 15–33 / > 33 % of root); Hamp furcation classes; Cairo RT1–3 recession.
+- Watch for: PD is read from the **gingival margin**, CAL from the **CEJ** (CAL = PD + recession); gingivitis has **no** attachment loss (swelling makes a pseudo-pocket); staging is a whole-mouth diagnosis, so label one tooth "consistent with Stage III"; furcation grade belongs to the complexity line, not to CAL; lost bone never comes back on its own.
+- Section order: gingiva, bone, PDL, pocket, calculus, enamel, dentin, pulp (gingiva first, so bone fills what it has and soft tissue shows in defects).
 <!-- end topic: perio -->
 
 <!-- topic: prosth -->

@@ -30,7 +30,7 @@ Files in this skill:
 > - **Image**: a still for slides, a handout or a post
 > - **Interactive**: a 3D page you can rotate, cut and explore
 
-Words like "picture", "slide", "diagram" or "PNG" mean image. "Interactive", "3D page", "rotate" or "explore" mean interactive. If it's an image for social media, also ask the shape (16:9, 1:1, 4:5 or 9:16) unless the platform makes it obvious (Instagram feed is 4:5, Stories 9:16).
+Words like "picture", "slide", "diagram" or "PNG" mean image. "Interactive", "3D page", "rotate" or "explore" mean interactive. If it's an image for social media, also ask the shape (16:9, 1:1, 4:5 or 9:16) unless the platform makes it obvious (Instagram feed is 4:5, Stories 9:16). Otherwise use 16:9 (slides, screens, handouts) without asking.
 
 **Video is coming soon, not available yet.** If the user asks for a video, animation, clip, reel or GIF, say in one line that video export is coming soon, and offer the interactive page instead (it plays the same story or procedure on load and steps through it) or an image (a procedure becomes a numbered storyboard). Never build a video page and never render an MP4 or WebM, even if asked again.
 
@@ -102,7 +102,7 @@ Without code execution, write the HTML yourself: `<!doctype html>…<body>`, the
 
 One look per build; every check below takes seconds on a machine with a GPU.
 - **Interactive:** `python3 scripts/check.py <name>.html --out shots` (add `--state 'name={"section":true,"offset":-2.6,"theta":0.3,"phi":0.5,"dist":0.8}'` for a view your figure is about, `--step i` / `--seek t` for a moment of a procedure). It must print `OK`. **Look at `shots/sheet.png`** (all shots in one image). Fix overlaps, labels that don't point at their part, parts poking through other parts, and empty framing.
-- **Image:** render the PNG (below) and look at it.
+- **Image:** render the PNG (below) and look at it; `render.py` also fails on any JS error, so no separate `check.py` run is needed.
 - If a script prints `SKIP` (no Playwright, or no access to cdnjs), skip the visual check and go through these instead, because nobody will look before the user does:
   - the subject is a regular part (not `inPlace`), so the camera has something to frame; context blocks have `fit: false`;
   - every label's anchor is in the part's own frame and on its surface, not inside another part;

@@ -8,8 +8,8 @@ const fig = DK.figure({
 });
 
 const GAP = 11;                                 // mm between the two molar rows
-const upper = DK.arch({ jaw: 'maxilla', thirdMolars: true, placement: 'chart' });
-const lower = DK.arch({ jaw: 'mandible', thirdMolars: true });
+const upper = DK.arch({ jaw: 'maxilla', thirdMolars: true, placement: 'chart', crownsOnly: true });
+const lower = DK.arch({ jaw: 'mandible', thirdMolars: true, crownsOnly: true });
 upper.group.position.z = -(upper.depth + GAP / 2);   // incisors at the top of the chart, molars toward the middle
 lower.group.position.z = lower.depth + GAP / 2;      // incisors at the bottom
 

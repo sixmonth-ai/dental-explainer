@@ -18,7 +18,8 @@ const tH = DK.tooth(36), s = tH.spec; tH.group.position.x = -GAP / 2;
 const boneH = DK.bone({ width: 15.5, height: 19, depth: 12.5, cortical: 1.3, crest: 1.6 }); boneH.position.set(-GAP / 2, CREST, 0);
 const gumH = DK.perioGingiva(s, { margin: H.margin, crest: CREST, width: 16.1, depth: 13.2 }); gumH.position.x = -GAP / 2;
 const pdlH = DK.pdl(s, 0.25, CREST); tH.group.add(pdlH);
-const sulcus = DK.pocket(s, { margin: H.margin, base: H.base, width: 0.1 });   // a hairline in health tH.group.add(sulcus);
+const sulcus = DK.pocket(s, { margin: H.margin, base: H.base, width: 0.1 });   // a hairline in health
+tH.group.add(sulcus);
 
 // ---------- periodontitis set (viewer's right) ----------
 const tD = DK.tooth(36); tD.group.position.x = GAP / 2;

@@ -846,8 +846,9 @@
       return { t, b, f: clamp((sr.height - t - b) / (sr.height || 1), 0.55, 1) };
     }
     function applyInsets() {
-      const ins = frameInsets(), h = stage.clientHeight || 1;
-      if (ins.t || ins.b) camera.setViewOffset(1, 1, 0, -(ins.t - ins.b) / 2 / h, 1, 1); else camera.clearViewOffset();
+      const ins = frameInsets(), w = stage.clientWidth || 1, h = stage.clientHeight || 1;
+      // setViewOffset also sets camera.aspect = fullWidth / fullHeight, so pass the real stage size (not a unit square)
+      if (ins.t || ins.b) camera.setViewOffset(w, h, 0, -(ins.t - ins.b) / 2, w, h); else { camera.clearViewOffset(); camera.aspect = w / h; camera.updateProjectionMatrix(); }
       return ins;
     }
     function fit(margin) {
@@ -1661,7 +1662,7 @@
       if (local) c.add(X.clone().multiplyScalar(local[0])).add(Y.clone().multiplyScalar(local[1])).add(Z.clone().multiplyScalar(local[2]));
       m.setPosition(c); m.decompose(obj.position, obj.quaternion, obj.scale);
     };
-    const build = o.build || ((fdi, spec) => DK.tooth(spec));
+    const build = o.build || ((fdi, spec) => DK.tooth(spec, o.crownsOnly ? { omit: ['dentin', 'root', 'pulp'] } : undefined));   // crownsOnly: charts seen from above (roots would show under the far arch)
     const teeth = wanted.map(t => {
       const spec = ref.find(r => r.fdi === t.fdi).spec, tooth = build(t.fdi, spec, slots[t.fdi]);
       place(tooth.group, slots[t.fdi]); group.add(tooth.group);

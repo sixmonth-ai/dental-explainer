@@ -492,7 +492,67 @@ FDA (24 Sept 2020): most people are not harmed by the small amount of mercury va
 
 <!-- topic: perio -->
 ## 17. Periodontal disease
-_(reserved)_
+Builds on §6 (biologic width / supracrestal attachment, sulcus) and §13 (healthy crest, CAL definition, staging table, Hamp classes, root trunk). Don't repeat those; this section adds the disease geometry, the probe, the classifications and the sources.
+
+### Health (what the healthy side of a figure shows)
+- **Gingival health** (2017 World Workshop, Chapple / Lang & Bartold): probing depth ≤ 3 mm and bleeding on probing at < 10 % of sites on an intact periodontium; gingivitis is BOP ≥ 10 % of sites (localized 10–30 %, generalized > 30 %) [V, EFP / Colgate summary of Chapple et al. 2018].
+- **Crest position**: 1–2 mm (often quoted 1.5–2 mm) apical to the CEJ on a radiograph; Hausmann et al. 1991 call < 1.5 mm CEJ-to-crest "no bone loss" regardless of percentage [V, secondary sources citing Hausmann 1991]. Draw the healthy crest at −1.8 to −2 mm.
+- **Gingival margin**: on enamel, about 1–2 mm coronal to the CEJ in young adults, so the sulcus base lies near the CEJ and **CAL = 0** [U, standard teaching]. In a figure: margin +2, base 0 → PD 2 mm, CAL 0.
+- **Where the probe stops**: histologic sulcus ≈ 0.69 mm (§6), but the probe penetrates the junctional epithelium. In health it stops coronal to the apical end of the JE; with inflammation it passes through the inflamed tissue to the most coronal intact dento-gingival fibres, about **0.3–0.5 mm apical to the JE** (Listgarten 1980). So probing depth seldom equals histologic pocket depth, and the discrepancy grows with inflammation [V].
+
+### Periodontitis: definitions and the 2017 AAP/EFP classification
+- **Case definition**: interdental CAL detectable at ≥ 2 non-adjacent teeth, or buccal/oral CAL ≥ 3 mm with pocketing > 3 mm at ≥ 2 teeth, not explained by other causes (cervical restorations, root fracture, trauma, third-molar extraction) [V, dentalcare CE610 / workshop summaries; wording of the Papapanou 2018 consensus U].
+- **Staging** (severity + complexity, from the worst site; full table in §13) [V]: Stage I CAL 1–2 mm, RBL coronal third < 15 %, PD ≤ 4; Stage II CAL 3–4 mm, RBL 15–33 %, PD ≤ 5; Stage III CAL ≥ 5 mm, RBL to the middle third and beyond, PD ≥ 6, vertical bone loss ≥ 3 mm, furcation Class II–III, ≤ 4 teeth lost; Stage IV = Stage III plus ≥ 5 teeth lost, masticatory dysfunction, secondary occlusal trauma (mobility ≥ 2), severe ridge defect, drifting, < 20 remaining teeth. **Extent**: localized < 30 % of teeth, generalized ≥ 30 %, molar/incisor pattern [V, dentalcare CE610 after Tonetti, Greenwell & Kornman 2018].
+- **Grading** (rate of progression) [V]: direct evidence over 5 years: Grade A no loss, B < 2 mm, C ≥ 2 mm; indirect: **% bone loss ÷ age** < 0.25 (A), 0.25–1.0 (B), > 1.0 (C); modifiers smoking (< 10 / ≥ 10 cigarettes a day) and diabetes (HbA1c < 7 / ≥ 7 %). Grade B is the default, moved by evidence.
+- **Radiographic bone loss (%)** [U, common clinical convention]: (CEJ-to-crest − ~2 mm normal) ÷ root length (CEJ to apex) × 100. Some papers divide crest-to-apex by root length instead; the kit's `DK.perioMeasure` uses the first. Radiographs under-read true loss (2-D projection) [U].
+- **Gingivitis vs periodontitis**: gingivitis is inflammation **without** attachment or bone loss and is reversible with plaque control; a swollen margin can give a probing depth > 3 mm with CAL 0 (**pseudo-pocket**). Periodontitis means attachment loss; the lost attachment and bone do **not** regenerate spontaneously after scaling, which arrests the disease rather than rebuilding support. Regeneration (GTR, enamel matrix derivative, grafts) can rebuild part of a **contained intrabony defect**; horizontal (suprabony) loss is not amenable to it [V for regeneration vs horizontal loss (reviews); reversibility of gingivitis U, standard teaching].
+
+### Patterns of bone loss (what to draw)
+- **Horizontal**: the crest lowered evenly, parallel to the CEJ line (suprabony pockets) [U].
+- **Vertical / angular (infrabony)**: a defect alongside one root, classified by the remaining bony walls (Goldman & Cohen 1958): **3-wall** (bounded by bone on three sides, the root on the fourth; best for regeneration), **2-wall** (the interproximal **crater** between two teeth with the buccal and lingual walls kept, the most common pattern), **1-wall** (**hemiseptum**: only the proximal wall on the neighbour's side remains), and combined defects [V, secondary reviews; original paper not reached]. In a mesio-distal section an angular defect reads as a V beside the root; vertical loss ≥ 3 mm is a Stage III complexity factor.
+- **Furcation involvement** (multi-rooted teeth): **Hamp, Nyman & Lindhe 1975**: Degree I horizontal probing < 3 mm; Degree II ≥ 3 mm but not through-and-through (a cul-de-sac); Degree III through-and-through [V, Wikipedia after Vandersall 2007; some secondary sources phrase it as thirds of the tooth width]. **Glickman 1953**: Grade I incipient (pocket into the flute, bone intact); Grade II cul-de-sac with horizontal loss but bone at the dome; Grade III through-and-through, covered by gingiva; Grade IV through-and-through and visible because of recession [V, Wikipedia after Knowles 1979]. Furcation Class II–III raises a case to Stage III.
+- **Root trunk** of the mandibular first molar: measured means ~1.4–2.6 mm buccally and ~2.0 mm lingually (J Appl Oral Sci 2012, n = 233: 1.37 ± 0.78 B, 2.04 ± 0.89 L; another study 2.59 B) versus the textbook ~3 B / 4 L in §13; the lingual trunk is longer and its entrance narrower [V]. **Furcation entrance width**: ≤ 1.0 mm in 81 % and ≤ 0.75 mm in 58 % of molars (Bower 1979), narrower than most curettes [V]. Once the crest sits past the trunk the furcation is open to probing: draw it with the kit's `spec.trunk` (3 mm for 36).
+
+### Gingival recession
+- Recession = the margin apical to the CEJ, exposing root (cementum, then dentin): measure CEJ → margin. Then **CAL = PD + recession** [V, Cairo 2011 definitions].
+- **Cairo 2011 (RT1–3)**, the classification the 2017 workshop adopted [V]: **RT1** no interproximal attachment loss (interproximal CEJ not detectable); **RT2** interproximal loss ≤ buccal loss; **RT3** interproximal loss > buccal loss. Inter-rater ICC 0.86 in the original 116-site study. Complete root coverage is predictable in RT1, partial in RT2, not expected in RT3 [V for the RT definitions; coverage expectations U, standard teaching]. (Miller I–IV is the older scheme: RT1 ≈ Miller I–II, RT2 ≈ III, RT3 ≈ IV.)
+
+### Calculus
+- **Supragingival**: white to yellowish-white, clay-like, forms above the margin opposite the salivary ducts: lingual of the lower incisors and buccal of the upper molars [V]. **Subgingival**: dark brown to greenish-black (blood pigments), hard and dense, on the root inside the pocket, invisible without probing or a radiograph [V]. Calculus is 70–90 % inorganic (mostly calcium phosphates: hydroxyapatite, whitlockite, octacalcium phosphate, brushite) [V]. Calculus is mineralised biofilm: a plaque-retentive factor, not the cause by itself [U].
+
+### The periodontal probe
+- **UNC-15** (University of North Carolina): 15 mm working end with a mark every millimetre and black bands at 4–5, 9–10 and 14–15 mm; tip Ø about 0.5 mm (0.48 mm in one manufacturer's spec) [V, retailer / manufacturer listings; Braz J Oral Sci 2024 compared tips between makers]. Other patterns: Williams 1-2-3-5-7-8-9-10 mm; Michigan O 3-6-8; Marquis bands 3–6 and 9–12; Nabers (curved) for furcations [V].
+- **WHO / CPITN / BPE probe**: 0.5 mm ball end, black band 3.5–5.5 mm, further marks at 8.5 and 11.5 mm; probing force 20–25 g. BPE codes: 0 healthy, 1 bleeding, 2 calculus or overhang, 3 band partly in the pocket (PD 4–5.5 mm), 4 band disappears (PD ≥ 6 mm; some sources say ≥ 5.5), * = furcation [V, Ergodenta BPE guide + slide sets; the code-4 threshold differs between sources].
+- **Force**: about **0.20–0.25 N (20–25 g)**, the usual study standard; heavier forces push the tip into the connective tissue and over-read, especially in inflamed tissue. Students average 30–35 g with a UNC-15 [V, Saudi Dent J 2014; Acta Med Philipp 2022]. Pressure-sensitive probes exist [V].
+- **Technique** [V for sites and walking; U for the angle]: six sites per tooth (disto-, mid- and mesio-facial; the same lingually); keep the probe parallel to the long axis of the root; "walk" it in ~1 mm steps around the tooth; under a contact point angle it slightly so the tip reaches the col. Record the deepest reading per site; PD is read at the gingival margin.
+
+### Common AI mistakes (periodontal)
+1. Measuring probing depth from the CEJ. **PD is from the gingival margin; CAL is from the CEJ.** They coincide only when the margin sits at the CEJ.
+2. Calling gingivitis "early periodontitis". Gingivitis has **no attachment loss** and is reversible; a swollen margin gives a pseudo-pocket with CAL 0.
+3. Letting bone "grow back" after cleaning. Scaling stops the loss; it does not rebuild bone. Only regenerative surgery in a contained (intrabony) defect restores some.
+4. Staging from one tooth. Stage and grade are whole-mouth diagnoses; one tooth is "consistent with Stage III".
+5. Confusing the axes: CAL and bone loss set severity; PD ≥ 6, vertical defects ≥ 3 mm and furcation II–III are **complexity**; tooth loss separates III from IV; grade is the rate (% bone loss ÷ age), not severity.
+6. Drawing the healthy crest at the CEJ. It sits 1–2 mm apical.
+7. Recession without root exposure, or a pocket base coronal to the CEJ with "recession". Recession means the margin is apical to the CEJ and root is exposed; CAL then = PD + recession.
+8. Furcation involvement on single-rooted teeth, or on a molar whose bone is still above the furcation. The crest must be apical to the root trunk (2–4 mm on a lower first molar).
+9. Pale supragingival calculus inside a pocket, or black calculus on the crown. Subgingival calculus is dark and on the root; supragingival is pale and at the margin.
+10. A probe drawn without markings, or with Williams marks called UNC-15.
+
+### Sources (section 17)
+- 2017 AAP/EFP staging and grading tables, case definition and extent (after Tonetti, Greenwell & Kornman, J Periodontol 2018;89 Suppl 1:S159–S172): https://www.dentalcare.com/en-us/ce-courses/ce610/requirements-periodontitis-case ; AAP "Three steps to staging and grading": https://sites.perio.org/wp-content/uploads/2019/08/Three-Steps-to-Staging-and-Grading-a-Patient.pdf
+- Gingival health and gingivitis thresholds (Chapple et al. 2018, via EFP / Colgate summaries): https://www.efp.org/publications/perioinsight/perioinsight07/ ; https://www.colgate.com/content/dam/cp-sites/oral-care/oral-care-center/global/article/pdf/gingivitis.pdf
+- Listgarten MA. Periodontal probing: what does it mean? J Clin Periodontol 1980;7:165–176 (PMID 7000852): https://pubmed.ncbi.nlm.nih.gov/7000852/
+- Crest 1–2 mm apical to the CEJ; Hausmann 1991 1.5 mm rule; RBL formula (secondary): https://open-exam-prep.com/study-guides/adex-dental-hygiene/radiology-imaging/radiographic-periodontal ; https://arxiv.org/pdf/2109.12115
+- Furcation classifications (Glickman 1953; Hamp, Nyman & Lindhe 1975): https://en.wikipedia.org/wiki/Furcation_defect ; review of furcation classification systems: https://pmc.ncbi.nlm.nih.gov/articles/PMC6162379
+- Root trunk and furcation entrance of mandibular first molars (J Appl Oral Sci 2012; Bower 1979): https://revistas.usp.br/jaos/article/view/3989 ; https://www.redalyc.org/journal/4796/479656561004/479656561004.pdf
+- Infrabony defects, wall count (Goldman & Cohen 1958, secondary): https://www.efp.org/fileadmin/uploads/efp/Documents/JCP_Digest/JCPDissue85series21.pdf ; https://www.slideshare.net/slideshow/patterns-of-bone-destruction-in-periodontics/60199406
+- Regeneration of intrabony vs horizontal defects: https://synapse.koreamed.org/articles/1049280 ; https://semmelweis.hu/parodontologia/files/2024/10/Principles-of-periodontal-regeneration-NP.pdf
+- Cairo F, Nieri M, Cincinelli S, Mervelt J, Pagliaro U. The interproximal clinical attachment level to classify gingival recessions. J Clin Periodontol 2011;38:661–666 (via): https://pmc.ncbi.nlm.nih.gov/articles/PMC9327467 ; https://decisionsindentistry.com/article/decision-making-modern-mucogingival-therapy/
+- Calculus colour, sites and composition (lecture notes): https://www.uomus.edu.iq/img/lectures21/MUCLecture_2025_235677.pdf ; https://www.dlibra.umcs.lublin.pl/Content/44418/download
+- UNC-15 and other probe markings: https://www.dentaltown.com/blog/post/4563/what-type-of-probe-is-this ; tip diameter (Deppeler via Optident): https://optident.co.uk/product/periodontal-probe-unc-15-steel ; Braz J Oral Sci 2024 probe comparison: https://periodicos.sbu.unicamp.br/ojs/index.php/bjos/article/download/8670401/33655/167629
+- WHO / BPE probe and codes: https://ergodenta.dk/blog/products-13/who-probe-explained-markings-bpe-scores-how-to-read-it-171 ; https://www.slideshare.net/slideshow/cpitn-index-community-periodontal-index-of-treatment-needs/249488368
+- Probing force 20–25 g and student forces: https://doaj.org/article/1bce09033ade43749224f7a783a51315 ; https://actamedicaphilippina.upm.edu.ph/index.php/acta/article/view/2749 ; https://pmc.ncbi.nlm.nih.gov/articles/PMC4229682
+- Probing technique (six sites, walking, parallel to the root): https://openlab.citytech.cuny.edu/den1100faculty24/files/2024/10/Basic-Probing-Technique-and-Perio-Charting.pdf ; https://www.colgateprofessional.com/hygienist-resources/tools-resources/periodontal-probing-back-to-basics
 <!-- end topic: perio -->
 
 ---

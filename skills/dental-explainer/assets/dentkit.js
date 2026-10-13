@@ -1973,7 +1973,280 @@
   /* ==== end topic: caries ==== */
 
   /* ==== topic: perio (Periodontal disease) ==== */
-  // (reserved)
+  // Periodontal disease geometry. Everything is parametric and section-ready (closed solids), in the tooth frame
+  // (CEJ at y = 0, +x mesial, +z buccal) unless the function says "block frame" (bone / gingiva block, crest at local y = 0).
+  const PERIO_SIDES = { mesial: 0, buccal: Math.PI / 2, distal: Math.PI, lingual: -Math.PI / 2, palatal: -Math.PI / 2 };
+  const yRimOf = s => (s.roots.length > 1 ? -(s.trunk || 3) + 0.6 : -1e9);   // where the trunk ends and the roots take over
+  // Outline of a tooth at height y: crown (y ≥ 0), root trunk (multi-rooted, down to the furcation) or a single root. Returns
+  // {x, z, cx, cz} (point and the ring centre) or null below the trunk of a multi-rooted tooth (use perioRootAt there).
+  function perioOutlineAt(s, y, th) {
+    if (y >= 0) {
+      const c = s.crownL * (s.incisal ? 0.97 : 0.78), t = clamp(y / c * 0.72, 0, 0.7), p = crownRingFn(s)(t, th);
+      return { x: p[0], z: p[2], cx: 0, cz: 0 };
+    }
+    if (s.roots.length === 1) return perioRootAt(s, 0, y, th);
+    const yRim = yRimOf(s); if (y < yRim) return null;
+    const t = 1 - y / yRim, k = lerp(0.72, 1, Math.pow(t, 0.7)), n2 = lerp(2.3, s.squareness || 2.4, t);
+    return { x: (s.mdC / 2) * k * se(Math.cos(th), n2), z: (s.blC / 2) * k * se(Math.sin(th), n2), cx: 0, cz: 0 };
+  }
+  function perioRootAt(s, ri, y, th) {
+    const r = s.roots[ri], start = r.start ?? 0.6, L = r.len, t = clamp((start - y) / (L + start), 0, 0.98);
+    const p = rootRing(r, t, th, { k: 1, add: 0, minR: 0.05 }, L), [cx, cz] = rootCenter(r, start - t * (L + start));
+    return { x: p[0], z: p[2], cx, cz };
+  }
+  // A closed band hugging a surface between two heights: outer wall `gap(u)` mm off the surface (u: 0 top → 1 bottom), inner
+  // wall 0.35 mm inside it (hidden by the tooth, which paints over it in section). One continuous torus-like strip, so the
+  // stencil caps read it as a solid. surf(y, th) → {x, z, cx, cz}. yTop, yBot(th): the band's extent (yBot may vary with angle).
+  const BAND_ROWS = 14, BAND_COLS = 64;
+  function bandPositions(surf, gap, yTop, yBot, rows, cols, out) {
+    let k = 0;
+    const put = (y, th, off) => { const p = surf(y, th), dx = p.x - p.cx, dz = p.z - p.cz, d = Math.hypot(dx, dz) || 1; out[k++] = p.x + dx / d * off; out[k++] = y; out[k++] = p.z + dz / d * off; };
+    for (let i = 0; i <= 2 * rows + 2; i++) for (let j = 0; j <= cols; j++) {
+      const th = (j % cols) / cols * Math.PI * 2, yb = yBot(th), yt = Math.max(yTop, yb);
+      if (i <= rows) { const u = 1 - i / rows; put(lerp(yt, yb, u), th, gap(u) * (yt > yb + 1e-3 ? 1 : 0)); }            // outer wall, bottom → top
+      else if (i <= 2 * rows + 1) { const u = (i - rows - 1) / rows; put(lerp(yt, yb, u), th, -0.35); }                 // inner wall, top → bottom
+      else put(yb, th, 0);                                                                                                // back to the outer bottom
+    }
+  }
+  function bandGeometry(surf, gap, yTop, yBot) {
+    const rows = BAND_ROWS, cols = BAND_COLS, n = (2 * rows + 3) * (cols + 1) * 3, pos = new Float32Array(n);
+    bandPositions(surf, gap, yTop, yBot, rows, cols, pos);
+    const g = gridGeometry(2 * rows + 2, cols, (i, j) => { const k = (i * (cols + 1) + j) * 3; return [pos[k], pos[k + 1], pos[k + 2]]; }, null, null);
+    g.userData.refresh = (yTop2, yBot2, gap2) => { const p = g.attributes.position; bandPositions(surf, gap2 || gap, yTop2, yBot2, rows, cols, p.array); p.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); };
+    return g;
+  }
+  // Periodontal pocket (or the healthy sulcus): the slit between the gingiva and the tooth, from the gingival margin down to the
+  // pocket base (where the junctional epithelium starts), as a dark closed solid. Hidden inside the gingiva; put it in a section
+  // group after the gingiva and the bone and before the tooth, so the cut shows a dark slot that the tooth then paints over.
+  // o.margin: y of the gingival margin (mm, CEJ = 0; above 0 on enamel in health, below 0 with recession). o.base: y of the
+  // pocket base (a number, or a function of the angle th: 0 = mesial, π/2 = buccal, π = distal, −π/2 = lingual). o.width: gap at
+  // the margin (default 0.45 mm; the base tapers to a crack). pocket.set(margin, base) re-shapes it for animation. On multi-
+  // rooted teeth the band follows the trunk and then each root (a pocket deeper than the trunk enters the furcation).
+  DK.pocket = function (spec, o) {
+    o = Object.assign({ margin: 1.5, base: 0, width: 0.45, color: 0x4a403c }, o);
+    const s = spec, grp = new T.Group(); grp.name = 'Pocket';
+    const mat = DK.mat('pdl', { color: o.color, cap: o.color }); mat.visible = false;   // only seen in section
+    const gap = u => o.width * Math.pow(1 - u, 0.7) + 0.05;
+    const baseFn = b => (typeof b === 'function' ? b : () => b);
+    const yRim = yRimOf(s), multi = s.roots.length > 1;
+    const pieces = [];
+    const trunk = new T.Mesh(bandGeometry((y, th) => perioOutlineAt(s, Math.max(y, multi ? yRim : y), th), gap, o.margin, th => Math.max(baseFn(o.base)(th), multi ? yRim : -1e9)), mat);
+    trunk.name = 'Pocket'; grp.add(trunk); pieces.push({ m: trunk, top: m => m, bot: (b, th) => Math.max(b(th), multi ? yRim : -1e9) });
+    if (multi) s.roots.forEach((r, i) => {
+      const m = new T.Mesh(bandGeometry((y, th) => perioRootAt(s, i, Math.min(y, yRim), th), gap, Math.min(o.margin, yRim), th => Math.min(baseFn(o.base)(th), yRim)), mat);
+      m.name = 'Pocket'; grp.add(m); pieces.push({ m, top: mg => Math.min(mg, yRim), bot: (b, th) => Math.min(b(th), yRim) });
+    });
+    grp.set = (margin, base) => {
+      if (margin !== undefined && margin !== null) o.margin = margin; if (base !== undefined && base !== null) o.base = base;
+      const b = baseFn(o.base);
+      pieces.forEach(p => p.m.geometry.userData.refresh(p.top(o.margin), th => p.bot(b, th)));
+      grp.userData.margin = o.margin; grp.userData.base = o.base; return grp;
+    };
+    grp.userData.margin = o.margin; grp.userData.base = o.base; grp.userData.spec = o;
+    return grp;
+  };
+  // Calculus deposits on the tooth surface: irregular flattened lumps between heights `from` (upper) and `to` (lower), on the
+  // given sides. kind 'sub' (subgingival: dark brown, on the root inside the pocket) or 'supra' (supragingival: off-white /
+  // yellowish, at or above the margin). sides: 'all' or a list of 'mesial' | 'distal' | 'buccal' | 'lingual' (spread ±0.55 rad).
+  // Closed solids: put them in a section group after the pocket and before the tooth, so the tooth paints over their inner half.
+  DK.calculus = function (spec, o) {
+    o = Object.assign({ from: -0.5, to: -4, sides: 'all', n: 14, size: 0.5, kind: 'sub', seed: 1 }, o);
+    const s = spec, grp = new T.Group(); grp.name = o.kind === 'supra' ? 'Supragingival calculus' : 'Subgingival calculus';
+    const col = o.kind === 'supra' ? 0xd6cba6 : 0x5a4a40;
+    const mat = DK.mat('bone', { color: col, cap: col, roughness: 0.9, bumpScale: 0.08 });
+    const rnd = seeded(97 + (o.seed | 0) * 13), yRim = yRimOf(s), multi = s.roots.length > 1;
+    const ranges = o.sides === 'all' ? [[-Math.PI, Math.PI]] : o.sides.map(sd => { const a = PERIO_SIDES[sd] ?? 0; return [a - 0.55, a + 0.55]; });
+    for (let i = 0; i < o.n; i++) {
+      const rg = ranges[i % ranges.length], th = lerp(rg[0], rg[1], rnd()), y = lerp(o.to, o.from, rnd());
+      let p;
+      if (multi && y < yRim) { // on whichever root is nearest the angle
+        let best = null; s.roots.forEach((r, k) => { const q = perioRootAt(s, k, y, th), d = Math.hypot(q.x - Math.cos(th) * s.mdC / 2, q.z - Math.sin(th) * s.blC / 2); if (!best || d < best.d) best = { d, q }; }); p = best.q;
+      } else p = perioOutlineAt(s, y, th);
+      if (!p) continue;
+      const sz = o.size * (0.6 + 0.8 * rnd()), g = new T.SphereGeometry(sz, 10, 7), pa = g.attributes.position;
+      for (let k = 0; k < pa.count; k++) { const f = 0.8 + 0.4 * rnd(); pa.setXYZ(k, pa.getX(k) * f, pa.getY(k) * (0.8 + 0.3 * rnd()), pa.getZ(k) * 0.5); }
+      g.computeVertexNormals();
+      const m = new T.Mesh(g, mat), dx = p.x - p.cx, dz = p.z - p.cz, d = Math.hypot(dx, dz) || 1;
+      m.position.set(p.x + dx / d * sz * 0.18, y, p.z + dz / d * sz * 0.18); m.lookAt(p.x + dx, y, p.z + dz); m.name = grp.name;
+      grp.add(m);
+    }
+    grp.userData.spec = o; return grp;
+  };
+  // Bone-loss height field in the bone block's frame (crest at local y = 0): returns topFn(x, z) ≤ 0 for DK.bone's `scallop` or
+  // DK.perioBone. Components are combined by taking the deepest:
+  //   horizontal: mm of even loss (the crest lowered everywhere);
+  //   defects: [{x, z, depth, rx, rz?, walls?, profile?}] angular (infrabony) defects: a dip `depth` mm deep at (x, z) that
+  //     slopes back up to the crest over rx mm (mesio-distally) and rz mm (bucco-lingually). profile 'angular' (straight walls,
+  //     a V in section, default) or 'crater' (bowl). walls (Goldman & Cohen): 3 = bounded by bone on three sides and the root
+  //     on the fourth (rz = rx), 2 = a crater between two roots with buccal and lingual walls kept (rz = 1.2 rx), 1 = hemiseptum:
+  //     one proximal wall left, the dip spans the full bucco-lingual width (rz = ∞). Give rz yourself to override.
+  //   furcations: [{x, z, md, bl, roots, from, depth, bottom, width}] interradicular loss (see DK.furcationDefect).
+  DK.boneLoss = function (o) {
+    o = Object.assign({ horizontal: 0, defects: [], furcations: [] }, o);
+    const fns = [];
+    if (o.horizontal) fns.push(() => -o.horizontal);
+    o.defects.forEach(d => {
+      const rx = d.rx || 3, rz = d.rz || (d.walls === 1 ? 1e4 : d.walls === 2 ? rx * 1.2 : rx);
+      const prof = d.profile === 'crater' ? u => Math.max(0, 1 - u * u) : u => Math.max(0, 1 - u);
+      fns.push((x, z) => -d.depth * prof(Math.hypot((x - d.x) / rx, (z - d.z) / rz)));
+    });
+    o.furcations.forEach(f => fns.push(DK.furcationDefect(f)));
+    return (x, z) => { let v = 0; for (const f of fns) v = Math.min(v, f(x, z)); return v; };
+  };
+  // Furcation involvement as a height field (block frame, crest at y = 0). f: {x, z: tooth position in the block; md, bl: the
+  // tooth's cervical widths (spec.mdC / blC); roots: spec.roots (to orient the furcation); from: 'buccal' | 'lingual' | 'mesial' |
+  // 'distal' | 'through'; depth: horizontal probing depth in from that entrance (mm; Hamp: I < 3, II ≥ 3 not through, III
+  // through-and-through); bottom: how far below the crest the interradicular bone drops (default 2.5 mm beyond the furcation
+  // roof: pass -(trunk + 2.5 + crest-to-CEJ) in block units); width: half-width of the dip across the furcation (default 1.4)}.
+  DK.furcationDefect = function (f) {
+    f = Object.assign({ x: 0, z: 0, from: 'buccal', depth: 3, width: 1.4 }, f);
+    const md = f.md || 9, bl = f.bl || 9, bottom = f.bottom ?? -5;
+    const alongX = !(f.from === 'mesial' || f.from === 'distal');   // buccal / lingual entrances open onto the plane between roots that separate along x
+    const span = alongX ? bl : md, through = f.from === 'through' || f.depth >= span;
+    const entries = f.from === 'through' ? (alongX ? [1, -1] : [1, -1]) : [f.from === 'buccal' || f.from === 'mesial' ? 1 : -1];
+    const depth = through ? span : f.depth;
+    return (x, z) => {
+      const ax = alongX ? z - f.z : x - f.x, ac = alongX ? x - f.x : z - f.z;   // ax: along the entrance axis, ac: across it
+      let v = 0;
+      entries.forEach(sg => { const a = span / 2 - sg * ax; // distance in from that entrance (the face at sg · span/2)
+        const inA = smooth(-1.0, 0.3, a) * (through ? 1 : 1 - smooth(depth - 1.2, depth + 0.3, a)), inC = 1 - smooth(f.width - 0.3, f.width + 0.6, Math.abs(ac));
+        v = Math.min(v, bottom * inA * inC); });
+      return v;
+    };
+  };
+  // Alveolar bone with periodontal bone loss you can animate: DK.bone options plus `loss` (DK.boneLoss options or a topFn) and
+  // `level` (0 = healthy, 1 = the full loss; default 1). bone.set(level) morphs the crest; bone.crestAt(x, z) gives the crest
+  // height (block frame) at a point, for PDL tops and readouts. Place it like DK.bone (position.y = the healthy crest).
+  DK.perioBone = function (o) {
+    o = Object.assign({ width: 24, height: 22, depth: 11, cortical: 1.2, crest: 1.5, scallop: null, round: null, level: 1 }, o);
+    const lossFn = typeof o.loss === 'function' ? o.loss : DK.boneLoss(o.loss || {});
+    let k = clamp(o.level, 0, 1);
+    const top = (x, z) => (o.scallop ? o.scallop(x, z) : 0) + k * lossFn(x, z);
+    // the cancellous core follows the crest with a cortical lining that thins from `cortical` (health) to nothing inside a defect (the lamina dura is lost there)
+    const innerTop = (x, z) => { const L = top(x, z); return L + o.cortical - lerp(o.cortical, 0.05, clamp(-L / 1.5, 0, 1)); };
+    const bone = DK.bone(Object.assign({}, o, { scallop: top }));
+    const outer = bone.userData.layers.cortical, inner = bone.userData.layers.cancellous;
+    const rebuild = (mesh, g) => { const p = mesh.geometry.attributes.position; p.array.set(g.attributes.position.array); p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); g.dispose(); };
+    bone.set = v => {
+      k = clamp(v, 0, 1);
+      rebuild(outer, blockGeometry(o.width, o.height, o.depth, o.crest, top, o.round ?? undefined));
+      rebuild(inner, blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, innerTop, o.round ?? undefined));
+      bone.userData.level = k; return bone;
+    };
+    bone.set(k);
+    bone.crestAt = (x, z) => top(x, z);
+    bone.userData.level = k; bone.userData.loss = lossFn;
+    return bone;
+  };
+  // PDL whose top follows the bone crest root by root: tops = [y per root] (tooth frame) or a function (root, index) → y.
+  // pdl.set(tops) moves the tops later (animatable, e.g. as DK.perioBone lowers the crest). The shell dives into the root over
+  // the last ~0.9 mm below `top` (no rim on the cut), so pass the crest itself (or a little above it).
+  DK.perioPdl = function (spec, gap, tops) {
+    gap = gap ?? 0.2; const grp = new T.Group(); grp.name = 'PDL'; const m = DK.mat('pdl');
+    const topOf = (t, r, i) => (typeof t === 'function' ? t(r, i) : (Array.isArray(t) ? t[i] : t)) ?? -1.4;
+    const geo = (r, top) => { const start = Math.min(r.start ?? 0.6, top), rr = Object.assign({}, r, { start }), L = r.len + gap, rows = 48, cols = 48, [cx, cz] = rootCenter(rr, start);
+      return gridGeometry(rows, cols, (i, j) => { const t = 1 - i / rows, y = start - t * (L + start), dive = smooth(start - 0.9, start, y);
+        return rootRing(rr, t, j / cols * Math.PI * 2, { k: 1, add: lerp(gap, -0.4, dive), minR: gap, endShort: 0 }, L); }, [cx, start + 0.01, cz], null); };
+    spec.roots.forEach((r, i) => grp.add(new T.Mesh(geo(r, topOf(tops, r, i)), m)));
+    grp.set = t => { spec.roots.forEach((r, i) => { const g2 = geo(r, topOf(t, r, i)), p = grp.children[i].geometry.attributes.position; p.array.set(g2.attributes.position.array); p.needsUpdate = true; grp.children[i].geometry.computeVertexNormals(); grp.children[i].geometry.computeBoundingSphere(); g2.dispose(); }); return grp; };
+    return grp;
+  };
+  // Gingiva sized to a periodontal state: the free gingival margin at y = `margin` on the tooth (tooth frame, CEJ = 0), the block
+  // reaching down to `crest` (the healthy bone crest, so bone painted after it in section fills what is left). `inflamed` reddens
+  // and swells the margin (rise 1.1 mm, rolled). Returns the DK.gingiva mesh, positioned. Extra DK.gingiva options pass through.
+  // Free-gingival-margin cuff (same rule as DK.gingiva's `around`), as a height field the perio gingiva can rebuild.
+  function perioCuff(around) {
+    return (x, z) => { let v = 0;
+      around.forEach(t => { const a = t.md / 2, b = t.bl / 2, n = t.n || 2.3, rho = Math.pow(Math.pow(Math.abs(x - t.x) / a, n) + Math.pow(Math.abs(z - t.z) / b, n), 1 / n);
+        const dist = (rho - 1) * Math.min(a, b); v += (t.rise ?? 0.8) * smooth(1.7, 0.1, dist); });
+      return Math.min(v, 1.35 * Math.max(...around.map(t => t.rise ?? 0.8))); };
+  }
+  // `inflamed` may be 0..1. gum.set({margin, crest, inflamed}) re-shapes it in place (animatable: drive it with fig.param); the
+  // cut-face colour lives on the section cap: tint fig.section.caps[i].material.uniforms.uColor yourself if it must redden too.
+  DK.perioGingiva = function (spec, o) {
+    o = Object.assign({ margin: 1.5, crest: -1.8, inflamed: 0, width: 22, depth: 13.2, x: 0, z: 0, rise: null }, o);
+    const cH = DK.color(DK.COLORS.gingiva), cI = DK.color(0xb98a88);
+    const shape = () => { const inf = clamp(+o.inflamed, 0, 1), rise = o.rise ?? lerp(0.8, 1.15, inf), top = o.margin - rise, height = Math.max(1.2, top - o.crest + 0.4);
+      const cuff = perioCuff([{ x: o.x, z: o.z, md: spec.mdC + 0.7 * inf, bl: spec.blC + 0.7 * inf, rise }]);
+      return { inf, top, height, crest: Math.min(1.3, height * 0.4), topFn: o.scallop ? (x, z) => o.scallop(x, z) + cuff(x, z) : cuff }; };
+    const sh = shape();
+    const g = DK.gingiva(Object.assign({ width: o.width, height: sh.height, depth: o.depth, crest: sh.crest, round: o.round, scallop: sh.topFn, capColor: sh.inf > 0.5 ? 0xb8847f : 0xc39692 }, o.extra || {}));
+    const apply = sh => { g.material.color.copy(cH).lerp(cI, sh.inf); g.userData.margin = o.margin; g.userData.inflamed = sh.inf; };
+    g.position.y = sh.top; const top0 = sh.top;   // position is set once; set() moves the vertices instead (a regular part's position is reset every frame)
+    g.set = o2 => { Object.assign(o, o2 || {}); const sh = shape(), g2 = blockGeometry(o.width, sh.height, o.depth, sh.crest, sh.topFn, o.round ?? undefined), p = g.geometry.attributes.position, dy = sh.top - top0;
+      p.array.set(g2.attributes.position.array); for (let i = 0; i < p.count; i++) p.setY(i, p.getY(i) + dy); p.needsUpdate = true; g.geometry.computeVertexNormals(); g.geometry.computeBoundingSphere(); g2.dispose(); apply(sh); return g; };
+    apply(sh); return g;
+  };
+  // Point on the tooth's outer surface at height y (tooth frame) and angle th (0 = mesial, π/2 = buccal): {x, z}. Below the
+  // trunk of a multi-rooted tooth it is on the root nearest that angle (or roots[rootIndex]). For probes, calculus, labels.
+  DK.toothSurfaceAt = function (spec, y, th, rootIndex) {
+    const s = spec, multi = s.roots.length > 1, yRim = yRimOf(s);
+    if (!(multi && y < yRim)) { const p = perioOutlineAt(s, y, th); return { x: p.x, z: p.z }; }
+    if (rootIndex !== undefined) { const p = perioRootAt(s, rootIndex, y, th); return { x: p.x, z: p.z }; }
+    let best = null; s.roots.forEach((r, k) => { const q = perioRootAt(s, k, y, th), d = Math.hypot(q.x - Math.cos(th) * s.mdC / 2, q.z - Math.sin(th) * s.blC / 2); if (!best || d < best.d) best = { d, q }; });
+    return { x: best.q.x, z: best.q.z };
+  };
+  // Periodontal probe. TIP at y = 0, working end straight up +y, a double-bent shank into a round handle (so `position` is the
+  // tip and `rotation` tilts it about the tip, like DK.bur). type 'UNC-15' (default): Ø0.5 mm tip, 1 mm marks to 15, black bands
+  // 4–5, 9–10, 14–15 mm; 'WHO' (CPITN / BPE): 0.5 mm ball end, black band 3.5–5.5 mm, marks at 8.5 and 11.5 mm.
+  // probe.userData.spec lists the marks; DK.probeReading(depth, spec) tells which mark sits at the margin.
+  DK.probe = function (o) {
+    o = Object.assign({ type: 'UNC-15', handle: 42 }, o);
+    const who = /who|cpitn|bpe/i.test(o.type), grp = new T.Group(); grp.name = 'Periodontal probe';
+    const steel = DK.mat('steel', { cap: 0x9ea4aa }), ink = DK.mat('steel', { color: 0x1d1b18, metalness: 0.2, roughness: 0.7 });
+    const r = who ? 0.22 : 0.25, tipL = who ? 15.5 : 16.5;
+    const spec = who ? { type: 'WHO', ball: 0.5, bands: [[3.5, 5.5]], marks: [8.5, 11.5], marksEvery: 0 } : { type: 'UNC-15', bands: [[4, 5], [9, 10], [14, 15]], marks: [], marksEvery: 1, maxMark: 15 };
+    // working end
+    const shaft = DK.lathe([[0, who ? 0.25 : 0], [r * 0.6, who ? 0.3 : 0.08], [r, who ? 0.42 : 0.35], [r, tipL - 0.2], [r * 1.25, tipL], [r * 1.25, tipL + 0.6]], 28, steel); grp.add(shaft);
+    if (who) { const ball = new T.Mesh(new T.SphereGeometry(spec.ball / 2, 20, 14), steel); ball.position.y = spec.ball / 2; grp.add(ball); }
+    const ring = (y0, y1, rr) => { const m = new T.Mesh(new T.CylinderGeometry(rr, rr, y1 - y0, 28, 1, true), ink); m.position.y = (y0 + y1) / 2; grp.add(m); };
+    spec.bands.forEach(b => ring(b[0], b[1], r * 1.03));
+    if (spec.marksEvery) for (let k = spec.marksEvery; k <= spec.maxMark; k += spec.marksEvery) { if (!spec.bands.some(b => k > b[0] && k <= b[1])) ring(k - 0.08, k + 0.08, r * 1.03); }
+    spec.marks.forEach(k => ring(k - 0.12, k + 0.12, r * 1.03));
+    // shank: bends 35° away for 7 mm, then back to vertical into the handle (offset to the −x side, so the handle clears the crown)
+    const bend = 0.6, L1 = 7, y1 = tipL + 0.6, p1 = [0, y1], p2 = [-Math.sin(bend) * L1, y1 + Math.cos(bend) * L1];
+    const seg = (a, b, ra, rb) => { const d = new T.Vector3(b[0] - a[0], b[1] - a[1], 0), L = d.length(); const m = new T.Mesh(new T.CylinderGeometry(rb, ra, L, 24), steel); m.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0); m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), d.normalize()); grp.add(m); return m; };
+    seg(p1, p2, r * 1.25, 0.5);
+    const j1 = new T.Mesh(new T.SphereGeometry(r * 1.25, 12, 8), steel); j1.position.set(p1[0], p1[1], 0); grp.add(j1);
+    const j2 = new T.Mesh(new T.SphereGeometry(0.5, 12, 8), steel); j2.position.set(p2[0], p2[1], 0); grp.add(j2);
+    const p3 = [p2[0], p2[1] + 3]; seg(p2, p3, 0.5, 0.9);
+    const handle = DK.lathe([[0, 0], [0.9, 0], [1.6, 2.5], [2.6, 6], [2.9, 10], [2.9, o.handle - 3], [2.4, o.handle], [0, o.handle]], 32, DK.mat('steel', { color: 0xb9bcbf, roughness: 0.45, metalness: 0.7, bump: 'streaks', bumpScale: 0.02 }));
+    handle.position.set(p3[0], p3[1], 0); grp.add(handle);
+    grp.userData.spec = spec; grp.userData.tipLength = tipL;
+    return grp;
+  };
+  // What the probe shows at the gingival margin for a given depth, e.g. "between the 4–5 mm band and the 9–10 band".
+  DK.probeReading = function (depth, spec) {
+    spec = spec || { bands: [[4, 5], [9, 10], [14, 15]], marksEvery: 1 };
+    const b = spec.bands.find(b => depth >= b[0] && depth <= b[1]);
+    if (b) return `${depth.toFixed(1)} mm: inside the ${b[0]}–${b[1]} mm band`;
+    const below = spec.bands.filter(b => b[1] < depth).pop(), above = spec.bands.find(b => b[0] > depth);
+    return `${depth.toFixed(1)} mm: ` + (below && above ? `between the ${below[0]}–${below[1]} and ${above[0]}–${above[1]} mm bands` : above ? `${above[0] - depth > 0 ? (above[0] - depth).toFixed(1) : 0} mm short of the ${above[0]}–${above[1]} mm band` : `past the ${below[0]}–${below[1]} mm band`);
+  };
+  // Clinical measurements from the geometry (tooth frame, CEJ at `cej`, default 0). margin / base: y of the gingival margin and
+  // of the pocket base. PD = margin − base (probing depth). Recession = CEJ − margin (positive when the margin is apical to the
+  // CEJ; negative when it still sits on enamel). CAL = PD + recession = CEJ − base (clinical attachment level). rbl: % of the root
+  // length lost on a radiograph, from the crest (crestY) with the normal ~2 mm CEJ-to-crest distance subtracted.
+  DK.perioMeasure = function (o) {
+    o = Object.assign({ cej: 0, normalCrest: 2 }, o);
+    const pd = o.margin - o.base, rec = o.cej - o.margin, cal = o.cej - o.base, out = { pd, recession: rec, cal };
+    if (o.crestY !== undefined && o.rootL) { const loss = o.cej - o.crestY; out.boneLoss = loss; out.rbl = clamp((loss - o.normalCrest) / o.rootL, 0, 1) * 100; }
+    return out;
+  };
+  // 2017 AAP/EFP stage suggested by one site: interdental CAL (mm) and radiographic bone loss (% of root length), plus the local
+  // complexity that lifts a case to Stage III (PD ≥ 6, vertical defect ≥ 3 mm, furcation class II/III). Stage IV needs tooth loss
+  // (≥ 5 teeth) and masticatory dysfunction, which one tooth cannot show, so the result is at most 'III' unless o.teethLost ≥ 5.
+  // Returns {stage, text} with text like 'consistent with Stage III'. Health (no attachment loss) returns stage null.
+  DK.perioStage = function (o) {
+    o = Object.assign({ cal: 0, rbl: 0, pd: 0, vertical: 0, furcation: 0, teethLost: 0 }, o);
+    if (o.cal < 1 && o.rbl < 1) return { stage: null, text: o.pd > 3 ? 'pseudo-pocket, no attachment loss' : 'no attachment loss' };
+    let st = o.cal >= 5 ? 3 : o.cal >= 3 ? 2 : 1;
+    st = Math.max(st, o.rbl > 33 ? 3 : o.rbl >= 15 ? 2 : 1);
+    if (o.pd >= 6 || o.vertical >= 3 || o.furcation >= 2) st = Math.max(st, 3);
+    if (st === 3 && o.teethLost >= 5) st = 4;
+    const roman = ['', 'I', 'II', 'III', 'IV'][st];
+    return { stage: roman, text: `consistent with Stage ${roman}` };
+  };
   /* ==== end topic: perio ==== */
 
   /* ==== topic: prosth (Fixed prosthetics: bridges, veneers, inlays and onlays) ==== */

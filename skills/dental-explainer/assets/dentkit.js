@@ -2342,10 +2342,10 @@
   // Carve a crown lattice (positions P, lattice row 0 at vertex `off`) into the cavity. The cavity is one analytic surface:
   // the floor inside the outline, rising as a wall (8° divergence) with the plan distance outside it; every layer (enamel,
   // DEJ, dentin) samples the same surface, so their walls line up without moving any vertex in plan. Covered cusps are
-  // lowered by cuspCut. k eases it all in. Returns {Q, inside} (inside: 1 where the vertex lies within the outline).
+  // lowered by cuspCut. k eases it all in. Returns {Q, inside, cut} (inside: within the outline in plan; cut: material removed).
   function carve(s, c, P, k, off, eps) {
     const R = cavityRects(s, c), hw = s.md / 2, hd = s.bl / 2, n = P.length / 3, Q = new Float32Array(P), W = PR_W, slope = 1 / Math.tan(8 * Math.PI / 180);
-    const inside = new Uint8Array(n);
+    const inside = new Uint8Array(n), cut = new Uint8Array(n);
     const cutY = (x, z) => { // height of the cavity surface at plan (x, z): the floor inside, the wall outside; null far away
       const xn = x / hw, zn = z / hd; let best = null;
       R.forEach(r => { const d = Math.hypot((xn - clamp(xn, r.x0, r.x1)) * hw, (zn - clamp(zn, r.z0, r.z1)) * hd), y = r.y + d * slope; if (best === null || y < best.y) best = { y, d }; });
@@ -2356,10 +2356,11 @@
       if (v >= off) { const { t, th } = latticeOf(v - off); y -= cuspCut(s, c, t, th) * k; }
       const cy = cutY(x, z);
       if (cy && cy.d < 1e-6) inside[v] = 1;
-      if (cy && y > cy.y - eps) y = lerp(P[v * 3 + 1], cy.y - eps, k);
+      if (cy && y > cy.y - eps) { y = lerp(P[v * 3 + 1], cy.y - eps, k); cut[v] = 1; }
+      else if (cy && inside[v] && v >= off && latticeOf(v - off).t > 0.6) y = lerp(P[v * 3 + 1], cy.y - eps, k);   // an occlusal surface dipping below the floor (the DEJ under the fossa) is filled up to it: no slit under the cavity
       Q[v * 3] = x; Q[v * 3 + 1] = y; Q[v * 3 + 2] = z;
     }
-    return { Q, inside };
+    return { Q, inside, cut };
   }
   const cavityDisplace = (s, c, P, k) => carve(s, c, P, k, 0, 0.02).Q;
   // Inlay / onlay preparation on a posterior tooth: a group {enamel, dentin, set(k), spec, cav}. It holds the enamel shell
@@ -2378,7 +2379,7 @@
       k = clamp(k, 0, 1); const O = carve(s, c, P, k, 0, 0.02), Qo = O.Q, Qi = carve(s, c, Pd, k, 0, 0.02).Q, Qd = carve(s, c, Pb, k, dStart, 0).Q;
       for (let v = 0; v < nA; v++) {   // under the cavity floor there is no enamel: the DEJ collapses onto the floor there
         ep.setXYZ(v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]);
-        if (O.inside[v] && k > 0.999) ep.setXYZ(nA + v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]); else ep.setXYZ(nA + v, Qi[v * 3], Math.min(Qi[v * 3 + 1], Qo[v * 3 + 1]), Qi[v * 3 + 2]);
+        if (O.inside[v] && O.cut[v] && k > 0.999) ep.setXYZ(nA + v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]); else ep.setXYZ(nA + v, Qi[v * 3], Math.min(Qi[v * 3 + 1], Qo[v * 3 + 1]), Qi[v * 3 + 2]);
       }
       ep.needsUpdate = true; enamelGeo.computeVertexNormals(); enamelGeo.computeBoundingSphere();
       for (let v = 0; v < nD; v++) dp.setXYZ(v, Qd[v * 3], v >= dStart && v - dStart < nA ? Math.min(Qd[v * 3 + 1], Qo[(v - dStart) * 3 + 1] + 0.02) : Qd[v * 3 + 1], Qd[v * 3 + 2]);   // the DEJ follows the cusp reduction

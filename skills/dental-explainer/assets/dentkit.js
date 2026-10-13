@@ -1467,7 +1467,230 @@
   /* ==== end topic: perio ==== */
 
   /* ==== topic: prosth (Fixed prosthetics: bridges, veneers, inlays and onlays) ==== */
-  // (reserved)
+  // All preparations here are built on the crown's own (t, th) surface lattice (CROWN_ROWS × CROWN_COLS, the lattice of
+  // crownGeometry), so a restoration made from the same numbers shares the prep's vertices and seats on it exactly.
+  // P = the intact surface point, Q = the prepared point; a restoration is the shell between P and Q.
+  const PR_COLS = CROWN_COLS, PR_ROWS = CROWN_ROWS, PR_W = PR_COLS + 1;
+  const latticeOf = k => { const i = Math.floor(k / PR_W), j = k % PR_W; return { t: i / PR_ROWS, th: (j % PR_COLS) / PR_COLS * Math.PI * 2 }; };
+  // Closed shell between an outer and an inner surface that share the lattice (a restoration over its prep). Where the two
+  // coincide (no reduction) the shell has no thickness: those triangles are dropped, and because a kept triangle's outer and
+  // inner copies meet along any shared zero-thickness edge, the shell closes itself along the margin. Section-ready.
+  function fitShell(outerPos, innerPos) {
+    const A = crownGeometry({ crownL: 1, md: 1, mdC: 1, bl: 1, blC: 1 }, null, true), ia = A.index.array, n = A.attributes.position.count, cols = PR_COLS;
+    const same = new Uint8Array(n);
+    for (let k = 0; k < n; k++) same[k] = Math.abs(outerPos[k * 3] - innerPos[k * 3]) + Math.abs(outerPos[k * 3 + 1] - innerPos[k * 3 + 1]) + Math.abs(outerPos[k * 3 + 2] - innerPos[k * 3 + 2]) < 1e-4 ? 1 : 0;
+    const pos = Array.from(outerPos).concat(Array.from(innerPos)), uv = Array.from(A.attributes.uv.array), idx = [];
+    for (let i = 0; i < ia.length; i += 3) {
+      const a = ia[i], b = ia[i + 1], c = ia[i + 2]; if (same[a] && same[b] && same[c]) continue;
+      idx.push(a, b, c, n + a, n + c, n + b);
+    }
+    for (let j = 0; j < cols; j++) { const o0 = j, o1 = j + 1; if (same[o0] && same[o1]) continue; idx.push(o0, o1, n + o0, o1, n + o1, n + o0); }   // margin ring (row 0)
+    const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv.concat(uv), 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    return geo;
+  }
+  const prostheticMat = m => DK.mat(m === 'composite' ? 'composite' : (m === 'zirconia' || m === 'gold' ? m : 'ceramic'), { cap: m === 'gold' ? 0xb48a2c : 0xe4e0d6 });   // caps a touch darker than the body so a cut reads as a cut
+
+  /* --- Veneer: labial reduction by thirds, three incisal designs, an animatable prep and the shell that fits it --- */
+  // o: { cervical: 0.3, middle: 0.5, incisal: 0.7 (labial depths, mm), edge: 1.5 (incisal reduction, mm),
+  //      type: 'window' | 'butt' | 'overlap', wrap: 1.0 (mm of palatal wrap for 'overlap') }. Margin: a light chamfer ~0.4 mm above the CEJ.
+  function veneerOpts(o) { return Object.assign({ cervical: 0.3, middle: 0.5, incisal: 0.7, edge: 1.5, type: 'butt', wrap: 1.0 }, o); }
+  // Returns Q (Float32Array) from the intact lattice positions P for a veneer prep at fac, inc ∈ 0..1.
+  function veneerDisplace(s, o, P, fac, inc) {
+    const P1 = crownGeometry(s, { side: 1, top: 0, reliefScale: 1, topScale: 1, cervical: 1 }, true).attributes.position.array;   // 1 mm uniform inset: the inward direction per vertex
+    const Q = new Float32Array(P.length), top = s.crownL, edgeY = top - o.edge * inc, hasEdge = o.type !== 'window' && inc > 0.001;
+    for (let k = 0; k < P.length / 3; k++) {
+      const { t, th } = latticeOf(k), sn = Math.sin(th);
+      const depth = t < 0.33 ? lerp(o.cervical, o.middle, t / 0.33) : lerp(o.middle, o.incisal, (t - 0.33) / 0.67);
+      let w = smooth(0.04, 0.14, t) * smooth(0.0, 0.4, sn);                                      // margin ramp (chamfer) × labial face
+      if (o.type === 'window') w *= smooth(1.0, 0.9, t);                                            // stops short of the edge
+      if (o.type === 'overlap' && hasEdge) w = Math.max(w, smooth(edgeY - o.wrap, edgeY, P[k * 3 + 1]) * smooth(0.04, 0.14, t));   // palatal wrap below the new edge
+      const d = depth * w * fac;
+      const x = P[k * 3] + (P1[k * 3] - P[k * 3]) * d, z = P[k * 3 + 2] + (P1[k * 3 + 2] - P[k * 3 + 2]) * d;
+      let y = P[k * 3 + 1] + (P1[k * 3 + 1] - P[k * 3 + 1]) * d;
+      if (hasEdge && y > edgeY) y = edgeY;                                                          // butt joint: flat incisal reduction
+      Q[k * 3] = x; Q[k * 3 + 1] = y; Q[k * 3 + 2] = z;
+    }
+    return Q;
+  }
+  // Veneer preparation you can animate: the tooth's enamel shell whose labial surface eases into the prep. m.set(labial, incisal)
+  // (each 0..1). Add it to DK.tooth(fdi, {omit:['enamel']}).group (dentin, root, pulp): in section the enamel left under the
+  // prep shows how much of the 0.3–0.7 mm stays in enamel. Section group: enamel. m.spec, m.opts.
+  DK.veneerPrep = function (presetOrFdi, o) {
+    o = veneerOpts(o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const geo = shellGeometry(crownGeometry(s, null, true), crownGeometry(s, DEJ, true)), pos = geo.attributes.position;
+    const P = Float32Array.from(crownGeometry(s, null, true).attributes.position.array);
+    const mat = DK.mat('enamel'); mat.userData.capColor = DK.COLORS.enamelCap;
+    const m = new T.Mesh(geo, mat); m.name = 'Prepared tooth'; m.userData.prep = { labial: 0, incisal: 0 };
+    m.set = (fac, inc) => {
+      fac = clamp(fac ?? m.userData.prep.labial, 0, 1); inc = clamp(inc ?? m.userData.prep.incisal, 0, 1); m.userData.prep = { labial: fac, incisal: inc };
+      const Q = veneerDisplace(s, o, P, fac, inc); pos.array.set(Q, 0); pos.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere(); return m;
+    };
+    m.spec = s; m.opts = o; m.intact = P; return m;
+  };
+  // The veneer: a shell between the original labial surface and the finished prep (same numbers as DK.veneerPrep), 0.3–0.7 mm
+  // thick, covering the incisal edge for 'butt' and 'overlap'. material: 'ceramic' (glass-ceramic / feldspathic) or 'composite'.
+  DK.veneer = function (presetOrFdi, o, material) {
+    o = veneerOpts(o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const P = crownGeometry(s, null, true).attributes.position.array, Q = veneerDisplace(s, o, P, 1, 1);
+    const m = new T.Mesh(fitShell(P, Q), prostheticMat(material)); m.name = 'Veneer'; m.spec = s; m.opts = o; return m;
+  };
+
+  /* --- Inlay / onlay: occlusal isthmus, proximal boxes, cusp coverage, and the restoration that fills them --- */
+  // cav: { isthmus: 2.0 (BL width, mm), depth: 1.8 (pulpal floor below the central fossa, mm), boxes: ['mesial','distal'] | [],
+  //        boxWidth: 0.4 (BL half-width of a box, as a fraction of the crown BL half-width), boxFloor: 1.0 (gingival floor, mm above the CEJ),
+  //        axial: 0.28 (MD depth of the box from the proximal surface, as a fraction of the half MD width),
+  //        cusps: [] | ['buccal','lingual'] (onlay cusp coverage), reduction: 1.5 (mm over covered cusps) }.
+  function cavityOpts(c) { return Object.assign({ isthmus: 2.0, depth: 1.8, boxes: ['mesial', 'distal'], boxWidth: 0.4, boxFloor: 1.0, axial: 0.28, cusps: [], reduction: 1.5 }, c); }
+  function cuspCut(s, c, t, th) {   // mm removed over a covered cusp at lattice (t, th)
+    if (!c.cusps.length) return 0; const sn = Math.sin(th);
+    const side = c.cusps.includes('buccal') && sn > 0 ? smooth(0.05, 0.3, sn) : c.cusps.includes('lingual') && sn < 0 ? smooth(0.05, 0.3, -sn) : 0;
+    return c.reduction * side * smooth(0.6, 0.78, t);
+  }
+  // Cavity outline in the plan as rectangles in normalized crown coordinates (xn, zn in −1..1), each with its floor height:
+  // the isthmus (pulpal floor), and a box per side (gingival floor) whose outer end is open through the proximal surface.
+  function cavityRects(s, c) {
+    const pulpal = s.crownL + (s.relief ? s.relief(0, 0) : 0) - c.depth, hd = s.bl / 2, iw = c.isthmus / 2 / hd, mes = c.boxes.includes('mesial'), dis = c.boxes.includes('distal'), ax = 1 - c.axial;
+    const R = [{ x0: dis ? -2 : -0.62, x1: mes ? 2 : 0.62, z0: -iw, z1: iw, y: pulpal }];
+    if (mes) R.push({ x0: ax, x1: 2, z0: -c.boxWidth, z1: c.boxWidth, y: c.boxFloor });
+    if (dis) R.push({ x0: -2, x1: -ax, z0: -c.boxWidth, z1: c.boxWidth, y: c.boxFloor });
+    return R;
+  }
+  const inRect = (r, x, z) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
+  // Carve a crown lattice (positions P, lattice row 0 at vertex `off`) into the cavity: vertices inside the outline drop to the
+  // floor; the lattice vertices on either side of the outline snap onto it (outside ones exactly, inside ones `taper` mm in), so
+  // every layer gets the same crisp, slightly divergent wall. Covered cusps are lowered by cuspCut. k eases it all in.
+  function carve(s, c, P, k, off, eps) {
+    const R = cavityRects(s, c), hw = s.md / 2, hd = s.bl / 2, n = P.length / 3, Q = new Float32Array(P), W = PR_W, taper = c.depth * Math.tan(8 * Math.PI / 180);
+    const floorAt = (xn, zn) => { let f = null; R.forEach(r => { if (inRect(r, xn, zn)) f = f === null ? r.y : Math.min(f, r.y); }); return f; };
+    const inside = new Uint8Array(n), fl = new Float32Array(n);
+    for (let v = 0; v < n; v++) { const f = floorAt(P[v * 3] / hw, P[v * 3 + 2] / hd); inside[v] = f !== null ? 1 : 0; fl[v] = f ?? 0; }
+    const nearest = (xn, zn, insideNow) => { // nearest point on the outline of the union of rectangles
+      let best = null, bd = 1e9;
+      R.forEach(r => {
+        if (insideNow && !inRect(r, xn, zn)) return;
+        const cands = insideNow ? [[r.x0, zn], [r.x1, zn], [xn, r.z0], [xn, r.z1]] : [[clamp(xn, r.x0, r.x1), clamp(zn, r.z0, r.z1)]];
+        cands.forEach(q => { if (insideNow && R.some(o => o !== r && inRect(o, q[0], q[1]))) return; const d = Math.hypot(q[0] - xn, q[1] - zn); if (d < bd) { bd = d; best = q; } });
+      });
+      return best;
+    };
+    for (let v = 0; v < n; v++) {
+      let x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+      if (v >= off) {
+        const L = v - off, i = Math.floor(L / W), j = L % W, { t, th } = latticeOf(L);
+        y -= cuspCut(s, c, t, th) * k;
+        const nb = [j > 0 ? v - 1 : -1, j < W - 1 ? v + 1 : -1, i > 0 ? v - W : -1, v + W < n ? v + W : -1].filter(u => u >= 0 && u >= off);
+        const crosses = nb.some(u => inside[u] !== inside[v]);
+        if (crosses && (inside[v] === 0 || y > fl[v])) {   // snap onto the outline (inside vertices: a touch inward, for the wall divergence)
+          const xn = x / hw, zn = z / hd, q = nearest(xn, zn, inside[v] === 1);
+          if (q) { let qx = q[0] * hw, qz = q[1] * hd; if (inside[v]) { const dx = x - qx, dz = z - qz, d = Math.hypot(dx, dz) || 1; qx += dx / d * taper; qz += dz / d * taper; } x = lerp(x, qx, k); z = lerp(z, qz, k); }
+        }
+      }
+      if (inside[v] && y > fl[v] - eps) y = lerp(P[v * 3 + 1], fl[v] - eps, k);
+      Q[v * 3] = x; Q[v * 3 + 1] = y; Q[v * 3 + 2] = z;
+    }
+    return Q;
+  }
+  const cavityDisplace = (s, c, P, k) => carve(s, c, P, k, 0, 0.02);
+  // Inlay / onlay preparation on a posterior tooth: a group {enamel, dentin, set(k), spec, cav}. It holds the enamel shell
+  // and the dentin body (both carved); add DK.tooth(fdi, {omit:['enamel','dentin']}).group for the roots and pulp. set(k) eases
+  // the cavity and the cusp reduction in (k 0..1). Section groups: enamel, then dentin (with the roots), then pulp.
+  DK.inlayPrep = function (presetOrFdi, cav) {
+    const c = cavityOpts(cav); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const outer = crownGeometry(s, null, true), inner = crownGeometry(s, DEJ, true), P = Float32Array.from(outer.attributes.position.array), Pd = Float32Array.from(inner.attributes.position.array);
+    const enamelGeo = shellGeometry(outer, inner), ep = enamelGeo.attributes.position, nA = P.length / 3;
+    const dentinGeo = dentinBodyGeometry(s), dp = dentinGeo.attributes.position, nD = dp.count, dStart = (s.roots.length === 1 ? 48 : 16) * PR_W;   // first crown lattice row of the dentin body
+    const Pb = Float32Array.from(dp.array);
+    const mE = DK.mat('enamel'), mD = DK.mat('dentin'); mE.userData.capColor = DK.COLORS.enamelCap;
+    const enamel = new T.Mesh(enamelGeo, mE), dentin = new T.Mesh(dentinGeo, mD); enamel.name = 'Enamel'; dentin.name = 'Dentin';
+    const grp = new T.Group(); grp.name = 'Prepared tooth'; grp.add(enamel, dentin);
+    const set = k => {
+      k = clamp(k, 0, 1); const Qo = carve(s, c, P, k, 0, 0.02), Qi = carve(s, c, Pd, k, 0, 0.02), Qd = carve(s, c, Pb, k, dStart, 0);
+      for (let v = 0; v < nA; v++) { ep.setXYZ(v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]); ep.setXYZ(nA + v, Qi[v * 3], Math.min(Qi[v * 3 + 1], Qo[v * 3 + 1]), Qi[v * 3 + 2]); }
+      ep.needsUpdate = true; enamelGeo.computeVertexNormals(); enamelGeo.computeBoundingSphere();
+      for (let v = 0; v < nD; v++) dp.setXYZ(v, Qd[v * 3], v >= dStart && v - dStart < nA ? Math.min(Qd[v * 3 + 1], Qo[(v - dStart) * 3 + 1] + 0.02) : Qd[v * 3 + 1], Qd[v * 3 + 2]);   // the DEJ follows the cusp reduction
+      dp.needsUpdate = true; dentinGeo.computeVertexNormals(); dentinGeo.computeBoundingSphere();
+      grp.userData.k = k; return grp;
+    };
+    grp.set = set; grp.enamel = enamel; grp.dentin = dentin; grp.spec = s; grp.cav = c;
+    set(1); return grp;
+  };
+  // The inlay or onlay: a solid between the original occlusal surface and the cavity (same cav as DK.inlayPrep), so it seats
+  // exactly. material: 'ceramic' (lithium disilicate), 'gold', 'composite', 'zirconia'. Section: its own group before the tooth.
+  DK.inlay = function (presetOrFdi, cav, material) {
+    const c = cavityOpts(cav); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const P = crownGeometry(s, null, true).attributes.position.array, Q = cavityDisplace(s, c, P, 1);
+    const m = new T.Mesh(fitShell(P, Q), prostheticMat(material)); m.name = c.cusps.length ? 'Onlay' : 'Inlay'; m.spec = s; m.cav = c; return m;
+  };
+
+  /* --- Bridge (fixed partial denture): retainers on the abutment preps, a pontic shaped like the missing crown, connectors --- */
+  // Minimum connector cross-sections by material (mm, occluso-gingival h × bucco-lingual w): manufacturer / textbook figures
+  // (dental-facts.md §18). Height matters more than width (stiffness ∝ h³).
+  DK.CONNECTORS = {
+    zirconia: { anterior: { h: 3, w: 3, area: 9 }, posterior: { h: 4, w: 3, area: 12 } },                   // IPS e.max ZirCAD IFU: 9 / 12 mm² for a 3-unit
+    'lithium disilicate': { anterior: { h: 4, w: 4, area: 16 }, posterior: { h: 4, w: 4, area: 16 } },     // IPS e.max Press / CAD: 16 mm²
+    'metal-ceramic': { anterior: { h: 3, w: 2.5, area: 7.5 }, posterior: { h: 3, w: 2.5, area: 7.5 } },    // textbook: ~2.5–3 mm high [U]
+    gold: { anterior: { h: 2.5, w: 2.5, area: 6.25 }, posterior: { h: 2.5, w: 2.5, area: 6.25 } }
+  };
+  // x of the proximal surface of a crown at height y (mesial: side = +1, distal: −1).
+  function proximalX(s, y, side) {
+    const ring = crownRingFn(s), th = side > 0 ? 0 : Math.PI; let best = 0, bd = 1e9;
+    for (let i = 0; i <= 60; i++) { const p = ring(i / 60 * 0.72, th), d = Math.abs(p[1] - y); if (d < bd) { bd = d; best = p[0]; } }
+    return best;
+  }
+  // Pontic: the missing tooth's crown (cervical ring at y = 0) over a base shaped by the design, meeting the ridge at ridgeY.
+  // o: { design: 'modified ridge lap' | 'ovate' | 'sanitary' | 'conical', ridgeY: number | (z => y) (ridge top under the pontic, mm),
+  //      clearance: 3 (sanitary gap, mm), depth: 1.2 (ovate: mm into the ridge), contact: 0.35 (modified ridge lap: contact point as
+  //      a fraction of the buccal half-width) }. Returns a closed solid mesh; mesh.contact = [x, y, z] of the tissue contact.
+  DK.pontic = function (presetOrFdi, o, material) {
+    o = Object.assign({ design: 'modified ridge lap', ridgeY: -2.5, clearance: 3, depth: 1.2, contact: 0.35 }, o);
+    const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const ridge = typeof o.ridgeY === 'function' ? o.ridgeY : () => o.ridgeY, ring = crownRingFn(s), a = s.mdC / 2, b = s.blC / 2;
+    // base profile: the bottom ring (footprint) blends into the cervical ring; xz follows g(u), y follows h(u) (u: 0 bottom → 1 cervix)
+    const D = o.design; let cz = 0, cy, ra, rb, g, h;
+    if (D === 'modified ridge lap') { cz = o.contact * b; cy = ridge(cz); ra = 0.5 * a; rb = 0.18 * b;
+      g = (u, sn) => Math.pow(u, lerp(0.8, 1.0, smooth(-0.3, 0.5, sn)));                                     // buccal face straight, lingual slightly convex
+      h = (u, sn) => 1 - Math.pow(1 - u, lerp(2.6, 1.0, smooth(-0.3, 0.5, sn))); }                         // lingual rises steeply off the ridge
+    else if (D === 'ovate') { cy = ridge(0) - o.depth; ra = 0.3 * a; rb = 0.3 * b; g = u => 1 - Math.pow(1 - u, 2.2); h = u => u; }
+    else if (D === 'sanitary') { cy = ridge(0) + o.clearance; ra = 0.28 * a; rb = 0.28 * b; g = u => 1 - Math.pow(1 - u, 2.0); h = u => u; }
+    else { cy = ridge(0); ra = 0.1 * a; rb = 0.1 * b; g = u => u; h = u => u; }   // conical
+    // the pontic has no cervix: its tissue end narrows from the ring at t = TC (above the natural crown's cervical bulge) to the footprint
+    const baseRows = 20, TC = 0.28;
+    const geo = gridGeometry(baseRows + PR_ROWS, PR_COLS, (i, j) => {
+      const th = j / PR_COLS * Math.PI * 2;
+      if (i >= baseRows) return ring(TC + (1 - TC) * (i - baseRows) / PR_ROWS, th);
+      const u = i / baseRows, sn = Math.sin(th), gg = g(u, sn), bx = ra * se(Math.cos(th), 2.2), bz = cz + rb * se(sn, 2.2), C = ring(TC, th);
+      return [lerp(bx, C[0], gg), lerp(cy, C[1], h(u, sn)), lerp(bz, C[2], gg)];
+    }, null, [0, cy - 0.02, 0]);
+    const m = new T.Mesh(geo, prostheticMat(material)); m.name = 'Pontic'; m.spec = s; m.design = D; m.contact = [0, cy, cz]; return m;
+  };
+  // Connector between two units: a rounded prism along x from x0 to x1, h × w (mm) centred at (yc, zc).
+  DK.connector = function (x0, x1, yc, zc, h, w, material) {
+    const geo = gridGeometry(6, 36, (i, j) => { const ph = j / 36 * Math.PI * 2; return [lerp(x0, x1, i / 6), yc + h / 2 * se(Math.cos(ph), 3.2), zc - w / 2 * se(Math.sin(ph), 3.2)]; }, [x1, yc, zc], [x0, yc, zc]);
+    const m = new T.Mesh(geo, prostheticMat(material)); m.name = 'Connector'; m.size = { h, w, area: Math.round(h * w * 10) / 10 }; return m;
+  };
+  // Fixed partial denture. units: [{fdi|spec, x, role:'abutment'|'pontic', prep:{axial, occlusal, margin}}] in the jaw frame
+  // (CEJ at y = 0; the retainers seat on DK.prep / DK.prepMorph made with the same prep numbers). o: { material: 'zirconia' |
+  // 'lithium disilicate' | 'metal-ceramic' | 'gold', region: 'anterior' | 'posterior', connector: {h, w} (overrides DK.CONNECTORS),
+  // pontic: DK.pontic options (ridgeY as a number or z => y), connectorY (centre height, default 55% of the shorter crown),
+  // connectorZ }. Returns a group with .retainers, .pontics, .connectors, .units.
+  DK.bridge = function (o) {
+    o = Object.assign({ material: 'zirconia', region: 'posterior', units: [], pontic: {}, connectorZ: 0 }, o);
+    const grp = new T.Group(); grp.name = 'Bridge'; grp.retainers = []; grp.pontics = []; grp.connectors = [];
+    const units = o.units.map(u => Object.assign({}, u, { spec: typeof u.spec === 'object' ? u.spec : DK.toothPreset(u.fdi ?? u.spec) })).sort((p, q) => p.x - q.x);
+    units.forEach(u => {
+      let m;
+      if (u.role === 'pontic') m = DK.pontic(u.spec, o.pontic, o.material);
+      else { m = DK.restorationCrown(u.spec, 'ceramic', Object.assign({ hollow: true }, u.prep || {})); m.name = 'Retainer'; m.material = prostheticMat(o.material); }
+      m.position.x = u.x; u.mesh = m; grp.add(m); (u.role === 'pontic' ? grp.pontics : grp.retainers).push(m);
+    });
+    const cs = o.connector || (DK.CONNECTORS[o.material] || DK.CONNECTORS.zirconia)[o.region];
+    for (let i = 0; i + 1 < units.length; i++) {
+      const A = units[i], B = units[i + 1], yc = o.connectorY ?? 0.55 * Math.min(A.spec.crownL, B.spec.crownL);
+      const xa = A.x + proximalX(A.spec, yc, 1) - 0.6, xb = B.x + proximalX(B.spec, yc, -1) + 0.6;   // ends sink 0.6 mm into each unit
+      const c = DK.connector(xa, xb, yc, o.connectorZ, cs.h, cs.w, o.material); grp.add(c); grp.connectors.push(c);
+    }
+    grp.units = units; grp.spec = o; return grp;
+  };
   /* ==== end topic: prosth ==== */
 
   /* ==== topic: ortho (Orthodontics: brackets, archwires, aligners, tooth movement) ==== */

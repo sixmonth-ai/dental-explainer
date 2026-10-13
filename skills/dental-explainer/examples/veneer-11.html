@@ -1,0 +1,1803 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preparing an incisor for a veneer</title></head>
+<body>
+<script>window.DK_MODE = 'interactive'; window.DK_ASPECT = '16:9';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* dentkit.js — drawing kit for interactive dental figures (three.js r128, global THREE).
+   Units: millimetres. Tooth local frame: y up = coronal (CEJ at y=0), +x = mesial, +z = buccal/labial. */
+(function () {
+  const T = THREE;
+  const DK = {};
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  DK.util = { clamp, lerp, smooth, ease };
+  // Hex colours are written in sRGB (as designers pick them); three r128 treats raw hex as linear, which washes
+  // everything out on an sRGB canvas. DK.color converts. Use it for any custom material colour.
+  DK.color = hex => new T.Color(hex).convertSRGBToLinear();
+
+  /* ---------- palette & materials ---------- */
+  // Restrained palette: every tissue is a muted ivory, grey or dusty tone from the off-white / ink world of the brand, so the
+  // figure reads as one calm object; the brand accent is reserved for the single thing a figure points at.
+  DK.COLORS = {
+    enamel: 0xebe8e1, enamelCap: 0xe8e6e1, dentin: 0xdacfb6, dentinCap: 0xd8c9aa,
+    cementum: 0xcfc3aa, pulp: 0xb8827a, pulpCap: 0xb07a71, nerve: 0xd6c08a, artery: 0xb3675f, vein: 0x74839c,
+    pdl: 0xbca29c, gingiva: 0xcaa29e, gingivaCap: 0xc39692, cortical: 0xe3dbcb, corticalCap: 0xe9e3d4, cancellous: 0xd6cab2,
+    titanium: 0xb1b3b5, titaniumDark: 0x85888c, zirconia: 0xf2f0ea, ceramic: 0xf1efe8,
+    gold: 0xcbb27c, steel: 0xc4c6c8, nickelTi: 0xa3a6a9, gutta: 0xc8977c, composite: 0xe7e1d3, rubberDam: 0x5b7f9a, caries: 0x7a6554,
+    accent: 0x0E3A5C, accentDark: 0x5A8FB8
+  };
+  const MAT_PRESETS = {
+    enamel: { color: 'enamel', roughness: 0.3, metalness: 0, clearcoat: 0.7, rim: [0.80, 0.86, 0.95, 0.45], core: [1.0, 0.965, 0.9, 0.45], bump: 'perikymata', bumpScale: 0.005 },
+    dentin: { color: 'dentin', roughness: 0.62, bump: 'streaks', bumpScale: 0.02 },
+    root: { color: 'cementum', roughness: 0.68, bump: 'streaks', bumpScale: 0.03, map: 'streaks' },
+    pulp: { color: 'pulp', roughness: 0.5 },
+    gingiva: { color: 'gingiva', roughness: 0.42, clearcoat: 0.3, bump: 'stipple', bumpScale: 0.02, core: [1.0, 0.93, 0.92, 0.22] },
+    bone: { color: 'cortical', roughness: 0.74, bump: 'pores', bumpScale: 0.05, map: 'pores' },
+    titanium: { color: 'titanium', roughness: 0.32, metalness: 0.85 },
+    titaniumDark: { color: 'titaniumDark', roughness: 0.35, metalness: 0.85 },
+    gold: { color: 'gold', roughness: 0.3, metalness: 0.9 },
+    steel: { color: 'steel', roughness: 0.25, metalness: 0.9 },
+    zirconia: { color: 'zirconia', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },
+    ceramic: { color: 'ceramic', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },   // same program as zirconia
+    nerve: { color: 'nerve', roughness: 0.5 },
+    artery: { color: 'artery', roughness: 0.45 },
+    vein: { color: 'vein', roughness: 0.45 },
+    pdl: { color: 'pdl', roughness: 0.6 },
+    gutta: { color: 'gutta', roughness: 0.5 },
+    composite: { color: 'composite', roughness: 0.35 },
+    caries: { color: 'caries', roughness: 0.8 },
+    rubberDam: { color: 'rubberDam', roughness: 0.5 },
+    fiber: { color: 0xe9e5da, roughness: 0.35 },
+    cement: { color: 0xdcdedf, roughness: 0.6 }
+  };
+
+  /* Procedural textures (no image files). All tileable. */
+  const TEX = {};
+  const seeded = seed => { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; };
+  // value noise field, N×N pixels, cx×cy lattice cells per tile, `oct` octaves. Returns Float32Array in 0..1.
+  function noiseField(N, cx, cy, rnd, oct, gain) {
+    const out = new Float32Array(N * N); let amp = 1, total = 0;
+    for (let o = 0; o < (oct || 1); o++) {
+      const gx = cx << o, gy = cy << o, lat = new Float32Array(gx * gy); for (let i = 0; i < lat.length; i++) lat[i] = rnd();
+      for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+        const fx = x / N * gx, fy = y / N * gy, ix = Math.floor(fx), iy = Math.floor(fy), tx = smooth(0, 1, fx - ix), ty = smooth(0, 1, fy - iy);
+        const v = (X, Y) => lat[((Y % gy) * gx) + (X % gx)];
+        out[y * N + x] += amp * lerp(lerp(v(ix, iy), v(ix + 1, iy), tx), lerp(v(ix, iy + 1), v(ix + 1, iy + 1), tx), ty);
+      }
+      total += amp; amp *= gain || 0.5;
+    }
+    for (let i = 0; i < out.length; i++) out[i] /= total;
+    return out;
+  }
+  function dataTexture(N, fill, opts) { // fill(i, px) writes rgba into px (0..255)
+    const d = new Uint8Array(N * N * 4), px = [128, 128, 128, 255];
+    for (let i = 0; i < N * N; i++) { fill(i, px); d.set(px, i * 4); }
+    const t = new T.DataTexture(d, N, N, T.RGBAFormat); t.wrapS = t.wrapT = T.RepeatWrapping; t.minFilter = T.LinearMipmapLinearFilter; t.magFilter = T.LinearFilter; t.generateMipmaps = true; t.anisotropy = 4;
+    if (opts && opts.repeat) t.repeat.set(opts.repeat[0], opts.repeat[1]);
+    if (opts && opts.srgb) t.encoding = T.sRGBEncoding;
+    t.needsUpdate = true; return t;
+  }
+  const N8 = v => Math.round(clamp(v, 0, 1) * 255);
+  DK.texture = function (kind) {
+    if (TEX[kind]) return TEX[kind];
+    const N = 256; let t;
+    if (kind === 'grain') { // 3 independent noises for shaders: r fine (3 oct), g coarse, b very fine
+      const r = noiseField(N, 16, 16, seeded(3), 3), g = noiseField(N, 5, 5, seeded(17), 2), b = noiseField(N, 40, 40, seeded(29), 1);
+      t = dataTexture(N, (i, px) => { px[0] = N8(r[i]); px[1] = N8(g[i]); px[2] = N8(b[i]); });
+      t.minFilter = T.LinearFilter; t.generateMipmaps = false;
+    } else if (kind === 'pores') { // cortical bone: fine porosity + gentle undulation; used as bump and as a faint albedo map
+      const f = noiseField(N, 24, 24, seeded(11), 3, 0.55), c = noiseField(N, 4, 4, seeded(12), 2), rnd = seeded(13);
+      const dots = new Float32Array(N * N); for (let k = 0; k < 420; k++) { const x0 = rnd() * N, y0 = rnd() * N, r = 1 + rnd() * 2.2; for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) { const d = Math.hypot(x, y) / r; if (d < 1) { const X = ((Math.round(x0) + x) % N + N) % N, Y = ((Math.round(y0) + y) % N + N) % N; dots[Y * N + X] = Math.max(dots[Y * N + X], 1 - d * d); } } }
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.5 + (c[i] - 0.5) * 0.5 - dots[i] * 0.45; px[0] = px[1] = px[2] = N8(v); }, { repeat: [3, 3] });
+    } else if (kind === 'stipple') { // gingiva: orange-peel stippling
+      const f = noiseField(N, 36, 36, seeded(5), 2, 0.4), c = noiseField(N, 6, 6, seeded(6), 1);
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.8 + (c[i] - 0.5) * 0.3; px[0] = px[1] = px[2] = N8(v); }, { repeat: [4, 4] });
+    } else if (kind === 'streaks') { // cementum / dentin: faint longitudinal streaks (u around, v along the root)
+      const f = noiseField(N, 48, 3, seeded(21), 2, 0.5), c = noiseField(N, 6, 6, seeded(22), 2);
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.7 + (c[i] - 0.5) * 0.4; px[0] = px[1] = px[2] = N8(v); }, { repeat: [3, 1] });
+    } else if (kind === 'perikymata') { // enamel: fine horizontal growth lines + faint mottling
+      const f = noiseField(N, 3, 48, seeded(31), 2), c = noiseField(N, 8, 8, seeded(32), 2);
+      t = dataTexture(N, (i, px) => { const v = 0.5 + (f[i] - 0.5) * 0.35 + (c[i] - 0.5) * 0.65; px[0] = px[1] = px[2] = N8(v); }, { repeat: [4, 1] });
+    } else throw new Error('Unknown texture ' + kind);
+    return (TEX[kind] = t);
+  };
+  const noiseTexture = DK.texture;
+  // Albedo variation maps are the bump textures re-used as a light multiply (white ± a few %): same pattern, subtle tone.
+  const mapTexture = kind => { const k = 'map:' + kind; if (TEX[k]) return TEX[k]; const src = DK.texture(kind).image.data, N = DK.texture(kind).image.width; const t = dataTexture(N, (i, px) => { const v = 0.955 + (src[i * 4] / 255 - 0.5) * 0.09; px[0] = px[1] = px[2] = N8(v); }, { repeat: [DK.texture(kind).repeat.x, DK.texture(kind).repeat.y] }); return (TEX[k] = t); };
+
+  DK.mat = function (name, extra) {
+    const p = Object.assign({}, MAT_PRESETS[name] || { color: name }, extra || {});
+    const c = typeof p.color === 'string' ? (DK.COLORS[p.color] !== undefined ? DK.COLORS[p.color] : p.color) : p.color;
+    const Mat = p.clearcoat ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
+    const m = new Mat({ color: DK.color(c), roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.35 } : {}),
+      ...(p.bump ? { bumpMap: noiseTexture(p.bump), bumpScale: p.bumpScale ?? 0.03 } : {}), ...(p.map ? { map: mapTexture(p.map) } : {}),
+      transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
+    m.userData.capColor = p.cap !== undefined ? p.cap : c;
+    if (p.rim || p.core) { // view-dependent tints: cool translucent edge at grazing angles (enamel, ceramics), warm core where the surface faces the viewer (dentin glowing through enamel, blood under gingiva)
+      const v4 = a => a.map(x => x.toFixed(3)).join(',');
+      const code = (p.rim ? `{ vec4 R = vec4(${v4(p.rim)}); gl_FragColor.rgb = mix(gl_FragColor.rgb, R.rgb, pow(fr, 2.5) * R.a); }` : '') +
+        (p.core ? `{ vec4 C = vec4(${v4(p.core)}); gl_FragColor.rgb *= mix(vec3(1.0), C.rgb, pow(1.0 - fr, 1.5) * C.a); }` : '');
+      m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
+        `{ float fr = 1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0); ${code} }\n#include <dithering_fragment>`); };
+      m.customProgramCacheKey = () => 'tint' + code.length + (p.rim || '') + (p.core || '');
+    }
+    return m;
+  };
+
+  /* ---------- geometry helpers ---------- */
+  function gridGeometry(rows, cols, fn, closeTop, closeBottom) {
+    // fn(i,j) -> [x,y,z]; rows along meridian (0..rows), cols around (0..cols-1, wraps). Column `cols` repeats column 0
+    // so the surface carries seamless UVs (u around, v along); the seam normals are averaged afterwards.
+    const pos = [], uv = [], idx = [], W = cols + 1;
+    for (let i = 0; i <= rows; i++) for (let j = 0; j <= cols; j++) { pos.push(...fn(i, j % cols)); uv.push(j / cols, i / rows); }
+    const at = (i, j) => i * W + j;
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+      const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
+      idx.push(a, b, d, b, c, d);
+    }
+    const addCap = (row, pt, flip) => {
+      const ci = pos.length / 3; pos.push(...pt); uv.push(0.5, row ? 1 : 0);
+      for (let j = 0; j < cols; j++) { const a = at(row, j), b = at(row, j + 1); flip ? idx.push(ci, b, a) : idx.push(ci, a, b); }
+    };
+    if (closeBottom) addCap(0, closeBottom, false);
+    if (closeTop) addCap(rows, closeTop, true);
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const n = g.attributes.normal, v = new T.Vector3(), w = new T.Vector3();
+    for (let i = 0; i <= rows; i++) { const a = at(i, 0), b = at(i, cols); v.fromBufferAttribute(n, a).add(w.fromBufferAttribute(n, b)).normalize(); n.setXYZ(a, v.x, v.y, v.z); n.setXYZ(b, v.x, v.y, v.z); }
+    return g;
+  }
+  DK.gridGeometry = gridGeometry;
+  const se = (v, n) => Math.sign(v) * Math.pow(Math.abs(v), 2 / n); // superellipse component
+
+  DK.lathe = function (profile, segments, mat) { // profile: [[r,y],...] bottom→top
+    const g = new T.LatheGeometry(profile.map(p => new T.Vector2(p[0], p[1])), segments || 48);
+    g.computeVertexNormals();
+    return mat ? new T.Mesh(g, mat) : g;
+  };
+  DK.tube = function (points, radius, mat, opts) {
+    opts = opts || {};
+    const curve = new T.CatmullRomCurve3(points.map(p => new T.Vector3(...p)));
+    const g = new T.TubeGeometry(curve, opts.segments || 64, radius, opts.radial || 16, false);
+    if (opts.taper) { // radius scale along length: taper(t)
+      const pa = g.attributes.position, n = opts.segments || 64, r = opts.radial || 16, v = new T.Vector3();
+      for (let i = 0; i <= n; i++) {
+        const t = i / n, c = curve.getPointAt(t), s = opts.taper(t);
+        for (let j = 0; j <= r; j++) { const k = i * (r + 1) + j; v.fromBufferAttribute(pa, k).sub(c).multiplyScalar(s).add(c); pa.setXYZ(k, v.x, v.y, v.z); }
+      }
+      g.computeVertexNormals();
+    }
+    const m = new T.Mesh(g, mat);
+    if (opts.caps !== false) { // close ends with spheres so section caps work
+      [0, 1].forEach(t => { const s = new T.Mesh(new T.SphereGeometry(radius * (opts.taper ? opts.taper(t) : 1), 16, 12), mat); s.position.copy(curve.getPointAt(t)); m.add(s); });
+    }
+    return m;
+  };
+
+  /* ---------- threaded bodies (implants, screws) ---------- */
+  // Helical thread on a core. y from 0 (top) to -length.
+  DK.threaded = function (o) {
+    const L = o.length, rc = o.coreRadius, d = o.threadDepth, p = o.pitch, starts = o.starts || 1;
+    const collar = o.collar ?? 0.8, apexTaper = o.apexTaper ?? 0.3, taper = o.bodyTaper ?? 0;
+    const rows = o.rows || Math.ceil(L / p * 14), cols = o.cols || 72;
+    const prof = u => { const f = u - Math.floor(u); return o.profile === 'square' ? (f < 0.5 ? 1 : 0.15) : (f < 0.5 ? f * 2 : (1 - f) * 2); };
+    return gridGeometry(rows, cols, (i, j) => {
+      const t = i / rows, y = -L * (1 - t), depthFromTop = L * (1 - t); // i=0 bottom (apex)
+      const th = j / cols * Math.PI * 2;
+      const apex = smooth(0, apexTaper * L, depthFromTop * 0 + (L - depthFromTop)); // 0 at apex → 1 above taper zone
+      let core = (o.collarRadius && depthFromTop < collar) ? o.collarRadius : rc * (1 - taper * (depthFromTop / L));
+      core *= lerp(0.55, 1, apex);
+      const thread = depthFromTop < collar ? 0 : d * smooth(collar, collar + p, depthFromTop) * lerp(0.4, 1, apex);
+      const r = core + thread * prof(depthFromTop / p * starts + th / (2 * Math.PI) * starts) - (o.round && t < 0.04 ? (0.04 - t) * 20 * core : 0);
+      return [Math.cos(th) * Math.max(r, 0.02), y, Math.sin(th) * Math.max(r, 0.02)];
+    }, [0, 0, 0], [0, -L - Math.min(rc * 0.25, 0.4), 0]);
+  };
+
+  /* ---------- teeth ---------- */
+  // Crown surface: superellipse rings from cervix (y=0) to occlusal; relief(xn,zn) adds cusps/edges.
+  const CROWN_COLS = 96;
+  // inset: {side, top, reliefScale, topScale, taperIn, cervical}. cervical: the inset at the cervix as a fraction of side (default
+  // 0.4) = the margin width of a prep (shoulder / chamfer). taperIn makes the side inset vanish at the cervix (the dentino-enamel
+  // junction: enamel is a knife edge at the CEJ); without it the inset is uniform (a crown preparation).
+  const CROWN_ROWS = 56;
+  function crownRingFn(c, inset) { // (t, th) → [x, y, z] on the crown surface, t: 0 cervix → 1 occlusal
+    inset = inset || { side: 0, top: 0, reliefScale: 1, topScale: 1 };
+    const H = c.crownL - inset.top, n = c.squareness || 2.4, grooves = c.sideGrooves || [];
+    return (t, th) => {
+      const sideIn = inset.side * (inset.taperIn ? Math.pow(smooth(0, 0.32, t), 0.8) : 1);
+      const cerv = inset.cervical ?? 0.4, aC = c.mdC / 2 - sideIn * cerv, bC = c.blC / 2 - sideIn * cerv, aM = c.md / 2 - sideIn, bM = c.bl / 2 - sideIn;
+      let a, b, y;
+      const side = 0.72;
+      if (t <= side) {
+        const sN = t / side, bul = Math.sin(Math.min(1, sN / (c.contourAt || 0.75)) * Math.PI / 2);
+        a = lerp(aC, aM, bul); b = lerp(bC, bM, Math.sin(Math.min(1, sN / (c.blContourAt || 0.45)) * Math.PI / 2));
+        if (c.incisal) b = lerp(b, c.incisalBL || 0.7, smooth(0.35, 1, sN));
+        y = sN * H * (c.incisal ? 0.97 : 0.78);
+      } else {
+        const sN = (t - side) / (1 - side);
+        // occlusal third converges toward the table: steeper than a cosine so cusps stand proud of the outline from the side
+        const k = c.incisal ? 1 : Math.cos(sN * Math.PI / 2) * (1 - 0.22 * Math.pow(sN, 1.5));
+        a = aM * (c.incisal ? lerp(1, 0.94, sN) : k); b = (c.incisal ? lerp(c.incisalBL || 0.7, 0.05, sN) : bM * k);
+        y = c.incisal ? H * (0.97 + 0.03 * Math.sin(sN * Math.PI / 2)) : H * (0.78 + 0.22 * Math.sin(sN * Math.PI / 2) * (inset.topScale ?? 1));
+      }
+      a = Math.max(a, 0.05); b = Math.max(b, 0.03);
+      let x = a * se(Math.cos(th), n), z = b * se(Math.sin(th), n);
+      // developmental grooves running down the facial / lingual surfaces: shallow valleys that fade cervically
+      if (grooves.length && !c.incisal) {
+        const xn = x / (c.md / 2), zs = Math.sign(z); let f = 1;
+        grooves.forEach(g => { if (zs === g.z) f -= (g.depth || 0.18) * Math.exp(-Math.pow((xn - g.x) / (g.w || 0.09), 2)) * smooth(0.35, 0.75, t); });
+        z *= f;
+      }
+      if (c.relief && !c.incisal) {
+        const w = smooth(0.45, 0.95, t);
+        y += w * c.relief(x / (c.md / 2), z / (c.bl / 2)) * (inset.reliefScale ?? 1);
+      }
+      if (c.incisal && c.incisalCurve) y += smooth(0.6, 1, t) * c.incisalCurve(x / (c.md / 2));
+      return [x, y, z];
+    };
+  }
+  function crownGeometry(c, inset, open) {
+    const rows = CROWN_ROWS, cols = CROWN_COLS, base = c.baseRound || 0, baseRows = base ? 6 : 0, n = c.squareness || 2.4, ring = crownRingFn(c, inset);
+    return gridGeometry(rows + baseRows, cols, (i, j) => {
+      const th = j / cols * Math.PI * 2;
+      if (i < baseRows) { // rounded base (pulp-chamber floor): a quarter-ellipse down to a point `base` mm below y = 0
+        const u = i / baseRows, k = Math.sqrt(1 - (1 - u) * (1 - u));
+        return [(c.mdC / 2) * k * se(Math.cos(th), n), -base * (1 - u), (c.blC / 2) * k * se(Math.sin(th), n)];
+      }
+      return ring((i - baseRows) / rows, th);
+    }, null, open ? null : [0, -base, 0]);
+  }
+  DK.crownGeometry = crownGeometry;
+  // Closed shell between two open crown surfaces (outer A, inner B), joined at their cervical rings: enamel over the DEJ, a crown over its prep.
+  function shellGeometry(A, B) {
+    const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = CROWN_COLS;
+    const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia), uv = Array.from(A.attributes.uv.array).concat(Array.from(B.attributes.uv.array));
+    for (let i = 0; i < ib.length; i += 3) idx.push(ib[i] + off, ib[i + 2] + off, ib[i + 1] + off); // inner surface faces inward
+    for (let j = 0; j < cols; j++) { const o0 = j, o1 = j + 1, i0 = off + j, i1 = off + j + 1; idx.push(o0, o1, i0, o1, i1, i0); } // margin ring (row 0 of each surface)
+    const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    return geo;
+  }
+  const DEJ = { side: 1.1, top: 1.9, reliefScale: 0.75, taperIn: true };   // enamel thickness: knife edge at the CEJ, ~1 mm on the sides, ~2 mm over cusps
+  // Continuous dentin: root (single-rooted) or furcation dome + root trunk (multi-rooted) flowing into the crown dentin under
+  // the DEJ — one closed surface, so a cut shows no seam at the CEJ.
+  function dentinBodyGeometry(s) {
+    const cols = CROWN_COLS, ring = crownRingFn(s, DEJ), n = s.squareness || 2.4, single = s.roots.length === 1;
+    if (single) {
+      const r = s.roots[0], rootRows = 48, L = r.len, sc = { k: 1, add: 0, minR: 0.05 };
+      return gridGeometry(rootRows + CROWN_ROWS, cols, (i, j) => { const th = j / cols * Math.PI * 2; return i <= rootRows ? rootRing(r, 1 - i / rootRows, th, sc, L) : ring((i - rootRows) / CROWN_ROWS, th); }, null, null);
+    }
+    const trunk = s.trunk || 3, domeRows = 6, trunkRows = 10, yRim = -trunk + 0.6, domeH = 0.9;
+    return gridGeometry(domeRows + trunkRows + CROWN_ROWS, cols, (i, j) => {
+      const th = j / cols * Math.PI * 2;
+      if (i < domeRows) { // furcation roof: rounded, lowest point 0.3 mm below the documented trunk depth
+        const u = i / domeRows, k = 0.72 * Math.sqrt(1 - (1 - u) * (1 - u));
+        return [(s.mdC / 2) * k * se(Math.cos(th), n), yRim - domeH * (1 - u), (s.blC / 2) * k * se(Math.sin(th), n)];
+      }
+      if (i <= domeRows + trunkRows) { // trunk narrows from the cervix to the furcation; roots emerge from inside it
+        const t = (i - domeRows) / trunkRows, k = lerp(0.72, 1, Math.pow(t, 0.7)), n2 = lerp(2.3, n, t);
+        return [(s.mdC / 2) * k * se(Math.cos(th), n2), yRim * (1 - t), (s.blC / 2) * k * se(Math.sin(th), n2)];
+      }
+      return ring((i - domeRows - trunkRows) / CROWN_ROWS, th);
+    }, null, [0, yRim - domeH, 0]);
+  }
+
+  // Centre line of a root (or of a canal inside it) at depth y below the CEJ — shared by root, canal, PDL and helpers.
+  function rootCenter(r, y) {
+    const u = clamp(-y / r.len, 0, 1);
+    return [r.x + (r.apex ? r.apex[0] : 0) * u * u + (r.flare ? r.flare[0] * Math.sin(u * Math.PI) : 0),
+            r.z + (r.apex ? r.apex[1] : 0) * u * u + (r.flare ? r.flare[1] * Math.sin(u * Math.PI) : 0)];
+  }
+  // One ring of a root at parameter t (0 = top/start, 1 = apex): [x, y, z] for angle th. scale: {k, add, minR, endShort, flare}
+  // r.concave: [{ang, depth, w}] longitudinal concavities (furcation-facing surfaces, the mesial groove of an upper first premolar).
+  function rootRing(r, t, th, scale, L) {
+    const start = r.start ?? 0.6;
+    const tip = Math.sqrt(Math.max(0, 1 - Math.pow(t, r.tipSharp || 9)));
+    const taper = (1 - (r.taper ?? 0.55) * Math.pow(t, 0.85)) * tip;
+    const n = lerp(r.n0 || 2, 2, t);
+    let ra = Math.max(r.ra * taper * scale.k + scale.add * tip, scale.minR * tip);
+    let rb = Math.max(r.rb * taper * scale.k + scale.add * tip, scale.minR * tip);
+    if (scale.flare) { const f = lerp(1, scale.flare, Math.pow(smooth(0.12, 0, t), 2)); ra *= f; rb *= f; }   // orifice funnel (coronal ~1.5 mm)
+    const y = start - t * (L + start);
+    const [cx, cz] = rootCenter(r, y);
+    let px = ra * se(Math.cos(th), n), pz = rb * se(Math.sin(th), n);
+    if (r.concave && scale.k === 1 && !scale.add) {
+      let f = 1; r.concave.forEach(g => { const d = Math.abs(((th - g.ang) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI); f -= (g.depth || 0.12) * Math.exp(-Math.pow(d / (g.w || 0.55), 2)) * Math.sin(Math.PI * clamp(t * 1.15, 0, 1)); });
+      px *= f; pz *= f;
+    }
+    return [cx + px, y, cz + pz];
+  }
+  function rootGeometry(r, scale) { // r: {x,z,len,ra,rb,apex:[dx,dz],start}; scale shrinks radii (canal / pdl); scale.dome rounds the top instead of a flat disc
+    scale = scale || { k: 1, add: 0, minR: 0.05, endShort: 0 };
+    const rows = 48, cols = 48, start = r.start ?? 0.6, L = r.len - (scale.endShort || 0), domeRows = scale.dome ? 8 : 0;
+    const rTop = Math.max(0.05, Math.min(r.ra, r.rb) * scale.k + (scale.add || 0)) * 0.9;
+    return gridGeometry(rows + domeRows, cols, (i, j) => {
+      const th = j / cols * Math.PI * 2;
+      if (i > rows) { // dome: the top ring shrinks along a quarter ellipse rTop mm high (hidden inside the trunk / chamber)
+        const u = (i - rows) / domeRows, k = Math.sqrt(Math.max(0, 1 - u * u)), pt = rootRing(r, 0, th, scale, L), [cx, cz] = rootCenter(r, start);
+        return [cx + (pt[0] - cx) * k, start + rTop * u, cz + (pt[2] - cz) * k];
+      }
+      return rootRing(r, 1 - i / rows, th, scale, L); // i=0 apex → i=rows top (outward normals)
+    }, scale.dome ? null : [r.x, start + 0.01, r.z], null);
+  }
+  DK.rootGeometry = rootGeometry; DK.rootRing = rootRing;
+
+  // Occlusal relief from a cusp list [{x,z,h,w}] (normalized coords) + central fossa depth
+  // grooves: [[x1,z1,x2,z2,depth?], ...] narrow valleys (central, buccal, lingual grooves) in normalized coords
+  DK.cuspRelief = function (cusps, fossa, grooves) {
+    const segD2 = (x, z, g) => { const dx = g[2] - g[0], dz = g[3] - g[1], L2 = dx * dx + dz * dz || 1e-6; const t = clamp(((x - g[0]) * dx + (z - g[1]) * dz) / L2, 0, 1); return (x - g[0] - t * dx) ** 2 + (z - g[1] - t * dz) ** 2; };
+    return (xn, zn) => {
+      let v = 0;
+      cusps.forEach(c => { const d2 = (xn - c.x) ** 2 + (zn - c.z) ** 2; v += c.h * Math.exp(-d2 / (2 * (c.w || 0.26) ** 2)); });
+      v = Math.min(v, Math.max(...cusps.map(c => c.h)) * 1.05);
+      v -= (fossa || 0) * Math.exp(-(xn * xn + zn * zn) / 0.12);
+      (grooves || []).forEach(g => { v -= (g[4] ?? 0.45) * Math.exp(-segD2(xn, zn, g) / 0.006); });
+      return v;
+    };
+  };
+
+  /* Tooth presets (Wheeler averages, mm). Local frame: +x mesial, +z facial, crown up. */
+  const P = {};
+  P.maxCentral = { name: 'Maxillary central incisor', crownL: 10.5, rootL: 13, md: 8.5, mdC: 7, bl: 7, blC: 6, incisal: true, incisalBL: 0.9, squareness: 2.6, contourAt: 0.85, blContourAt: 0.25,
+    roots: [{ x: 0, z: 0, len: 13, ra: 3.3, rb: 2.9, taper: 0.62, apex: [-0.6, -0.4] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.55 }], pulpHorns: 3 };
+  P.maxLateral = Object.assign({}, P.maxCentral, { name: 'Maxillary lateral incisor', crownL: 9, rootL: 13, md: 6.5, mdC: 5, bl: 6, blC: 5, roots: [{ x: 0, z: 0, len: 13, ra: 2.5, rb: 2.4, taper: 0.62, apex: [-1.0, -0.3] }] });
+  P.maxCanine = { name: 'Maxillary canine', crownL: 10, rootL: 17, md: 7.5, mdC: 5.5, bl: 8, blC: 7, squareness: 2.1, contourAt: 0.7, blContourAt: 0.3,
+    relief: DK.cuspRelief([{ x: 0, z: 0.05, h: 2.2, w: 0.42 }], 0), roots: [{ x: 0, z: 0, len: 17, ra: 2.7, rb: 3.4, taper: 0.62, apex: [-0.8, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.6 }], coneTip: true };
+  P.maxPM1 = { name: 'Maxillary first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 9, blC: 8, squareness: 2.3, contourAt: 0.7,   // mesial developmental groove on crown and roots
+    relief: DK.cuspRelief([{ x: 0, z: 0.5, h: 2.2, w: 0.34 }, { x: 0, z: -0.5, h: 1.6, w: 0.32 }], 0.3, [[0.6, 0, -0.6, 0]]),
+    roots: [{ x: 0, z: 1.9, len: 14, ra: 2.1, rb: 1.6, apex: [-0.5, 0.4], start: -0.5, concave: [{ ang: 0, depth: 0.14, w: 0.5 }, { ang: -Math.PI / 2, depth: 0.1, w: 0.6 }] }, { x: 0, z: -1.9, len: 13.5, ra: 2.0, rb: 1.5, apex: [-0.5, -0.4], start: -0.5, concave: [{ ang: 0, depth: 0.12, w: 0.5 }, { ang: Math.PI / 2, depth: 0.1, w: 0.6 }] }],
+    trunk: 4.5, canals: [{ root: 0, dx: 0, dz: 0, r: 0.4 }, { root: 1, dx: 0, dz: 0, r: 0.4 }] };
+  P.maxPM2 = Object.assign({}, P.maxPM1, { name: 'Maxillary second premolar', relief: DK.cuspRelief([{ x: 0, z: 0.5, h: 1.8, w: 0.34 }, { x: 0, z: -0.5, h: 1.7, w: 0.32 }], 0.3, [[0.6, 0, -0.6, 0]]),
+    roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.6, apex: [-0.6, 0], concave: [{ ang: 0, depth: 0.09, w: 0.5 }, { ang: Math.PI, depth: 0.06, w: 0.5 }] }], trunk: 0, canals: [{ root: 0, dx: 0, dz: 0, r: 0.45, rbk: 0.5 }] });
+  P.maxM1 = { name: 'Maxillary first molar', crownL: 7.5, rootL: 13, md: 10, mdC: 8, bl: 11, blC: 10, squareness: 2.7, contourAt: 0.65, sideGrooves: [{ x: 0.05, z: 1, depth: 0.16 }, { x: -0.3, z: -1, depth: 0.14 }],   // buccal groove; distolingual groove
+    relief: DK.cuspRelief([{ x: 0.42, z: 0.48, h: 1.7 }, { x: -0.42, z: 0.48, h: 1.5 }, { x: 0.35, z: -0.42, h: 2.0, w: 0.34 }, { x: -0.48, z: -0.48, h: 1.3, w: 0.24 }, { x: 0.55, z: -0.8, h: 0.6, w: 0.15 }], 0.5, [[0.65, 0.05, -0.1, 0.1], [-0.1, 0.1, -0.55, -0.35], [-0.1, 0.1, -0.05, 0.85], [0.1, -0.05, 0.7, -0.6, 0.25]]),
+    roots: [{ x: 2.2, z: 2.4, len: 12, ra: 1.9, rb: 2.7, taper: 0.5, apex: [-1.4, 0.6], flare: [0.4, 0.3], start: -0.5 }, { x: -2.4, z: 2.5, len: 11.5, ra: 1.75, rb: 1.9, taper: 0.5, apex: [-0.6, 0.6], flare: [-0.5, 0.3], start: -0.5 },
+      { x: 0, z: -2.5, len: 13, ra: 2.4, rb: 2.2, taper: 0.5, apex: [0, -1.6], flare: [0, -0.8], start: -0.5 }],
+    trunk: 4, canals: [{ root: 0, dx: -0.2, dz: 0.9, r: 0.38, name: 'MB1' }, { root: 0, dx: 0.15, dz: -0.95, r: 0.3, name: 'MB2', short: 1.5 }, { root: 1, dx: 0, dz: 0, r: 0.35, name: 'DB' }, { root: 2, dx: 0, dz: 0, r: 0.5, name: 'P' }] };
+  P.mandCentral = { name: 'Mandibular central incisor', crownL: 9, rootL: 12.5, md: 5, mdC: 3.5, bl: 6, blC: 5.3, incisal: true, incisalBL: 0.8, squareness: 2.3, contourAt: 0.9, blContourAt: 0.2,
+    roots: [{ x: 0, z: 0, len: 12.5, ra: 1.75, rb: 2.6, taper: 0.62, apex: [-0.3, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.38, rbk: 0.7 }] };
+  P.mandLateral = Object.assign({}, P.mandCentral, { name: 'Mandibular lateral incisor', crownL: 9.5, rootL: 14, md: 5.5, mdC: 4, bl: 6.5, blC: 5.8, roots: [{ x: 0, z: 0, len: 14, ra: 1.95, rb: 2.9, taper: 0.62, apex: [-0.5, 0] }] });
+  P.mandCanine = Object.assign({}, P.maxCanine, { name: 'Mandibular canine', crownL: 11, rootL: 16, md: 7, mdC: 5.5, bl: 7.5, blC: 7, roots: [{ x: 0, z: 0, len: 16, ra: 2.6, rb: 3.4, taper: 0.62, apex: [-0.4, 0] }] });
+  P.mandPM1 = { name: 'Mandibular first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 7.5, blC: 6.5, squareness: 2.2, contourAt: 0.7,
+    relief: DK.cuspRelief([{ x: 0, z: 0.35, h: 2.4, w: 0.42 }, { x: 0, z: -0.6, h: 0.7, w: 0.3 }], 0.2),
+    roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.0, apex: [-0.6, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.45 }] };
+  P.mandPM2 = Object.assign({}, P.mandPM1, { name: 'Mandibular second premolar', crownL: 8, rootL: 14.5, bl: 8, blC: 7,
+    relief: DK.cuspRelief([{ x: 0, z: 0.35, h: 1.9, w: 0.4 }, { x: 0.3, z: -0.5, h: 1.3, w: 0.28 }, { x: -0.3, z: -0.5, h: 1.1, w: 0.26 }], 0.4),
+    roots: [{ x: 0, z: 0, len: 14.5, ra: 2.4, rb: 3.2, apex: [-0.6, 0] }] });
+  P.mandM1 = { name: 'Mandibular first molar', crownL: 7.5, rootL: 14, md: 11, mdC: 9, bl: 10.5, blC: 9, squareness: 2.7, contourAt: 0.7, sideGrooves: [{ x: 0.22, z: 1, depth: 0.17 }, { x: -0.38, z: 1, depth: 0.12 }, { x: 0.05, z: -1, depth: 0.1 }],   // mesiobuccal + distobuccal grooves; lingual groove
+    relief: DK.cuspRelief([{ x: 0.5, z: 0.45, h: 1.5 }, { x: -0.05, z: 0.5, h: 1.4 }, { x: -0.62, z: 0.3, h: 1.1, w: 0.22 }, { x: 0.45, z: -0.45, h: 1.9 }, { x: -0.38, z: -0.45, h: 1.8 }], 0.45, [[0.75, 0, -0.75, 0.02], [0.22, 0, 0.25, 0.9], [-0.35, 0.02, -0.4, 0.85], [0.05, 0, 0.05, -0.9]]),
+    roots: [{ x: 2.25, z: 0, len: 14, ra: 1.85, rb: 3.7, apex: [-1.4, 0], start: -0.5 }, { x: -2.3, z: 0, len: 13, ra: 1.85, rb: 3.4, apex: [-0.9, 0], start: -0.5 }],
+    trunk: 3, canals: [{ root: 0, dx: 0, dz: 1.5, r: 0.35, name: 'MB' }, { root: 0, dx: 0, dz: -1.5, r: 0.35, name: 'ML' }, { root: 1, dx: 0, dz: 0, r: 0.38, rbk: 1.6, name: 'D' }] };
+  P.mandM2 = Object.assign({}, P.mandM1, { name: 'Mandibular second molar', crownL: 7, rootL: 13, md: 10.5, mdC: 8, bl: 10, blC: 9, sideGrooves: [{ x: 0, z: 1, depth: 0.16 }, { x: 0, z: -1, depth: 0.1 }],
+    relief: DK.cuspRelief([{ x: 0.45, z: 0.45, h: 1.4 }, { x: -0.45, z: 0.45, h: 1.3 }, { x: 0.45, z: -0.45, h: 1.7 }, { x: -0.45, z: -0.45, h: 1.6 }], 0.45, [[0.75, 0, -0.75, 0], [0, 0, 0, 0.9], [0, 0, 0, -0.9]]),
+    roots: [{ x: 1.95, z: 0, len: 13, ra: 1.75, rb: 3.5, apex: [-1.6, 0], start: -0.5 }, { x: -2.0, z: 0, len: 12.5, ra: 1.75, rb: 3.3, apex: [-1.3, 0], start: -0.5 }] });
+  P.maxM2 = Object.assign({}, P.maxM1, { name: 'Maxillary second molar', crownL: 7, md: 9, mdC: 7, bl: 11, blC: 10 });
+  DK.PRESETS = P;
+  const POS = { 1: 'Central', 2: 'Lateral', 3: 'Canine', 4: 'PM1', 5: 'PM2', 6: 'M1', 7: 'M2', 8: 'M2' };
+  // FDI two-digit → preset (permanent teeth only). Third molars approximated by second molars (flagged).
+  DK.toothPreset = function (fdi) {
+    const q = Math.floor(fdi / 10), p = fdi % 10;
+    if (q < 1 || q > 4 || p < 1 || p > 8) throw new Error('FDI permanent tooth number expected (11–48), got ' + fdi);
+    const key = (q <= 2 ? 'max' : 'mand') + POS[p];
+    const spec = Object.assign({}, P[key]);
+    spec.fdi = fdi; spec.maxillary = q <= 2; spec.approx = p === 8;
+    return spec;
+  };
+
+  // Build a tooth group. Returns {group, layers:{enamel,dentin,root,pulp}, spec}. Crown up; for maxillary teeth in the mouth set group.scale.y = -1 (mirror). opts.omit: layers to leave out.
+  function canalSpec(s, c) {
+    const r = s.roots[c.root];
+    return Object.assign({}, r, { x: r.x + c.dx, z: r.z + c.dz, ra: c.r, rb: c.rbk || c.r, taper: 0.7, start: (s.trunk ? -0.8 : 0.2), apex: r.apex });
+  }
+  function findCanal(s, which) { const list = s.canals || []; const c = typeof which === 'number' ? list[which] : list.find(c => c.name === which); if (!c) throw new Error('No canal ' + which + ' on ' + s.name); return c; }
+  // Canal centre at depth y (mm, negative below CEJ): {x, z, r} in the tooth frame. Use for labels, orifice markers, files, gutta-percha.
+  DK.canalAt = function (spec, which, y) { const c = findCanal(spec, which), cs = canalSpec(spec, c); const [x, z] = rootCenter(cs, y); const u = clamp(-y / cs.len, 0, 1); return { x, z, r: c.r * (1 - 0.7 * Math.pow(u, 0.85)) }; };
+  // Canal centre line as points from `from` (default canal start) down to `to` (default working length ≈ 0.5 mm short of the apex).
+  DK.canalPath = function (spec, which, opts) {
+    opts = opts || {}; const c = findCanal(spec, which), cs = canalSpec(spec, c);
+    const y0 = opts.from ?? cs.start, y1 = opts.to ?? -(cs.len - 0.5 - (c.short || 0)), n = opts.n || 24, pts = [];
+    for (let i = 0; i <= n; i++) { const y = lerp(y0, y1, i / n), [x, z] = rootCenter(cs, y); pts.push([x, y, z]); }
+    return pts;
+  };
+  DK.tooth = function (specOrFdi, opts) {
+    opts = opts || {};
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    const g = new T.Group(); g.name = s.name;
+    const mats = { enamel: DK.mat('enamel'), dentin: DK.mat('dentin'), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
+    mats.enamel.userData.capColor = DK.COLORS.enamelCap; mats.pulp.userData.capColor = DK.COLORS.pulpCap;
+    const omit = opts.omit || [];   // e.g. ['enamel','dentin'] for a crown-less root, ['pulp'] for an obturated tooth
+    const single = s.roots.length === 1;
+    // Single-rooted teeth: the root grows straight out of the cervical outline. Multi-rooted: roots emerge from a root trunk.
+    // Root concavities (unless the preset sets them): single roots have shallow proximal grooves; roots of multi-rooted teeth are
+    // concave on the surface facing the furcation (the distal surface of a lower molar's mesial root, and so on).
+    if (single) s.roots = s.roots.map(r => Object.assign({ concave: [{ ang: 0, depth: 0.06, w: 0.5 }, { ang: Math.PI, depth: 0.06, w: 0.5 }] }, r, { ra: s.mdC / 2, rb: s.blC / 2, n0: s.squareness || 2.3, start: 0.5 }));
+    else s.roots = s.roots.map(r => r.concave ? r : Object.assign({}, r, { concave: [{ ang: Math.atan2(-r.z, -r.x), depth: 0.14, w: 0.65 }] }));
+    // enamel: a closed shell between the crown surface and the DEJ
+    const enamel = new T.Mesh(shellGeometry(crownGeometry(s, null, true), crownGeometry(s, DEJ, true)), mats.enamel); enamel.name = 'Enamel';
+    const rootGroup = new T.Group(); rootGroup.name = 'Root';
+    let dentinCrown;
+    if (!omit.includes('dentin')) { // dentin: one continuous body (root or trunk → crown); extra roots of multi-rooted teeth with domed tops hidden in the trunk
+      dentinCrown = new T.Mesh(dentinBodyGeometry(s), mats.dentin); dentinCrown.name = 'Dentin';
+      if (!single) s.roots.forEach(r => rootGroup.add(new T.Mesh(rootGeometry(r, { k: 1, add: 0, minR: 0.05, endShort: 0, dome: true }), mats.root)));
+    } else { // crown lost (post & core, extraction figures): roots and trunk alone, flat-topped at the cervix
+      dentinCrown = new T.Group(); dentinCrown.name = 'Dentin';
+      s.roots.forEach(r => rootGroup.add(new T.Mesh(rootGeometry(r), mats.root)));
+      if (!single) {
+        const trunkDepth = s.trunk || 3;
+        const tg = gridGeometry(10, 48, (i, j) => {
+          const t = i / 10, th = j / 48 * Math.PI * 2, k = lerp(0.72, 1, Math.pow(t, 0.7)), n = 2.3;
+          return [(s.mdC / 2) * k * se(Math.cos(th), n), -trunkDepth * (1 - t) + 0.3 * t, (s.blC / 2) * k * se(Math.sin(th), n)];
+        }, [0, 0.3, 0], [0, -trunkDepth - 0.35, 0]);
+        rootGroup.add(new T.Mesh(tg, mats.root));
+      }
+    }
+    // pulp: chamber (floor at the orifice level, widest just above it, horns under the cusps) + canals funnelling into the floor
+    const pulp = new T.Group(); pulp.name = 'Pulp';
+    const ch = { md: s.mdC * 0.66, mdC: s.mdC * 0.62, bl: s.blC * 0.54, blC: s.blC * 0.5, crownL: s.crownL * (s.incisal ? 0.62 : 0.42), squareness: 2.4, incisal: s.incisal, incisalBL: 0.35, contourAt: 0.3, blContourAt: 0.3, baseRound: 0.3,
+      relief: s.relief ? ((xn, zn) => s.relief(xn, zn) * 0.9) : null };
+    const chamber = new T.Mesh(crownGeometry(ch), mats.pulp); chamber.position.y = -(s.trunk ? 1.2 : 0.4); pulp.add(chamber);
+    const canals = {};
+    (s.canals || []).forEach((c, i) => {
+      const cm = new T.Mesh(rootGeometry(canalSpec(s, c), { k: 1, add: 0, minR: 0.08, endShort: (c.short || 0) + 0.4, dome: true, flare: 1.4 }), mats.pulp);
+      cm.name = c.name || ('Canal ' + (i + 1)); canals[cm.name] = cm; pulp.add(cm);
+    });
+    pulp.userData.chamber = chamber; pulp.userData.canals = canals;
+    const layers = { enamel, dentin: dentinCrown, root: rootGroup, pulp };
+    Object.keys(layers).forEach(n => { if (!omit.includes(n)) g.add(layers[n]); });
+    g.userData.spec = s; g.userData.layers = layers;
+    return { group: g, layers, spec: s, mats };
+  };
+
+  // Periodontal ligament + socket shell (slightly larger copies of the roots) — put in a figure under bone.
+  DK.pdl = function (spec, gap, top) { // top: y where the PDL starts (= bone crest), default −1.4
+    gap = gap ?? 0.2; top = top ?? -1.4;
+    const grp = new T.Group(); grp.name = 'PDL';
+    const m = DK.mat('pdl');
+    spec.roots.forEach(r => grp.add(new T.Mesh(rootGeometry(Object.assign({}, r, { start: Math.min(r.start ?? 0.6, top) }), { k: 1, add: gap, minR: gap, endShort: -gap }), m)));
+    return grp;
+  };
+
+  /* ---------- bone & soft tissue blocks ---------- */
+  const TRAB_MM = 6;   // one trabecular tile = 6 mm of bone
+  function trabecularTexture(colA, colB) { // colA: bone struts, colB: marrow spaces
+    const N = 512, G = 12, rnd = seeded(7), seeds = [];
+    for (let gy = 0; gy < G; gy++) for (let gx = 0; gx < G; gx++) seeds.push([(gx + 0.1 + rnd() * 0.8) / G * N, (gy + 0.1 + rnd() * 0.8) / G * N]);
+    const wx = noiseField(N, 5, 5, seeded(8), 3), wz = noiseField(N, 5, 5, seeded(9), 3), thick = noiseField(N, 6, 6, seeded(10), 2), fine = noiseField(N, 32, 32, seeded(12), 2);
+    const A = new T.Color(colA), B = new T.Color(colB), D = new T.Color(colB).multiplyScalar(0.82), E = new T.Color(colA).multiplyScalar(0.93);
+    const cv = document.createElement('canvas'); cv.width = cv.height = N; const x = cv.getContext('2d'), img = x.createImageData(N, N), d = img.data, cell = N / G;
+    // Worley lattice: marrow spaces are Voronoi cells, bone is the ridge between them (F2 − F1 small). Cells stretched
+    // vertically (trabeculae align with load), warped by low-frequency noise so nothing looks like a grid.
+    for (let py = 0; py < N; py++) for (let pxl = 0; pxl < N; pxl++) {
+      const i = py * N + pxl, X = pxl + (wx[i] - 0.5) * 34, Y = py + (wz[i] - 0.5) * 34;
+      const gx = Math.floor(X / cell), gy = Math.floor(Y / cell); let f1 = 1e9, f2 = 1e9;
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+        const cx = ((gx + ox) % G + G) % G, cy = ((gy + oy) % G + G) % G, sd = seeds[cy * G + cx];
+        let dx = sd[0] - X, dy = sd[1] - Y; dx -= Math.round(dx / N) * N; dy -= Math.round(dy / N) * N;
+        const dist = Math.hypot(dx * 1.2, dy * 0.85); if (dist < f1) { f2 = f1; f1 = dist; } else if (dist < f2) f2 = dist;
+      }
+      const edge = f2 - f1, t = 3 + thick[i] * 9, k = clamp((edge - t) / 1.5, 0, 1), m = smooth(0, 12, edge - t), fn = 0.96 + fine[i] * 0.08;
+      const c = k < 1 ? (k > 0 ? new T.Color().lerpColors(A, D, k) : (edge < t * 0.55 ? A : E)) : new T.Color().lerpColors(D, B, m);
+      d[i * 4] = N8(c.r * fn); d[i * 4 + 1] = N8(c.g * fn); d[i * 4 + 2] = N8(c.b * fn); d[i * 4 + 3] = 255;
+    }
+    x.putImageData(img, 0, 0);
+    const tex = new T.CanvasTexture(cv); tex.wrapS = tex.wrapT = T.RepeatWrapping; tex.anisotropy = 8; tex.mm = TRAB_MM; return tex;
+  }
+  // Closed outline of a rounded rectangle: fn(s) → [x,z], s in [0,1), from (+hw,0) toward +z (same sense as the crown rings).
+  function roundedRect(hw, hd, r) {
+    r = Math.min(r, hw, hd); const sx = hw - r, sz = hd - r, arc = Math.PI / 2 * r, Q = Math.PI / 2;
+    const segs = [[2 * sz, u => [hw, -sz + 2 * sz * u]], [arc, u => [sx + r * Math.cos(u * Q), sz + r * Math.sin(u * Q)]], [2 * sx, u => [sx - 2 * sx * u, hd]],
+      [arc, u => [-sx + r * Math.cos(Q + u * Q), sz + r * Math.sin(Q + u * Q)]], [2 * sz, u => [-hw, sz - 2 * sz * u]], [arc, u => [-sx + r * Math.cos(2 * Q + u * Q), -sz + r * Math.sin(2 * Q + u * Q)]],
+      [2 * sx, u => [-sx + 2 * sx * u, -hd]], [arc, u => [sx + r * Math.cos(3 * Q + u * Q), -sz + r * Math.sin(3 * Q + u * Q)]]];
+    const P = segs.reduce((a, g) => a + g[0], 0) || 1;
+    return s => { let L = s * P; for (let k = 0; k < 8; k++) { const [len, f] = segs[k]; if (len <= 1e-9) continue; if (L <= len || k === 7) return f(clamp(L / len, 0, 1)); L -= len; } return segs[0][1](0); };
+  }
+  // Alveolar-ridge block: rounded-rectangle plan (vertical edges rounded by `rc`), walls tapering slightly toward a domed
+  // crest `crest` mm high. Centred in x,z; crest at y=0, flat bottom at y=−h. topFn(x,z) displaces the top (scallops, cuffs).
+  function blockGeometry(w, h, d, crest, topFn, rc) {
+    rc = rc ?? Math.min(1.8, w / 4, d / 4); crest = Math.min(crest || 0.001, h * 0.6);
+    const wallRows = 22, crestRows = 18, rows = wallRows + crestRows, cols = 160, outlines = [];
+    return gridGeometry(rows, cols, (i, j) => {
+      const s = j / cols; let y, hd;
+      if (i <= wallRows) { const t = i / wallRows; y = -h + (h - crest) * t; hd = d / 2; }
+      else { const t = (i - wallRows) / crestRows; y = -crest + crest * Math.sin(t * Math.PI / 2); hd = d / 2 * Math.cos(t * Math.PI / 2); }
+      const up = clamp((y + h) / h, 0, 1); hd *= lerp(1, 0.9, Math.pow(up, 2.5)); hd = Math.max(hd, 0.03);
+      const o = outlines[i] || (outlines[i] = roundedRect(w / 2, hd, rc)), [x, z] = o(s);
+      if (topFn) y += topFn(x, z) * Math.pow(smooth(0.25, 1, up), 2);
+      return [x, y, z];
+    }, [0, topFn ? topFn(0, 0) : 0, 0], [0, -h, 0]);
+  }
+  DK.blockGeometry = blockGeometry;
+  // Alveolar bone block: cortical shell + cancellous core. Top (crest) at y=0.
+  DK.bone = function (o) {
+    o = Object.assign({ width: 24, height: 22, depth: 11, cortical: 1.2, crest: 1.5, scallop: null, round: null }, o);
+    const grp = new T.Group(); grp.name = 'Alveolar bone';
+    const cort = DK.mat('bone', { cap: DK.COLORS.corticalCap });
+    const canc = DK.mat('bone', { color: DK.COLORS.cancellous });
+    const outer = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop, o.round ?? undefined), cort); outer.name = 'Cortical bone';
+    const inner = new T.Mesh(blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, o.scallop, o.round ?? undefined), canc); inner.name = 'Cancellous bone';
+    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xeae4d6, 0xd2c3a8);
+    inner.material.visible = false; // only seen in section
+    grp.add(outer, inner); grp.userData.layers = { cortical: outer, cancellous: inner };
+    return grp;
+  };
+  // Gingiva block. `around`: teeth (or an implant collar) it hugs — [{x, z, md, bl, rise?, n?}] in the block's frame: the top
+  // rises by `rise` mm (default 0.8) into a free gingival margin along each cervical outline and a papilla where two meet.
+  DK.gingiva = function (o) {
+    o = Object.assign({ width: 24, height: 4, depth: 12, crest: 1.6, scallop: null, around: null, round: null }, o);
+    const m = DK.mat('gingiva', { cap: o.capColor ?? DK.COLORS.gingivaCap, color: o.color ?? DK.COLORS.gingiva }); // inflamed: color 0xd0606f
+    let top = o.scallop;
+    if (o.around && o.around.length) {
+      const cuff = (x, z) => {
+        let v = 0;
+        o.around.forEach(t => { const a = t.md / 2, b = t.bl / 2, n = t.n || 2.3, rho = Math.pow(Math.pow(Math.abs(x - t.x) / a, n) + Math.pow(Math.abs(z - t.z) / b, n), 1 / n);
+          const dist = (rho - 1) * Math.min(a, b); v += (t.rise ?? 0.8) * smooth(1.7, 0.1, dist); });
+        return Math.min(v, 1.35 * Math.max(...o.around.map(t => t.rise ?? 0.8)));
+      };
+      top = o.scallop ? (x, z) => o.scallop(x, z) + cuff(x, z) : cuff;
+    }
+    const mesh = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, top, o.round ?? undefined), m); mesh.name = 'Gingiva';
+    return mesh;
+  };
+
+  /* ---------- section (clipping with solid stencil caps) ---------- */
+  // removeToward: direction of the half that is cut away (camera should look from that side). Cut sits at coordinate `pos` along it.
+  // capGroups: ordered outermost → innermost: [{objects:[Object3D...], color, texture, kind}]
+  // kind (optional): 'dentin' | 'enamel' | 'pulp' | 'cortical' | 'gingiva' | 'metal' | 'plain' — the procedural grain drawn on the
+  // cut face; inferred from the colour (DK.COLORS.*Cap) or the material when omitted. A texture gives a mapped face (trabecular bone).
+  const CAP_KINDS = { plain: 0, dentin: 1, enamel: 2, pulp: 3, cortical: 4, gingiva: 5, metal: 6, map: 7 };
+  const CAP_VS = 'varying vec3 vW; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }';
+  const CAP_FS = `
+    uniform vec3 uColor; uniform int uKind; uniform sampler2D uNoise; uniform sampler2D uMap; uniform float uMapScale;
+    uniform sampler2D uId; uniform vec2 uRes; uniform float uPx; uniform float uMyId; uniform float uIdPass;
+    uniform mat4 uFrame; uniform vec3 uU; uniform vec3 uV; varying vec3 vW;
+    vec3 nz(vec2 p){ return texture2D(uNoise, p).rgb; }
+    void main(){
+      if (uIdPass > 0.5) { gl_FragColor = vec4(uMyId, 0.0, 0.0, 1.0); return; }
+      vec2 q = vec2(dot(vW, uU), dot(vW, uV));
+      vec3 l = (uFrame * vec4(vW, 1.0)).xyz;
+      vec3 col = uColor;
+      if (uKind == 1 || uKind == 2) { // dentinal tubules / enamel rods radiate from the pulp, tilting up toward the cusps
+        float r = length(l.xz) + 1e-4; vec2 dir = l.xz / r; float yy = l.y + smoothstep(-1.0, 4.0, l.y) * 0.5 * r;
+        float a = nz(dir * 0.42 + vec2(yy * 0.33, yy * 0.19)).r, b = nz(dir * 1.7 + vec2(yy * 0.55, -yy * 0.31) + r * 0.02).b;
+        float g = (a - 0.5) * 0.9 + (b - 0.5) * 0.5;
+        col *= 1.0 + g * (uKind == 1 ? 0.17 : 0.09) + (nz(q * 0.05).g - 0.5) * (uKind == 1 ? 0.09 : 0.04);
+      } else if (uKind == 3) { vec3 n1 = nz(q * 0.11), n2 = nz(q * 0.4); col *= 1.0 + ((n1.g - 0.5) * 0.5 + (n2.r - 0.5) * 0.3) * 0.4; }
+      else if (uKind == 4) { vec3 n1 = nz(q * 0.35), n2 = nz(q * 0.07); col *= (1.0 - smoothstep(0.66, 0.74, n1.b) * 0.16) * (1.0 + (n2.g - 0.5) * 0.08 + (n1.r - 0.5) * 0.05); }
+      else if (uKind == 5) { vec3 n1 = nz(q * 0.6), n2 = nz(q * 0.08); col *= 1.0 + (n1.r - 0.5) * 0.08 + (n2.g - 0.5) * 0.12; }
+      else if (uKind == 6) { col *= 1.0 + (nz(vec2(q.x * 0.015, q.y * 0.9)).r - 0.5) * 0.14; }
+      else if (uKind == 7) { vec3 m = texture2D(uMap, q * uMapScale).rgb; col *= pow(m, vec3(2.2)); }
+      // boundary lines between layers and a soft inner shadow, from the cap-id buffer of this frame
+      vec2 px = uPx / uRes, sc = gl_FragCoord.xy / uRes; float edge = 0.0, ao = 0.0;
+      for (int k = 0; k < 8; k++) { float an = float(k) * 0.7854; vec2 dd = vec2(cos(an), sin(an));
+        edge += abs(texture2D(uId, sc + dd * px * 1.5).r - uMyId) > 0.002 ? 1.0 : 0.0;
+        ao += abs(texture2D(uId, sc + dd * px * 5.0).r - uMyId) > 0.002 ? 1.0 : 0.0; }
+      col *= 1.0 - edge * 0.05 - ao * 0.02;
+      gl_FragColor = vec4(col, 1.0);
+      #include <encodings_fragment>
+    }`;
+  function capKind(cg) {
+    if (cg.kind) return cg.kind; if (cg.texture) return 'map';
+    const c = cg.color, C = DK.COLORS;
+    if (c === C.dentinCap || c === C.dentin || c === C.cementum) return 'dentin'; if (c === C.enamelCap || c === C.enamel) return 'enamel'; if (c === C.pulpCap || c === C.pulp) return 'pulp';
+    if (c === C.corticalCap || c === C.cortical) return 'cortical'; if (c === C.gingivaCap || c === C.gingiva) return 'gingiva';
+    let metal = false; cg.objects.forEach(o => o.traverse(m => { if (m.isMesh && m.material && m.material.metalness > 0.5) metal = true; }));
+    return metal ? 'metal' : 'plain';
+  }
+  function toothFrameOf(objects) { for (const o of objects) { let p = o; while (p) { if (p.userData && p.userData.spec && p.userData.layers) return p; p = p.parent; } } return null; }
+  function makeSection(fig, removeToward, capGroups) {
+    const dir = new T.Vector3(...removeToward).normalize();
+    const plane = new T.Plane(dir.clone().negate(), 1e5);
+    const caps = [];
+    // r128 cannot resize a depth+stencil target in place (INVALID_OPERATION after setSize), so it is re-created when the size changes
+    const makeRT = (w, h) => new T.WebGLRenderTarget(w, h, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, format: T.RGBAFormat, stencilBuffer: true, depthBuffer: true });
+    let idRT = makeRT(4, 4);
+    let order = 1;
+    capGroups.forEach((cg, k) => {
+      const base = order; order += 3;
+      cg.objects.forEach(obj => obj.traverse(m => {
+        if (!m.isMesh || m.userData.isStencil) return;
+        const src = m.material; m.material = src.clone(); m.material.onBeforeCompile = src.onBeforeCompile; m.material.customProgramCacheKey = src.customProgramCacheKey; // r128 clone() drops shader hooks
+        m.material.clippingPlanes = [plane]; m.material.clipShadows = true;
+        const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; s.layers.enable(1); return s; };
+        m.add(mk(T.BackSide, T.IncrementWrapStencilOp), mk(T.FrontSide, T.DecrementWrapStencilOp));
+      }));
+      const kind = capKind(cg);
+      const capMat = new T.ShaderMaterial({ vertexShader: CAP_VS, fragmentShader: CAP_FS, side: T.DoubleSide, stencilWrite: true, stencilRef: 0, stencilFunc: T.NotEqualStencilFunc, stencilFail: T.ReplaceStencilOp, stencilZFail: T.ReplaceStencilOp, stencilZPass: T.ReplaceStencilOp, polygonOffset: true, polygonOffsetFactor: -1 - k, polygonOffsetUnits: -4 - 4 * k,
+        uniforms: { uColor: { value: DK.color(cg.color ?? 0xffffff) }, uKind: { value: CAP_KINDS[kind] ?? 0 }, uNoise: { value: DK.texture('grain') }, uMap: { value: cg.texture || DK.texture('grain') }, uMapScale: { value: 1 / ((cg.texture && cg.texture.mm) || TRAB_MM) },
+          uId: { value: idRT.texture }, uRes: { value: new T.Vector2(4, 4) }, uPx: { value: 1 }, uMyId: { value: (k + 1) / 255 }, uIdPass: { value: 0 }, uFrame: { value: new T.Matrix4() }, uU: { value: new T.Vector3(1, 0, 0) }, uV: { value: new T.Vector3(0, 1, 0) } } });
+      const cap = new T.Mesh(new T.PlaneGeometry(400, 400), capMat); cap.renderOrder = base + 1; cap.onAfterRender = r => r.clearStencil();
+      cap.userData.isStencil = true; cap.userData.frame = toothFrameOf(cg.objects); cap.layers.enable(1); cap.frustumCulled = false; fig.scene.add(cap); caps.push(cap);
+    });
+    const api = {
+      plane, caps, enabled: false, offset: 0, idRT,
+      set(enabled, offset) {
+        api.enabled = enabled; if (offset !== undefined) api.offset = offset;
+        plane.constant = enabled ? api.offset - 0.03 : 1e5;   // clipped geometry stops just behind the cap, so nothing z-fights it
+        const pt = dir.clone().multiplyScalar(api.offset);
+        caps.forEach(c => { c.visible = enabled; c.position.copy(pt); c.lookAt(pt.clone().add(plane.normal)); c.updateMatrixWorld(true);
+          const e = c.matrixWorld.elements; c.material.uniforms.uU.value.set(e[0], e[1], e[2]); c.material.uniforms.uV.value.set(e[4], e[5], e[6]); });
+        if (api.onChange) api.onChange();
+      },
+      // cap-id pass: draws every cap's id (stencilled exactly like the visible frame) into a buffer the caps then read for edges
+      prepass(renderer, camera) {
+        if (!api.enabled) return;
+        const sz = renderer.getDrawingBufferSize(new T.Vector2());
+        if (idRT.width !== sz.x || idRT.height !== sz.y) { idRT.dispose(); idRT = makeRT(sz.x, sz.y); api.idRT = idRT; }
+        // while drawing into idRT the caps must not sample it (feedback loop → the draw is rejected): point uId elsewhere for the pass
+        caps.forEach(c => { const u = c.material.uniforms; u.uIdPass.value = 1; u.uId.value = u.uNoise.value; u.uRes.value.copy(sz); u.uPx.value = renderer.getPixelRatio(); if (c.userData.frame) u.uFrame.value.copy(c.userData.frame.matrixWorld).invert(); });
+        const mask = camera.layers.mask; camera.layers.set(1);
+        renderer.setRenderTarget(idRT); renderer.render(fig.scene, camera); renderer.setRenderTarget(null);
+        camera.layers.mask = mask;
+        caps.forEach(c => { c.material.uniforms.uIdPass.value = 0; c.material.uniforms.uId.value = idRT.texture; });
+      }
+    };
+    api.set(false, 0);
+    return api;
+  }
+
+  /* ---------- figure: renderer, camera, orbit, parts, labels, story, export, UI ---------- */
+  // Sixmonth tokens: ink #0A0A08, blanc sale #F1EEE6, cream #F5F3EE, accent #0E3A5C (light) / #5A8FB8 (dark).
+  const FONT_URL = 'https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap';
+  const CSS = `
+  :root{--bg:#F1EEE6;--stage:#E9E4D9;--stage-hi:#FAF8F4;--ink:#0A0A08;--muted:#6E6A62;--line:#DDD8CC;--accent:#0E3A5C;--panel:rgba(255,255,255,.82);--shadow:0 6px 24px rgba(10,10,8,.08),0 1px 2px rgba(10,10,8,.06)}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0A0A08;--stage:#0E0E0C;--stage-hi:#1D1C19;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}}
+  :root[data-theme="dark"]{--bg:#0A0A08;--stage:#0E0E0C;--stage-hi:#1D1C19;--ink:#F5F3EE;--muted:#9C978D;--line:#2A2924;--accent:#5A8FB8;--panel:rgba(28,27,24,.82);--shadow:0 6px 24px rgba(0,0,0,.4)}
+  *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Instrument Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  .dk{max-width:1120px;margin:0 auto;padding:20px 16px 14px}
+  .dk-head{padding:0 4px 12px}.dk-title{font-size:22px;line-height:1.2;font-weight:600;letter-spacing:-.01em;margin:0;text-wrap:balance}
+  .dk-sub{color:var(--muted);margin:4px 0 0;max-width:68ch;text-wrap:pretty}
+  .dk-frame{position:relative;background:radial-gradient(ellipse 75% 70% at 50% 46%,var(--stage-hi) 0%,var(--stage) 100%);border-radius:16px;overflow:hidden}
+  .dk-stage{position:relative;width:100%;height:min(70vh,620px);min-height:380px;touch-action:none;cursor:grab}.dk-stage.drag{cursor:grabbing}
+  .dk-still .dk-stage{height:auto;min-height:0;cursor:default}
+  .dk-stage canvas{display:block;width:100%;height:100%}
+  .dk-labels{position:absolute;inset:0;pointer-events:none}.dk-labels svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .dk-label{position:absolute;transform:translate(-50%,-50%);font:600 12.5px/1.15 "Instrument Sans",ui-sans-serif,system-ui,sans-serif;color:var(--ink);background:var(--panel);box-shadow:var(--shadow);border-radius:7px;padding:4px 8px;white-space:nowrap;opacity:0}
+  .dk-label small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:1px}
+  .dk-label.hl,.dk-label.accent{color:var(--accent)}
+  .dk-info{position:absolute;left:14px;top:14px;max-width:min(320px,62%);background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.4;opacity:0;transform:translateY(-4px);transition:opacity .18s ease,transform .18s ease;pointer-events:none}
+  .dk-info.on{opacity:1;transform:none}.dk-info b{display:block;margin-bottom:2px;font-weight:600}
+  .dk-ov{position:absolute;pointer-events:none;color:var(--ink)}
+  .dk-ov-title{left:22px;top:18px;font-size:20px;font-weight:600;letter-spacing:-.01em;max-width:60%;line-height:1.2}.dk-ov-s{font-size:13px;font-weight:500;letter-spacing:0;color:var(--muted);margin-top:4px;line-height:1.3}
+  .dk-ov-cap{left:22px;bottom:40px;font-size:16px;font-weight:500;max-width:60%}
+  .dk-ov-foot{left:22px;right:22px;bottom:14px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--muted)}
+  .dk-ov-foot b{color:var(--ink);font-weight:600}
+  .dk-panel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border-radius:12px}
+  .dk-panel:not(:has(.dk-btn,.dk-ctrl,.dk-step)){display:none}.dk-panel::-webkit-scrollbar{display:none}
+  .dk-psteps,.dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-psteps:not(:empty)+.dk-pmain:not(:empty),.dk-pmain:not(:empty)+.dk-pend:not(:empty),.dk-psteps:not(:empty)+.dk-pmain:empty+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
+  .dk-step{position:relative;flex:none;min-width:150px;padding:0 6px;font-size:13px;font-weight:600;white-space:nowrap;text-align:center}.dk-step small{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;margin-right:6px}
+  .dk-step i{position:absolute;left:8px;right:8px;bottom:-4px;height:2px;border-radius:1px;opacity:0;transition:opacity .2s ease;background:linear-gradient(90deg,var(--accent) calc(var(--p,0)*100%),var(--line) 0)}.dk-step.playing i{opacity:1}
+  .dk-btn svg{display:block;margin:0 auto}.dk-btn.dk-play[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+  .dk-board{display:block;width:100%;height:auto}.dk-frame.board .dk-stage{position:absolute;left:0;top:0;opacity:0;pointer-events:none}
+  .dk-sep{width:1px;align-self:stretch;margin:4px 3px;background:var(--line);flex:none}
+  .dk-btn{flex:none;font:inherit;font-size:13px;font-weight:500;border:0;background:transparent;color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;transition:background-color .15s ease,color .15s ease}
+  .dk-btn:hover{background:color-mix(in srgb,var(--ink) 7%,transparent)}
+  .dk-btn[aria-pressed=true]{background:var(--ink);color:var(--stage)}
+  .dk-btn:focus-visible,.dk-ctrl input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .dk-icon{width:32px;padding:6px 0;text-align:center;font-size:15px;line-height:1}
+  .dk-ctrl{flex:none;display:flex;align-items:center;gap:8px;padding:0 8px;font-size:13px;font-weight:500;color:var(--muted);white-space:nowrap}
+  .dk-ctrl input[type=range]{-webkit-appearance:none;appearance:none;width:120px;height:20px;background:transparent;cursor:pointer}
+  .dk-ctrl input[type=range]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  .dk-ctrl input[type=range]::-moz-range-track{height:3px;border-radius:2px;background:color-mix(in srgb,var(--ink) 18%,transparent)}
+  .dk-ctrl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;margin-top:-5.5px;border-radius:50%;background:var(--ink);border:2px solid var(--stage);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+  .dk-ctrl input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--ink);border:2px solid var(--stage)}
+  .dk-ctrl input:disabled{opacity:.35;cursor:default}
+  .dk-readout{display:flex;flex-wrap:wrap;gap:4px 22px;padding:12px 4px 0;font-size:13px;color:var(--muted)}
+  .dk-readout:empty{display:none}.dk-readout b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}.dk-readout .ok{color:var(--accent)}.dk-readout .warn{color:#B4541A}
+  .dk-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 16px;padding:12px 4px 0;font-size:11.5px;color:var(--muted)}
+  .dk-foot a{color:var(--muted);text-decoration:none;white-space:nowrap}.dk-foot a b{color:var(--ink);font-weight:600}.dk-foot a:hover,.dk-foot a:focus-visible{color:var(--accent)}
+  .dk-actions{display:flex;justify-content:flex-end;gap:8px;padding:12px 0 0}
+  .dk-actions .dk-btn{border:1px solid var(--line)}
+  @media (max-width:640px){.dk-panel{position:static;transform:none;margin:0;max-width:none;flex-wrap:wrap;justify-content:center;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;padding:6px 6px 10px}.dk-pmain{flex-wrap:wrap;justify-content:center}.dk-psteps{width:100%;justify-content:center}.dk-psteps:not(:empty)+.dk-pmain:not(:empty){border-left:0;padding-left:0;margin-left:0}.dk-sep{display:none}.dk{padding:14px 12px 10px}.dk-title{font-size:19px}.dk-stage{height:clamp(300px,105vw,460px);min-height:300px}.dk-label{font-size:11.5px;padding:3px 6px}.dk-label small{display:none}.dk-ctrl input[type=range]{width:84px}.dk-ctrl{padding:0 4px}.dk-btn{padding:6px 8px}}`;
+
+  // A soft studio as an environment map: warm overhead softbox, cool side strip, dim floor. No image files needed.
+  function studioEnvironment(renderer) {
+    const env = new T.Scene(), basic = c => new T.MeshBasicMaterial({ color: c, side: T.BackSide });
+    const sky = new T.SphereGeometry(50, 32, 16), col = [], p = sky.attributes.position;
+    for (let i = 0; i < p.count; i++) { const y = p.getY(i) / 50, c = new T.Color().lerpColors(new T.Color(0x1c1a17), new T.Color(0x8a857c), clamp((y + 0.35) / 1.2, 0, 1)); col.push(c.r, c.g, c.b); }
+    sky.setAttribute('color', new T.Float32BufferAttribute(col, 3));
+    env.add(new T.Mesh(sky, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
+    const panel = (w, h, c, pos) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: c, side: T.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); env.add(m); };
+    panel(40, 26, 0xfff6e8, [10, 38, 20]);   // key softbox
+    panel(10, 40, 0xdfe9ff, [-40, 8, -6]);   // cool strip
+    panel(30, 8, 0xffffff, [0, 18, -40]);    // rim
+    const pm = new T.PMREMGenerator(renderer), tex = pm.fromScene(env, 0.02).texture; pm.dispose();
+    return tex;
+  }
+
+  const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
+  const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray', 'focusX', 'focusY', 'focusZ'];
+  // easing for camera and state moves: smootherstep by default (zero velocity and acceleration at both ends → no visible kick)
+  const EASES = { inOut: t => t * t * t * (t * (t * 6 - 15) + 10), out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, linear: t => t };
+
+  DK.figure = function (o) {
+    o = Object.assign({ title: 'Untitled figure', subtitle: '', footer: 'Population-average anatomy. Not for diagnosis or treatment planning.' }, o);
+    const qs = new URLSearchParams(location.search);
+    const askedMode = qs.get('mode') || window.DK_MODE || o.mode || 'interactive';   // 'interactive' | 'image' ('video' is coming soon)
+    const mode = askedMode === 'video' && !window.DK_ENABLE_VIDEO ? 'interactive' : askedMode;   // video stays in the kit, switched off until it ships
+    const still = mode !== 'interactive';
+    const aspect = ASPECTS[qs.get('aspect') || window.DK_ASPECT || o.aspect || '16:9'] || 16 / 9;
+    if (!document.querySelector('link[data-dk-font]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONT_URL; l.dataset.dkFont = '1'; document.head.appendChild(l); }
+    const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    const root = o.mount || document.body;
+    const card = document.createElement('div'); card.className = 'dk' + (still ? ' dk-still' : ''); card.dataset.mode = mode;
+    const credit = 'Made with dental-explainer by <b>Sixmonth</b>';
+    card.innerHTML = still
+      ? `<div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div>
+          <div class="dk-ov dk-ov-title"><div class="dk-ov-t"></div>${o.subtitle ? '<div class="dk-ov-s"></div>' : ''}</div><div class="dk-ov dk-ov-cap"></div>
+          <div class="dk-ov dk-ov-foot"><span class="dk-ov-disc"></span><span>${credit}</span></div></div></div>
+         <div class="dk-actions"></div>`
+      : `<div class="dk-head"><h1 class="dk-title"></h1>${o.subtitle ? '<p class="dk-sub"></p>' : ''}</div>
+         <div class="dk-frame"><div class="dk-stage"><div class="dk-labels"><svg></svg></div><div class="dk-info" role="status"></div></div><div class="dk-panel" role="toolbar" aria-label="Figure controls"><span class="dk-psteps"></span><span class="dk-pmain"></span><span class="dk-pend"></span></div></div>
+         <div class="dk-readout"></div><div class="dk-foot"><span class="dk-disc"></span><a href="https://sixmonth.ai" target="_blank" rel="noopener">${credit}</a></div>`;
+    root.appendChild(card);
+    const $ = s => card.querySelector(s);
+    if (still) { $('.dk-ov-t').textContent = o.title; if (o.subtitle) $('.dk-ov-s').textContent = o.subtitle; $('.dk-ov-disc').textContent = o.footer; }
+    else { $('.dk-title').textContent = o.title; if (o.subtitle) $('.dk-sub').textContent = o.subtitle; $('.dk-disc').textContent = o.footer; }
+    document.title = document.title && document.title !== 'Dental figure' ? document.title : o.title;
+    const stage = $('.dk-stage'), labelLayer = $('.dk-labels'), svg = labelLayer.querySelector('svg');
+    const info = $('.dk-info'), panel = $('.dk-panel'), readout = $('.dk-readout'), caption = $('.dk-ov-cap'), actions = $('.dk-actions');
+    if (still) stage.style.aspectRatio = String(aspect);
+    const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    const isDark = () => css('--stage') === '#0E0E0C';
+    const accentHex = () => isDark() ? DK.COLORS.accentDark : DK.COLORS.accent;
+
+    let renderer;
+    try { renderer = new T.WebGLRenderer({ antialias: true, alpha: true, stencil: true, preserveDrawingBuffer: true }); }
+    catch (e) { stage.innerHTML = '<p style="padding:24px">This figure needs WebGL, which is not available in this viewer.</p>'; throw e; }
+    let pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pixelRatio);
+    renderer.localClippingEnabled = true; renderer.outputEncoding = T.sRGBEncoding; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = isDark() ? 0.98 : 1.04;
+    renderer.autoClearStencil = true; renderer.shadowMap.autoUpdate = false;
+    stage.insertBefore(renderer.domElement, labelLayer);
+    const scene = new T.Scene();
+    const camera = new T.PerspectiveCamera(26, 1, 0.5, 2000);
+    // studio lighting: a soft procedural environment (reflections on enamel, metal, moist tissue) + a shadow-casting key
+    scene.environment = studioEnvironment(renderer);
+    scene.add(new T.HemisphereLight(0xfff8ee, 0x6b6056, 0.4));
+    const key = new T.DirectionalLight(0xfff5e8, 1.05); key.position.set(45, 80, 60); scene.add(key, key.target);
+    key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.04; key.shadow.radius = 3;
+    const fill = new T.DirectionalLight(0xdce6f5, 0.35); fill.position.set(-70, 15, -10); scene.add(fill);
+    const rim = new T.DirectionalLight(0xffffff, 0.4); rim.position.set(-20, 40, -80); scene.add(rim);
+    renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+    function renderFrame() { if (section) section.prepass(renderer, camera); renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); }
+
+    const world = new T.Group(); scene.add(world);
+    const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    // orbit; auto-rotate is opt-in (it fights precise views)
+    const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: !still && !!o.autoRotate, zoom: 1 };
+    const home = Object.assign({}, orbit, { target: orbit.target.clone() });
+    const focusOff = new T.Vector3();   // story focus: offset of the orbit target from the auto-fitted centre
+    function placeCam() { const { theta, phi, dist, target } = orbit; camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta)); camera.lookAt(target); }
+    // inertia: the model keeps turning a little after a flick, then settles
+    let drag = null, vel = { th: 0, ph: 0 };
+    let introOff = false;
+    function interrupt() { player = null; introOff = true; orbit.auto = false; if (caption) caption.style.opacity = 0; }
+    if (!still) {
+      stage.addEventListener('pointerdown', e => { interrupt(); drag = { x: e.clientX, y: e.clientY, th: orbit.theta, ph: orbit.phi, t: performance.now() }; vel = { th: 0, ph: 0 }; stage.setPointerCapture(e.pointerId); stage.classList.add('drag'); });
+      stage.addEventListener('pointermove', e => {
+        if (drag) {
+          const th = drag.th - (e.clientX - drag.x) * 0.008, ph = clamp(drag.ph - (e.clientY - drag.y) * 0.008, 0.06, Math.PI - 0.06), now = performance.now(), dt = Math.max(1, now - drag.t) / 1000;
+          vel = { th: (th - orbit.theta) / dt, ph: (ph - orbit.phi) / dt }; drag.t = now; orbit.theta = th; orbit.phi = ph;
+        } else hover(e);
+      });
+      const end = () => { if (drag) { drag = null; stage.classList.remove('drag'); } };
+      stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
+      stage.addEventListener('pointerleave', () => { setHover(null); });
+      stage.addEventListener('wheel', e => { e.preventDefault(); interrupt(); const k = Math.exp(Math.sign(e.deltaY) * 0.08); if (fits) zoomTarget = clamp(zoomTarget * k, 0.3, 3); else orbit.dist = clamp(orbit.dist * k, 15, 400); }, { passive: false });
+      stage.addEventListener('dblclick', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8));
+    }
+
+    // parts
+    const parts = [];
+    let explodeT = 0, explodeTarget = 0, zoomTarget = 1;
+    const noSection = { enabled: false, offset: 0 };
+    function part(obj, p) {
+      p = Object.assign({ name: obj.name || 'Part', info: '', explode: [0, 0, 0], label: true, anchor: [0, 0, 0], labelOffset: null }, p);
+      p.obj = obj; p.base = obj.position.clone(); p.ex = new T.Vector3(...p.explode); p.anchorFn = typeof p.anchor === 'function' ? p.anchor : null;
+      p.anchorV = new T.Vector3(...(p.anchorFn ? p.anchorFn(0, section || noSection) : p.anchor)); p.alpha = 0;
+      p.setAnchor = a => { if (typeof a === 'function') p.anchorFn = a; else { p.anchorFn = null; p.anchorV.set(...a); } };
+      obj.traverse(m => { if (m.isMesh) m.userData.part = p; });
+      if (!p.inPlace) world.add(obj); // inPlace: annotate a sub-object already in the scene (no explode motion)
+      if (p.label) {
+        p.el = document.createElement('div'); p.el.className = 'dk-label' + (p.accent ? ' accent' : ''); p.el.innerHTML = p.name + (p.sub ? `<small>${p.sub}</small>` : '');
+        labelLayer.appendChild(p.el);
+        p.line = document.createElementNS('http://www.w3.org/2000/svg', 'line'); p.line.setAttribute('stroke-width', '1'); svg.appendChild(p.line);
+        p.dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); p.dot.setAttribute('r', '2.5'); svg.appendChild(p.dot);
+      }
+      parts.push(p); return p;
+    }
+
+    // hover (interactive only)
+    const ray = new T.Raycaster(), mouse = new T.Vector2(); let hovered = null, frameNo = 0;
+    function pickables() { const a = []; world.traverse(m => { if (m.isMesh && !m.userData.isStencil && m.userData.part && m.material.visible !== false && m.parent && isVisible(m)) a.push(m); }); return a; }
+    function isVisible(ob) { while (ob) { if (!ob.visible) return false; ob = ob.parent; } return true; }
+    // x-ray: context tissue fades to see-through; amount 0..1 so stories can tween it
+    const xrayObjs = []; let xrayAmt = 0;
+    function applyXray(a) {
+      xrayAmt = a;
+      xrayObjs.forEach(obj => obj.traverse(m => {
+        if (!m.isMesh || m.userData.isStencil) return;
+        if (m.userData.op === undefined) m.userData.op = m.material.opacity;
+        const op = lerp(m.userData.op, 0.2, a), tr = a > 0.001 || m.userData.op < 1;
+        if (m.material.transparent !== tr) m.material.needsUpdate = true;
+        m.material.transparent = tr; m.material.opacity = op; m.material.depthWrite = a < 0.5;
+      }));
+      if (fig.xrayButton) fig.xrayButton.setAttribute('aria-pressed', a > 0.5);
+    }
+    // camera fit: bounds over assembled and fully exploded states
+    const fitCenter = new T.Vector3();
+    let fits = null;
+    // what the camera frames: regular parts unless marked fit:false (context blocks). A figure built only from inPlace parts
+    // (a procedure whose objects all live in fig.world) falls back to every visible mesh in the world, so it never frames nothing.
+    function fitBox() {
+      const box = new T.Box3(); parts.forEach(p => { if (!p.inPlace && p.fit !== false) box.expandByObject(p.obj); });
+      if (box.isEmpty()) world.traverse(m => { if (m.isMesh && !m.userData.isStencil && m.material.visible !== false && isVisible(m)) box.expandByObject(m); });
+      return box;
+    }
+    function fit(margin) {
+      const vf = camera.fov * Math.PI / 180, asp = Math.max(0.5, stage.clientWidth / stage.clientHeight), hf = 2 * Math.atan(Math.tan(vf / 2) * asp);
+      fits = [0, 1].map(e => {
+        parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); }); world.updateMatrixWorld(true);
+        const box = fitBox(), size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
+        // the diagonal fit alone clips long, thin subjects (a single tooth standing up): also fit the height and the width
+        const k = (margin || 0.85) / 0.85 * 1.08;
+        const d = Math.max(size.length() / 2 / Math.sin(Math.min(vf, hf) / 2) * (margin || 0.85), size.y / 2 * k / Math.tan(vf / 2), Math.max(size.x, size.z) / 2 * k / Math.tan(hf / 2));
+        return { c, d: d * (still ? 1.15 : 1) };
+      });
+      parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base); });
+      world.updateMatrixWorld(true);
+      const box = new T.Box3(); parts.forEach(p => { if (!p.inPlace) box.expandByObject(p.obj); }); box.union(fitBox());   // the shadow covers context too
+      if (!box.isEmpty()) {
+        const c = box.getCenter(new T.Vector3()), r = box.getSize(new T.Vector3()).length() / 2 + 2;
+        key.target.position.copy(c); key.position.copy(c).add(new T.Vector3(45, 80, 60).setLength(r * 3));
+        Object.assign(key.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: r, far: r * 5 }); key.shadow.camera.updateProjectionMatrix();
+      }
+      world.traverse(m => { if (m.isMesh && !m.userData.isStencil) { m.castShadow = m.material.visible !== false; m.receiveShadow = true; } });
+    }
+    function hover(e) {
+      const r = renderer.domElement.getBoundingClientRect(); mouse.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+      ray.setFromCamera(mouse, camera);
+      let hits = ray.intersectObjects(pickables().filter(m => !m.material.transparent || m.material.opacity > 0.5), false);
+      if (section) hits = hits.filter(h => !section.enabled || !h.object.material.clippingPlanes || section.plane.distanceToPoint(h.point) >= -1e-3);
+      setHover(hits.length ? hits[0].object.userData.part : null);
+    }
+    function setHover(p) {
+      if (hovered === p || !info) return;
+      if (hovered) { hovered.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0); }); if (hovered.el) hovered.el.classList.remove('hl'); }
+      hovered = p;
+      if (p && p.info) { p.obj.traverse(m => { if (m.isMesh && m.material.emissive && !m.userData.isStencil) m.material.emissive.setHex(0x14283a); }); if (p.el) p.el.classList.add('hl'); info.innerHTML = `<b></b><span></span>`; info.firstChild.textContent = p.name; info.lastChild.textContent = p.info; info.classList.add('on'); }
+      else { hovered = null; info.classList.remove('on'); }
+    }
+
+    // section
+    let section = null;
+    function enableSection(normal, capGroups) { section = makeSection(fig, normal, capGroups); return section; }
+
+    // panel builders: compact, grouped, only what the figure needs
+    function addToPanel(el) {
+      if (!panel) return el; const box = panel.querySelector(el.dataset.group === 'end' ? '.dk-pend' : '.dk-pmain');
+      if (box.children.length && el.dataset.group !== box.lastElementChild.dataset.group) { const s = document.createElement('span'); s.className = 'dk-sep'; box.appendChild(s); }
+      box.appendChild(el); return el;
+    }
+    let group = 0; const newGroup = () => ++group;
+    function slider(label, min, max, step, val, onInput) {
+      const w = document.createElement('label'); w.className = 'dk-ctrl'; w.dataset.group = group; w.innerHTML = `<span></span><input type=range min=${min} max=${max} step=${step} value=${val}>`;
+      w.firstChild.textContent = label; const inp = w.querySelector('input'); inp.setAttribute('aria-label', label);
+      inp.addEventListener('input', () => { interrupt(); onInput(+inp.value); }); addToPanel(w); return inp;
+    }
+    function toggle(label, val, onChange) {
+      const b = document.createElement('button'); b.className = 'dk-btn'; b.dataset.group = group; b.textContent = label; b.setAttribute('aria-pressed', val);
+      b.addEventListener('click', () => { interrupt(); const v = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', v); onChange(v); }); addToPanel(b); return b;
+    }
+    function button(label, onClick, opts) {
+      const b = document.createElement('button'); b.className = 'dk-btn' + (opts && opts.icon ? ' dk-icon' : ''); b.dataset.group = opts && opts.group !== undefined ? opts.group : group; b.textContent = label;
+      if (opts && opts.title) { b.title = opts.title; b.setAttribute('aria-label', opts.title); }
+      b.addEventListener('click', () => { interrupt(); onClick(); }); addToPanel(b); return b;
+    }
+    let labelsOn = true;
+    function standardControls(opts) {
+      opts = opts || {}; const out = {};
+      if (opts.explode !== false) { newGroup(); fig.explodeSlider = out.explode = slider(opts.explodeLabel || 'Explode', 0, 1, 0.01, 0, v => { explodeTarget = v; }); } else fig.noExplode = true;
+      if (opts.section && section) {
+        const sec = opts.section; newGroup();
+        out.section = toggle(sec.label || 'Cut', !!sec.on, v => { section.set(v); });
+        var secSl = out.cut = sec.range ? slider(sec.rangeLabel || '', sec.range[0], sec.range[1], 0.1, sec.offset || 0, v => section.set(section.enabled, v)) : null;
+        if (secSl && !sec.rangeLabel) { secSl.previousSibling.remove(); secSl.setAttribute('aria-label', 'Cut position'); }
+        section.set(!!sec.on, sec.offset || 0);
+        section.onChange = () => { out.section.setAttribute('aria-pressed', section.enabled); if (secSl) { secSl.disabled = !section.enabled; secSl.value = section.offset; } };
+        section.onChange();
+      }
+      newGroup();
+      if (opts.labels) out.labels = toggle('Labels', true, v => { labelsOn = v; });
+      out.reset = button('↺', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8), { icon: true, title: 'Reset view', group: 'end' });
+      return out;
+    }
+    function setReadout(items) { // v can be a string or [{v, cls}] segments (e.g. healthy ✓ · disease ⚠ in one row)
+      if (!readout) return;
+      const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const seg = i => Array.isArray(i.v) ? i.v.map(x => `<b class="${x.cls || ''}">${esc(x.v)}</b>`).join(' · ') : `<b class="${i.cls || ''}">${esc(i.v)}</b>`;
+      readout.innerHTML = items.map(i => `<span>${esc(i.k)} ${seg(i)}</span>`).join('');
+    }
+
+    /* ----- story: one list of shots drives the intro (interactive), the loop (video) and the final frame (image) -----
+       step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, focus:[x,y,z]|'auto', ease, drift, labels:[names]|'all', caption }
+       Unset keys carry over from the previous step. Think of each step as a shot: `dur` is the camera move, `hold` the time it
+       rests. The move eases (smootherstep; `ease: 'out' | 'in' | 'linear'` to change it), the hold drifts very slightly
+       (`drift: 0` to pin it), labels land as the move settles and captions fade in on their beat. `focus` pushes the orbit
+       centre to a point of the figure (world mm) for close-ups; 'auto' returns to the fitted centre. */
+    let story = null, player = null, labelFilter = null;
+    const params = {};   // named numbers a story can animate (drill depth, insertion, bone level…): fig.param(name, value, fn)
+    const keys = () => STORY_KEYS.concat(Object.keys(params).map(n => '$' + n));
+    const autoFocus = () => fits ? [fits[0].c.x, fits[0].c.y, fits[0].c.z] : [0, 0, 0];
+    function snapshot() { const f = autoFocus(), o2 = { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, focusX: f[0] + focusOff.x, focusY: f[1] + focusOff.y, focusZ: f[2] + focusOff.z, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
+    function homeState() { const f = autoFocus(); return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, focusX: f[0], focusY: f[1], focusZ: f[2], labels: null }; }
+    function compile(steps, from) {
+      let t = 0, prev = Object.assign({}, from); const segs = [];
+      steps.forEach((s, i) => {
+        const to = Object.assign({}, prev); STORY_KEYS.forEach(k => { if (s[k] !== undefined) to[k] = typeof s[k] === 'boolean' ? +s[k] : s[k]; });
+        if (s.focus) { const f = s.focus === 'auto' ? autoFocus() : s.focus; to.focusX = f[0]; to.focusY = f[1]; to.focusZ = f[2]; }
+        if (s.set) Object.keys(s.set).forEach(n => { to['$' + n] = +s.set[n]; });
+        if (s.section !== undefined) to.section = s.section; if (s.labels !== undefined) to.labels = s.labels === 'all' ? null : s.labels; to.caption = s.caption !== undefined ? s.caption : '';
+        const dur = s.dur ?? 1.2, hold = s.hold ?? 0.6;
+        // a resting camera is never dead still: a few hundredths of a radian of orbit and a whisper of push-in over the hold
+        const drift = s.drift !== undefined ? s.drift : (hold >= 0.8 && !reduce ? 0.03 : 0), push = drift ? 0.985 : 1;
+        segs.push({ t0: t, t1: t + dur, t2: t + dur + hold, from: prev, to, ease: EASES[s.ease] || EASES.inOut, drift, push, i });
+        t += dur + hold; prev = Object.assign({}, to, { theta: to.theta + drift, zoom: to.zoom * push });
+      });
+      return { segs, total: t, end: prev };
+    }
+    function stateAt(c, t) {
+      const s = c.segs.find(g => t < g.t2) || c.segs[c.segs.length - 1];
+      const k = s.t1 > s.t0 ? s.ease(clamp((t - s.t0) / (s.t1 - s.t0), 0, 1)) : 1, out = {};
+      keys().forEach(n => { out[n] = s.from[n] === undefined ? s.to[n] : (s.to[n] === undefined ? s.from[n] : lerp(s.from[n], s.to[n], k)); });
+      const h = s.t2 > s.t1 ? clamp((t - s.t1) / (s.t2 - s.t1), 0, 1) : (t >= s.t1 ? 1 : 0);   // progress through the hold
+      out.theta += s.drift * h; out.zoom *= lerp(1, s.push, h);
+      out.section = s.to.section; out.caption = s.to.caption;
+      if (s.to.section && !s.from.section) out.offset = s.to.offset; // cut appears in place, then moves in later steps
+      // labels land as the camera settles: during the move only those already on screen stay
+      const settling = t < s.t1 - 0.3 && s.t1 > s.t0, F = s.from.labels, L = s.to.labels;
+      out.labels = settling && L && F ? L.filter(n => F.includes(n)) : L;
+      // captions fade on their beat (deterministic, so frame-stepped video matches real time)
+      let ca = 1;
+      if (s.to.caption) { if (s.from.caption !== s.to.caption) ca = Math.min(ca, clamp((t - s.t0) / 0.45, 0, 1)); const nx = c.segs[s.i + 1]; if (nx && nx.to.caption !== s.to.caption) ca = Math.min(ca, clamp((s.t2 - t) / 0.35, 0, 1)); }
+      out.captionAlpha = ca;
+      return out;
+    }
+    function apply(sv) {
+      orbit.theta = sv.theta; orbit.phi = sv.phi; zoomTarget = sv.zoom; if (fits) orbit.zoom = sv.zoom;
+      if (fits && sv.focusX !== undefined) { const f = autoFocus(); focusOff.set(sv.focusX - f[0], sv.focusY - f[1], sv.focusZ - f[2]); }
+      explodeTarget = explodeT = sv.explode; if (fig.explodeSlider) fig.explodeSlider.value = sv.explode;
+      if (section && (section.enabled !== !!sv.section || Math.abs(section.offset - sv.offset) > 1e-4)) section.set(!!sv.section, sv.offset);
+      if (Math.abs(xrayAmt - sv.xray) > 1e-3) { applyXray(sv.xray); fig.xrayOn = sv.xray > 0.5; }
+      labelFilter = sv.labels;
+      Object.keys(params).forEach(n => { const v = sv['$' + n]; if (v !== undefined && Math.abs(v - params[n].v) > 1e-6) { params[n].v = v; params[n].fn(v); } });
+      if (caption) { const c = mode === 'video' ? sv.caption : '', a = c ? (sv.captionAlpha ?? 1) : 0; if (c) caption.textContent = c; caption.style.opacity = a; caption.style.transform = `translateY(${((1 - a) * 8).toFixed(2)}px)`; }  // captions narrate motion: video only
+    }
+    function play(steps, opts) {
+      opts = opts || {}; const c = compile(steps, Object.assign(snapshot(), opts.from || {}));
+      player = { c, t: 0, loop: !!opts.loop, done: opts.done, tick: opts.tick, tag: opts.tag }; return c;
+    }
+
+    // resize & loop
+    function resize() {
+      const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+      if (fits && !o.view?.dist) { const z = orbit.zoom; fit(o.view?.margin); orbit.zoom = z; }
+    }
+    window.addEventListener('resize', resize);
+    const tmp = new T.Vector3();
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let last = performance.now(), frameHooks = [], frozen = false;
+    function update(dt) {
+      if (player) {
+        player.t += dt;
+        if (player.t >= player.c.total) { if (player.loop) player.t %= player.c.total || 1; else { apply(stateAt(player.c, player.c.total)); const d = player.done; player = null; if (d) d(); } }
+        if (player) { apply(stateAt(player.c, player.t)); if (player.tick) player.tick(player.t); }
+      } else {
+        if (orbit.auto && !reduce) orbit.theta += dt * 0.15;
+        if (!drag && (Math.abs(vel.th) > 0.01 || Math.abs(vel.ph) > 0.01)) { orbit.theta += vel.th * dt; orbit.phi = clamp(orbit.phi + vel.ph * dt, 0.06, Math.PI - 0.06); const k = Math.exp(-dt * 6); vel.th *= k; vel.ph *= k; }
+        explodeT += (explodeTarget - explodeT) * (reduce ? 1 : Math.min(1, dt * 7));
+        if (fits) orbit.zoom += (zoomTarget - orbit.zoom) * (reduce ? 1 : Math.min(1, dt * 10));
+      }
+      if (playB) syncPlay();
+      const e = ease(clamp(explodeT, 0, 1));
+      parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
+      frameHooks.forEach(f => f(dt, e));
+      if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e).add(focusOff); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
+      fitCenter.copy(orbit.target);
+      placeCam();
+      renderFrame();
+      layoutLabels(e, dt);
+    }
+    function layoutLabels(e, dt) {
+      const W = stage.clientWidth, H = stage.clientHeight, lineCol = css('--muted') || '#888', accentHex2 = () => css('--accent') || '#0E3A5C';
+      const ctr = tmp.copy(fitCenter).project(camera), cx = (ctr.x + 1) / 2 * W;
+      const occlTest = (frameNo++ % 6) === 0;
+      const placed = [];
+      parts.forEach(p => {
+        if (!p.el) return;
+        p.vis = labelsOn && p.obj.visible && (!p.when || p.when(e, section || noSection)) && (!labelFilter || labelFilter.includes(p.name));
+        if (p.anchorFn) p.anchorV.set(...p.anchorFn(e, section || noSection));
+        p.obj.updateMatrixWorld(); const wp = p.anchorV.clone().applyMatrix4(p.obj.matrixWorld);
+        if (occlTest) { // dim labels whose anchor is hidden behind another part
+          const dir = wp.clone().sub(camera.position), d = dir.length(); ray.set(camera.position, dir.normalize());
+          const hit = ray.intersectObjects(pickables().filter(m => !m.material.transparent || m.material.opacity > 0.5), false).find(h => !section || !section.enabled || !h.object.material.clippingPlanes || section.plane.distanceToPoint(h.point) >= -1e-3);
+          // a label's own object never hides it (two labels can share one mesh: "Preparation" and "Margin" on the same stump)
+          let own = false; for (let ob = hit && hit.object; ob; ob = ob.parent) if (ob === p.obj) { own = true; break; }
+          p.hidden = p.dim !== false && !!(hit && hit.distance < d - 0.6 && !own);
+        }
+        tmp.copy(wp).project(camera);
+        p.ax = (tmp.x + 1) / 2 * W; p.ay = (1 - tmp.y) / 2 * H; p.front = tmp.z < 1;
+        if (p.labelOffset) { p.lx = p.ax + p.labelOffset[0]; p.ly = p.ay + p.labelOffset[1]; p.side = Math.sign(p.labelOffset[0]) || 1; }
+        else { p.side = p.ax >= cx ? 1 : -1; p.lx = p.ax + p.side * (W < 600 ? 44 : 72); p.ly = p.ay; }
+        p.w = p.el.offsetWidth || 90; p.h = p.el.offsetHeight || 22;
+        p.lx = clamp(p.lx, p.w / 2 + 8, W - p.w / 2 - 8);
+        if (p.vis && p.front) placed.push(p);
+      });
+      // push overlapping labels apart vertically (keeping their order), on each side and then across all of them — narrow
+      // screens put both columns within reach of each other
+      const overlapX = (a, b) => Math.abs(a.lx - b.lx) < (a.w + b.w) / 2 + 4;
+      const settle = col => {
+        for (let k = 1; k < col.length; k++) { const b = col[k]; for (let m = 0; m < k; m++) { const a = col[m]; const need = (a.h + b.h) / 2 + 6; if (overlapX(a, b) && b.ly - a.ly < need) b.ly = a.ly + need; } }
+        for (let k = col.length - 2; k >= 0; k--) { const a = col[k], b = col[k + 1]; const over = b.ly + b.h / 2 - (H - (still ? 74 : 6)); if (k === col.length - 2 && over > 0) b.ly -= over; const need = (a.h + b.h) / 2 + 6; if (overlapX(a, b) && b.ly - a.ly < need) a.ly = b.ly - need; }
+      };
+      [-1, 1].forEach(side => settle(placed.filter(p => p.side === side).sort((a, b) => a.ly - b.ly)));
+      if (W < 700) settle(placed.slice().sort((a, b) => a.ly - b.ly));
+      const fade = reduce ? 1 : Math.min(1, dt * 9);
+      // framed layouts keep labels clear of the title (top) and caption + footer (bottom)
+      const safeTop = still ? (o.subtitle ? 80 : 58) : 6, safeBottom = still ? 74 : 6;
+      parts.forEach(p => {
+        if (!p.el) return;
+        const target = p.vis && p.front ? (p.hidden ? 0.4 : 1) : 0;
+        p.alpha += (target - p.alpha) * fade; if (Math.abs(target - p.alpha) < 0.01) p.alpha = target;
+        p.lyc = clamp(p.ly, p.h / 2 + safeTop, H - p.h / 2 - safeBottom);
+        p.el.style.opacity = p.alpha; p.el.style.left = p.lx + 'px'; p.el.style.top = p.lyc + 'px';
+        p.ex2 = p.lx - p.side * p.w / 2;
+        p.line.setAttribute('x1', p.ax); p.line.setAttribute('y1', p.ay); p.line.setAttribute('x2', p.ex2); p.line.setAttribute('y2', p.lyc);
+        const col = p.accent ? accentHex2() : lineCol;
+        p.line.setAttribute('stroke', col); p.line.style.opacity = p.alpha;
+        p.dot.setAttribute('cx', p.ax); p.dot.setAttribute('cy', p.ay); p.dot.setAttribute('fill', col); p.dot.setAttribute('r', p.accent ? '3.2' : '2.5'); p.dot.style.opacity = p.alpha;
+      });
+    }
+    function frame(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      if (!frozen) update(dt);
+      requestAnimationFrame(frame);
+    }
+
+    /* ----- export: composite the WebGL canvas and the HTML overlays into one 2D canvas ----- */
+    function setRenderScale(pr) { renderer.setPixelRatio(pr); renderer.setSize(stage.clientWidth, stage.clientHeight, false); }
+    function restoreScale() { if (Math.abs(renderer.getPixelRatio() - pixelRatio) > 1e-3) { setRenderScale(pixelRatio); if (!frozen) renderFrame(); } }
+    function composite(scale) {
+      scale = scale || pixelRatio;
+      const W = stage.clientWidth, H = stage.clientHeight, cv = document.createElement('canvas');
+      cv.width = Math.round(W * scale); cv.height = Math.round(H * scale);
+      const g = cv.getContext('2d'); g.scale(scale, scale);
+      const vg = g.createRadialGradient(W / 2, H * 0.46, 0, W / 2, H * 0.46, Math.hypot(W * 0.75, H * 0.7) / 1.35); vg.addColorStop(0, css('--stage-hi')); vg.addColorStop(1, css('--stage'));
+      g.fillStyle = vg; g.fillRect(0, 0, W, H);
+      // export at the export scale (not an upscaled screen render): re-render at that pixel ratio, then restore
+      // render at the export scale (not an upscaled screen buffer). The renderer stays at that scale so frame-by-frame video
+      // costs one render per frame; one-off exports restore the live scale afterwards (restoreScale).
+      const pr = Math.min(scale, 8192 / Math.max(W, H));
+      if (Math.abs(pr - renderer.getPixelRatio()) > 1e-3) { setRenderScale(pr); renderFrame(); }
+      g.drawImage(renderer.domElement, 0, 0, W, H);
+      const sr = stage.getBoundingClientRect();
+      const text = (el, x, y, font, color, align) => { g.font = font; g.fillStyle = color; g.textAlign = align || 'left'; g.textBaseline = 'alphabetic'; g.fillText(el, x, y); };
+      const fontOf = el => { const s = getComputedStyle(el); return `${s.fontWeight} ${s.fontSize} ${s.fontFamily}`; };
+      parts.forEach(p => {
+        if (!p.el || p.alpha < 0.02) return;
+        const lc = p.accent ? css('--accent') : css('--muted');
+        g.globalAlpha = p.alpha; g.strokeStyle = lc; g.lineWidth = p.accent ? 1.5 : 1;
+        g.beginPath(); g.moveTo(p.ax, p.ay); g.lineTo(p.ex2, p.lyc); g.stroke();
+        g.fillStyle = lc; g.beginPath(); g.arc(p.ax, p.ay, p.accent ? 3.2 : 2.5, 0, Math.PI * 2); g.fill();
+        const r = p.el.getBoundingClientRect(), x = r.left - sr.left, y = r.top - sr.top;
+        g.save(); g.shadowColor = 'rgba(10,10,8,.10)'; g.shadowBlur = 12; g.shadowOffsetY = 3; g.fillStyle = css('--stage') === '#0E0E0C' ? '#1C1B18' : '#FFFFFF';
+        g.beginPath(); g.roundRect ? g.roundRect(x, y, r.width, r.height, 7) : g.rect(x, y, r.width, r.height); g.fill(); g.restore();
+        const cs = getComputedStyle(p.el), padL = parseFloat(cs.paddingLeft), padT = parseFloat(cs.paddingTop), small = p.el.querySelector('small');
+        const fs = parseFloat(cs.fontSize);
+        text(p.name, x + padL, y + padT + fs * 0.92, fontOf(p.el), p.el.classList.contains('hl') || p.accent ? css('--accent') : css('--ink'));
+        if (small && getComputedStyle(small).display !== 'none') { const sm = small.getBoundingClientRect(); text(small.textContent, sm.left - sr.left, sm.top - sr.top + parseFloat(getComputedStyle(small).fontSize) * 0.92, fontOf(small), css('--muted')); }
+      });
+      g.globalAlpha = 1;
+      card.querySelectorAll('.dk-ov').forEach(ov => {
+        const s = getComputedStyle(ov); if (+s.opacity < 0.02 || s.visibility === 'hidden') return; g.globalAlpha = +s.opacity;
+        const leafs = ov.children.length ? [...ov.children] : [ov];
+        leafs.forEach(el => {
+          const r = el.getBoundingClientRect(); if (!el.textContent.trim()) return;
+          // wrap long text the way the browser did: draw line by line using Range rects
+          const range = document.createRange(); range.selectNodeContents(el); const rects = [...range.getClientRects()];
+          const fs = parseFloat(getComputedStyle(el).fontSize), words = el.textContent.split(' ');
+          if (rects.length <= 1) { text(el.textContent, r.left - sr.left, r.top - sr.top + fs * 0.95, fontOf(el), getComputedStyle(el).color); return; }
+          g.font = fontOf(el); let line = '', ly = r.top - sr.top + fs * 0.95; const lh = parseFloat(getComputedStyle(el).lineHeight) || fs * 1.2;
+          words.forEach(w => { const t = line ? line + ' ' + w : w; if (g.measureText(t).width > r.width + 1 && line) { text(line, r.left - sr.left, ly, fontOf(el), getComputedStyle(el).color); line = w; ly += lh; } else line = t; });
+          if (line) text(line, r.left - sr.left, ly, fontOf(el), getComputedStyle(el).color);
+        });
+      });
+      g.globalAlpha = 1;
+      return cv;
+    }
+    function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+    const slug = () => (o.title || 'figure').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'figure';
+    function videoType() { return ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)); }
+    // deterministic seek for frame-by-frame rendering (scripts/render.py)
+    function seek(t) {
+      frozen = true; player = null; introOff = true;
+      if (!story) { update(0); return; }
+      const c = compile(story, startState);
+      apply(stateAt(c, clamp(t, 0, c.total)));
+      if (proc) showStep(stepAtTime(clamp(t, 0, c.total)));
+      // labels fade deterministically: simulate the fade from 0.15 s earlier
+      parts.forEach(p => { p.alpha = 0; }); for (let i = 0; i < 6; i++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
+      update(0);
+    }
+    let story0 = {}, startState = null;
+
+    /* ----- procedure: named clinical steps, each a few story beats -----
+       interactive: a stepper (‹ 2/6 Pilot drill › ▶) · video: every step, captioned · image: a storyboard of every step */
+    let proc = null, stepCur = 0, stepEl = null, prevB = null, nextB = null, playB = null, playing = null;
+    const paramsOf = st => { const o2 = {}; Object.keys(params).forEach(n => { if (st['$' + n] !== undefined) o2[n] = st['$' + n]; }); return o2; };
+    function stepEnds() { const c = compile(story, startState); return proc.map(st => c.segs[st.last].to); }
+    function stepAtTime(t) { const c = compile(story, startState); let i = 0; proc.forEach((st, k) => { if (t >= c.segs[st.first].t0 - 1e-6) i = k; }); return i; }
+    function showStep(i) {
+      stepCur = i; if (!stepEl) return;
+      stepEl.firstChild.textContent = `${i + 1}/${proc.length}`; stepEl.children[1].textContent = proc[i].label;
+      prevB.disabled = i === 0; nextB.disabled = i === proc.length - 1;
+      if (playB && !playing) { const l = i === proc.length - 1 ? 'Play from the start' : 'Play from this step'; playB.title = l; playB.setAttribute('aria-label', l); }
+    }
+    // play / stop: the button shows what is happening (▶ idle, ■ playing, pressed) and the step label fills as the step plays
+    const ICON_PLAY = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 1.6v8.8L10.4 6z" fill="currentColor"/></svg>';
+    const ICON_STOP = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1.2" fill="currentColor"/></svg>';
+    function syncPlay() {
+      const now = !!player && player.tag === 'proc';
+      if (now) { const c = compile(story, startState), st = proc[stepCur], a = c.segs[st.first].t0, b = c.segs[st.last].t2, t = player.base + player.t; stepEl.style.setProperty('--p', clamp((t - a) / Math.max(b - a, 1e-3), 0, 1).toFixed(3)); }
+      if (now === playing) return; playing = now;
+      playB.innerHTML = now ? ICON_STOP : ICON_PLAY; playB.setAttribute('aria-pressed', now);
+      const label = now ? 'Stop' : (stepCur === proc.length - 1 ? 'Play from the start' : 'Play from this step'); playB.title = label; playB.setAttribute('aria-label', label);
+      stepEl.classList.toggle('playing', now); if (!now) stepEl.style.setProperty('--p', 0);
+    }
+    function playFrom(i) {
+      const tick = t => { const k = stepAtTime(player.base + t); if (k !== stepCur) showStep(k); };
+      if (i === 0) { play(story, { from: startState, tag: 'proc', tick }); player.base = 0; showStep(0); return; }
+      const c = compile(story, startState), from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget });
+      apply(from); play(story.slice(proc[i].first), { from, tag: 'proc', tick }); player.base = c.segs[proc[i].first].t0; showStep(i);
+    }
+    function goStep(i) {
+      i = clamp(i, 0, proc.length - 1); if (!startState || i === stepCur && player) return;
+      if (i === stepCur + 1 && !reduce) {   // forward: finish the previous step instantly (keep the viewer's camera), then animate this one
+        const c = compile(story, startState), from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget });
+        apply(from); play(proc[i].beats, { from, tag: 'proc' }); player.base = c.segs[proc[i].first].t0;
+      }
+      // back / jump: ease to that step's end state, resetting every param (even ones that step never set)
+      else { const end = stepEnds()[i]; play([Object.assign({}, end, { dur: reduce ? 0 : 0.7, hold: 0, set: paramsOf(end), caption: '' })]); }
+      showStep(i);
+    }
+
+    const fig = { T, scene, world, camera, renderer, orbit, stage, mode, part, parts, enableSection, slider, toggle, button, standardControls, setReadout,
+      // brand accent for the one thing a figure points at (theme-aware): a linear THREE.Color for materials, and the CSS hex
+      accent: DK.color(accentHex()), accentHex: accentHex(), dark: isDark(),
+      get section() { return section; },
+      explode(v) { explodeTarget = v; if (fig.explodeSlider) fig.explodeSlider.value = v; },
+      onFrame(f) { frameHooks.push(f); },
+      xrayOn: false,
+      get hasXray() { return xrayObjs.length > 0; },
+      xray(objs, on) { if (objs) xrayObjs.push(...objs); fig.xrayOn = !!on; applyXray(on ? 1 : 0); },
+      xrayToggle(objs, label, on) { xrayObjs.push(...objs); newGroup(); const b = fig.xrayButton = toggle(label || 'X-ray', !!on, v => { fig.xrayOn = v; fig.goTo({ xray: v ? 1 : 0 }, 0.4); }); fig.xrayOn = !!on; applyXray(on ? 1 : 0); return b; },
+      // smooth camera / state move from wherever the figure is now
+      goTo(state, dur) { play([Object.assign({}, state, { dur: reduce ? 0 : (dur ?? 0.9), hold: 0 })]); },
+      // a view button that eases the camera there: fig.view('Occlusal', {phi: 0.05, theta: 0})
+      view(label, state, dur) { return button(label, () => fig.goTo(state, dur), { group: 'views' }); },
+      story(steps, opts) { story = steps; story0 = opts || {}; return fig; },
+      // a number the story can animate; fn(v) updates the scene (move a drill, deepen an osteotomy, lower the bone)
+      param(name, value, fn) { params[name] = { v: value, fn: fn || (() => {}) }; params[name].fn(value); return fig; },
+      procedure(steps, opts) {
+        proc = []; const flat = [];
+        steps.forEach(st => {
+          const beats = (st.beats || [st]).map(b => Object.assign({}, b, { caption: b.caption !== undefined ? b.caption : (st.caption || '') }));
+          const k = beats.findIndex(b => b.key);   // the beat a storyboard panel shows (default: the step's last beat)
+          proc.push({ label: st.label, beats, first: flat.length, last: flat.length + beats.length - 1, shot: flat.length + (k < 0 ? beats.length - 1 : k) }); flat.push(...beats);
+        });
+        story = flat; story0 = opts || {};
+        if (panel) {
+          const box = panel.querySelector('.dk-psteps');
+          const mk = (txt, title, fn) => { const b = document.createElement('button'); b.className = 'dk-btn dk-icon'; b.textContent = txt; b.title = title; b.setAttribute('aria-label', title); b.addEventListener('click', () => { const was = playing; interrupt(); fn(was); }); box.appendChild(b); return b; };
+          prevB = mk('‹', 'Previous step', () => goStep(stepCur - 1));
+          stepEl = document.createElement('span'); stepEl.className = 'dk-step'; stepEl.setAttribute('aria-live', 'polite'); stepEl.innerHTML = '<small></small><span></span><i></i>'; box.appendChild(stepEl);
+          nextB = mk('›', 'Next step', () => goStep(stepCur + 1));
+          playB = mk('', 'Play', was => { if (!was) playFrom(stepCur === proc.length - 1 ? 0 : stepCur); });   // pressed while playing = stop (interrupt already did it)
+          playB.classList.add('dk-play'); playB.innerHTML = ICON_PLAY;
+          showStep(0);
+        }
+        return fig;
+      },
+      get step() { return stepCur; },
+      goStep,
+      // the image of a procedure: one panel per step, laid out to fill the requested aspect (16:9, 1:1, 4:5, 9:16)
+      storyboard(outW) {
+        const c = compile(story, startState), n = proc.length;
+        outW = outW || 2400; const outH = Math.round(outW / aspect), s0 = outW / 1200;   // s0: chrome scale vs a 1200 px board
+        const head = Math.round((o.subtitle ? 86 : 64) * s0), foot = Math.round(40 * s0), gut = Math.max(2, Math.round(2 * s0));
+        let best = null;   // grid whose panels come closest to a 1.4:1 frame, with few empty cells
+        for (let cols = 1; cols <= n; cols++) {
+          const rows = Math.ceil(n / cols), pw = (outW - (cols - 1) * gut) / cols, ph = (outH - head - foot - (rows - 1) * gut) / rows;
+          if (ph < 60) continue; const sc = Math.abs(Math.log(pw / ph / 1.4)) + 0.12 * (rows * cols - n);
+          if (!best || sc < best.sc) best = { cols, rows, pw, ph, sc };
+        }
+        const { cols, rows } = best, pw = Math.floor(best.pw), ph = Math.floor(best.ph);
+        const cssW = Math.min(760, pw), scale = pw / cssW;
+        const keep = { w: stage.style.width, h: stage.style.height, ar: stage.style.aspectRatio };
+        stage.style.aspectRatio = 'auto'; stage.style.width = cssW + 'px'; stage.style.height = (ph / scale) + 'px'; resize();
+        const ovs = [...card.querySelectorAll('.dk-ov')]; ovs.forEach(e => { e.style.visibility = 'hidden'; });
+        const cv = document.createElement('canvas'); cv.width = outW; cv.height = outH;
+        const g = cv.getContext('2d'); g.fillStyle = css('--line'); g.fillRect(0, 0, outW, outH);
+        g.fillStyle = css('--stage'); g.fillRect(0, 0, outW, head); g.fillRect(0, outH - foot, outW, foot);
+        const wasFrozen = frozen; frozen = true; player = null;
+        const font = (w, px) => `${w} ${px}px "Instrument Sans", ui-sans-serif, system-ui, sans-serif`;
+        const gridH = rows * ph + (rows - 1) * gut, top = head + Math.floor((outH - head - foot - gridH) / 2);
+        proc.forEach((st, i) => {
+          apply(c.segs[st.shot].to);
+          parts.forEach(p => { p.alpha = 0; }); for (let k = 0; k < 6; k++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
+          update(0);
+          const r = Math.floor(i / cols), inRow = Math.min(cols, n - r * cols), x0 = Math.round((cols - inRow) * (pw + gut) / 2);   // a short last row is centred
+          const x = x0 + (i % cols) * (pw + gut), y = top + r * (ph + gut);
+          if (i % cols === 0 && inRow < cols) { g.fillStyle = css('--stage'); g.fillRect(0, y, outW, ph); }
+          g.drawImage(composite(scale), x, y, pw, ph);
+          g.textBaseline = 'top'; g.font = font(600, 15 * scale); g.fillStyle = css('--accent'); g.fillText(String(i + 1), x + 20 * scale, y + 18 * scale);
+          g.fillStyle = css('--ink'); g.fillText(st.label, x + 20 * scale + g.measureText(String(i + 1)).width + 8 * scale, y + 18 * scale);
+        });
+        g.textBaseline = 'alphabetic'; g.font = font(600, 22 * s0); g.fillStyle = css('--ink'); g.fillText(o.title, 20 * s0, (o.subtitle ? 38 : 40) * s0);
+        if (o.subtitle) { g.font = font(500, 13.5 * s0); g.fillStyle = css('--muted'); g.fillText(o.subtitle, 20 * s0, 64 * s0); }
+        g.textBaseline = 'middle'; g.font = font(400, 12 * s0); g.fillStyle = css('--muted'); g.fillText(o.footer, 20 * s0, outH - foot / 2);
+        g.textAlign = 'right'; g.fillText('Made with dental-explainer by Sixmonth', outW - 20 * s0, outH - foot / 2); g.textAlign = 'left';
+        stage.style.width = keep.w; stage.style.height = keep.h; stage.style.aspectRatio = keep.ar; resize();
+        ovs.forEach(e => { e.style.visibility = ''; }); setRenderScale(pixelRatio); apply(c.end); update(0); frozen = wasFrozen;
+        return cv;
+      },
+      get duration() { return story ? compile(story, startState || homeState()).total : 0; },
+      // procedure steps and the story time of each step's key frame (check.py and render.py shoot these with fig.seek)
+      get steps() { if (!proc) return []; const c = compile(story, startState); return proc.map(st => ({ label: st.label, t: c.segs[st.shot].t2 - 0.01 })); },
+      seek, composite,
+      exportPNG(scale) { const cv = proc && mode === 'image' ? fig.storyboard() : composite(scale || 2); restoreScale(); return cv.toDataURL('image/png'); },
+      savePNG() { const cv = proc && mode === 'image' ? fig.storyboard() : composite(2); restoreScale(); cv.toBlob(b => download(b, slug() + '.png'), 'image/png'); },
+      restoreScale,
+      recordVideo(opts) { // real-time capture of one pass of the story, in the viewer's browser
+        opts = opts || {}; const type = videoType(); if (!type || !story) return Promise.reject(new Error('Video recording is not supported in this browser.'));
+        const scale = opts.scale || Math.max(pixelRatio, 1920 / stage.clientWidth);
+        const out = document.createElement('canvas'); const first = composite(scale); out.width = first.width; out.height = first.height;
+        const g = out.getContext('2d'); g.drawImage(first, 0, 0);
+        const rec = new MediaRecorder(out.captureStream(30), { mimeType: type, videoBitsPerSecond: 8e6 }), chunks = [];
+        rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+        return new Promise(resolve => {
+          rec.onstop = () => { restoreScale(); resolve(new Blob(chunks, { type: type.split(';')[0] })); };
+          seek(0); frozen = false; play(story, { from: startState });
+          const total = player.c.total; rec.start();
+          const t0 = performance.now(); (function tick() { g.drawImage(composite(scale), 0, 0); if ((performance.now() - t0) / 1000 < total + 0.2) requestAnimationFrame(tick); else rec.stop(); })();
+        });
+      },
+      fit,
+      start() {
+        resize(); if (!o.view || o.view.dist === undefined) fit(o.view?.margin); else fitCenter.copy(orbit.target);
+        placeCam();
+        startState = Object.assign(snapshot(), homeState(), { section: section ? section.enabled : false, offset: section ? section.offset : 0, xray: xrayAmt }, story0);
+        if (mode === 'image') {
+          if (story) { const c = compile(story, startState); apply(c.end); }
+          if (proc) { // show the storyboard image in place of the single frame
+            const frame = card.querySelector('.dk-frame'); stage.style.width = stage.clientWidth + 'px'; stage.style.height = stage.clientHeight + 'px'; frame.classList.add('board');
+            const img = document.createElement('img'); img.className = 'dk-board'; img.alt = o.title; frame.appendChild(img);
+            (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => requestAnimationFrame(() => { img.src = fig.storyboard().toDataURL('image/png'); }));
+          }
+          actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download PNG'; b.onclick = () => fig.savePNG(); actions.appendChild(b);
+        } else if (mode === 'video') {
+          if (story) { apply(stateAt(compile(story, startState), 0)); if (!reduce) play(story, { loop: true, from: startState }); else apply(compile(story, startState).end); }
+          actions.innerHTML = ''; const b = document.createElement('button'); b.className = 'dk-btn'; b.textContent = 'Download video';
+          b.onclick = () => { b.disabled = true; b.textContent = 'Recording…'; fig.recordVideo().then(bl => { download(bl, slug() + (bl.type.includes('mp4') ? '.mp4' : '.webm')); }).catch(err => alert(err.message)).finally(() => { b.disabled = false; b.textContent = 'Download video'; play(story, { loop: true, from: startState }); }); };
+          actions.appendChild(b);
+        } else if (story && !reduce) {
+          const intro = proc ? proc[0].beats : story;   // procedures: play step 1, then the viewer steps through
+          apply(stateAt(compile(intro, startState), 0));
+          setTimeout(() => { if (!introOff) { play(intro, { from: startState, tag: proc ? 'proc' : undefined }); player.base = 0; } }, o.introDelay ?? 500);
+        } else if (story) apply(compile(proc ? proc[0].beats : story, startState).end);
+        else if (o.introExplode && !reduce) setTimeout(() => fig.explode(o.introExplode), 700);
+        requestAnimationFrame(frame); window.__dkReady = true; return fig;
+      },
+      // test hook: jump state instantly (used by verification screenshots)
+      setState(s) {
+        player = null; introOff = true; frozen = false; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
+        if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; }
+        if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi;
+        if (s.dist !== undefined) { if (fits) orbit.zoom = zoomTarget = s.dist; else orbit.dist = s.dist; }
+        if (s.section !== undefined && section) section.set(s.section, s.offset);
+        orbit.auto = false; vel = { th: 0, ph: 0 }; labelFilter = null;
+      }
+    };
+    window.__dkFig = fig;
+    return fig;
+  };
+
+  /* ---------- ready-made dental parts ---------- */
+  // Implant body (fixture). Platform at y=0, apex at -length. Internal connection socket shown as a hex well.
+  DK.implant = function (o) {
+    o = Object.assign({ diameter: 4.1, length: 10, pitch: 0.8, threadDepth: 0.35, collar: 0.8, connection: 'internal hex', taper: 0.12 }, o);
+    const R = o.diameter / 2, grp = new T.Group(); grp.name = 'Implant';
+    const ti = DK.mat('titanium', { cap: 0x8e939a });
+    const body = new T.Mesh(DK.threaded({ length: o.length, coreRadius: R - o.threadDepth, threadDepth: o.threadDepth, pitch: o.pitch, collar: o.collar, collarRadius: R, bodyTaper: o.taper, apexTaper: 0.22, starts: o.starts || 2 }), ti);
+    grp.add(body);
+    // platform ring + internal well (6 sides = hex)
+    const well = o.connection === 'conical' ? 32 : 6;
+    const top = new T.Mesh(new T.RingGeometry(R * 0.55, R, 48), DK.mat('titaniumDark')); top.rotation.x = -Math.PI / 2; top.position.y = 0.001; grp.add(top);
+    const sock = new T.Mesh(new T.CylinderGeometry(R * 0.55, R * (o.connection === 'conical' ? 0.42 : 0.55), 3, well, 1, true), DK.mat('titaniumDark', { side: T.BackSide }));
+    sock.position.y = -1.5; grp.add(sock);
+    grp.userData.spec = o;
+    return grp;
+  };
+  // Abutment: engaging hex (into implant), transmucosal collar, prep-like post.
+  DK.abutment = function (o) {
+    o = Object.assign({ platform: 4.1, collarHeight: 2.5, postHeight: 5, postTopDiameter: 3.2, emergence: 5.2 }, o);
+    const r = o.platform / 2, grp = new T.Group(); grp.name = 'Abutment';
+    const prof = [[0, -2.6], [r * 0.5, -2.6], [r * 0.5, -0.05], [r * 0.97, 0], [o.emergence / 2, o.collarHeight * 0.85], [o.emergence / 2 * 0.97, o.collarHeight], [o.postTopDiameter / 2 + 0.6, o.collarHeight + 0.3],
+      [o.postTopDiameter / 2 + 0.2, o.collarHeight + o.postHeight * 0.9], [o.postTopDiameter / 2 - 0.2, o.collarHeight + o.postHeight], [0.9, o.collarHeight + o.postHeight], [0.9, o.collarHeight + o.postHeight - 0.4], [0, o.collarHeight + o.postHeight - 0.4]];
+    const m = DK.mat('titanium', { cap: 0x8e939a });
+    grp.add(DK.lathe(prof.slice(2), 64, m));
+    const hex = new T.Mesh(new T.CylinderGeometry(r * 0.53, r * 0.53, 2.5, 6), m); hex.position.y = -1.3; grp.add(hex);
+    grp.userData.spec = o; return grp;
+  };
+  DK.screw = function (o) {
+    o = Object.assign({ diameter: 2.0, length: 8, headDiameter: 2.6, headHeight: 1.6, pitch: 0.4 }, o);
+    const grp = new T.Group(); grp.name = 'Abutment screw';
+    const m = DK.mat('gold', { cap: 0xb48a2c });
+    grp.add(new T.Mesh(DK.threaded({ length: o.length - o.headHeight, coreRadius: o.diameter / 2 - 0.18, threadDepth: 0.18, pitch: o.pitch, collar: 1.2, collarRadius: o.diameter / 2 - 0.12, apexTaper: 0.08, starts: 1, cols: 40 }), m));
+    const head = DK.lathe([[0, 0], [o.diameter / 2, 0], [o.headDiameter / 2, 0.3], [o.headDiameter / 2, o.headHeight - 0.2], [o.headDiameter / 2 - 0.2, o.headHeight], [0.55, o.headHeight], [0.55, o.headHeight - 0.6], [0, o.headHeight - 0.6]], 40, m);
+    grp.add(head); return grp;
+  };
+  // Surgical twist drill: fluted cutting part from y = 0 down to the tip at y = -length, shank above y = 0.
+  // Place it with the tip at depth d below the crest: drill.position.y = crestY - d + length.
+  DK.drill = function (o) {
+    o = Object.assign({ diameter: 2.0, length: 14, shank: 12, bands: [8, 10, 12] }, o);
+    const r = o.diameter / 2, grp = new T.Group(); grp.name = 'Drill';
+    const steel = DK.mat('steel', { cap: 0x9ea4aa }), dark = DK.mat('titaniumDark');
+    grp.add(new T.Mesh(DK.threaded({ length: o.length, coreRadius: r * 0.72, threadDepth: r * 0.28, pitch: Math.max(1.6, o.diameter * 1.4), collar: 0, apexTaper: 0.08, starts: 2, cols: 48 }), steel));
+    grp.add(DK.lathe([[r, 0], [r, 1.2], [1.2, 2.4], [1.2, o.shank]], 32, steel));
+    o.bands.filter(b => b < o.length).forEach(b => { const ring = new T.Mesh(new T.CylinderGeometry(r * 1.01, r * 1.01, 0.25, 32, 1, true), dark); ring.position.y = -o.length + b; grp.add(ring); }); // depth marks from the tip
+    grp.userData.spec = o; return grp;
+  };
+  // Prepared implant bed: a closed cylinder (top at y = 0) to put in a section group after the bone, so the cut
+  // face shows the hole. osteotomy.set(radius, depth) resizes it; depth 0 hides it.
+  DK.osteotomy = function (o) {
+    o = Object.assign({ color: 0x6f645c }, o);
+    const g = new T.CylinderGeometry(1, 1, 1, 40); g.translate(0, -0.5, 0);
+    const m = new T.Mesh(g, DK.mat('pdl', { color: o.color, cap: o.color })); m.name = 'Osteotomy';
+    m.set = (radius, depth) => { m.visible = depth > 0.02; m.scale.set(Math.max(radius, 0.01), Math.max(depth, 0.01), Math.max(radius, 0.01)); };
+    m.set(0, 0); return m;
+  };
+  /* ---------- restorative & endodontic parts ---------- */
+  const PREP = { axial: 1.2, occlusal: 1.8 };
+  // margin: width of the finish line in mm (default 0.4 x axial: a light chamfer). Pass the same {axial, occlusal, margin} to the crown.
+  function prepInset(o) { const side = o.axial ?? PREP.axial; return { side, top: o.occlusal ?? PREP.occlusal, reliefScale: 0.45, topScale: 0.9, cervical: o.margin !== undefined ? clamp(o.margin / side, 0, 1) : 0.4 }; }
+  // Prepared crown stump (what a crown sits on). Closed solid, cervical margin at y = 0. material 'dentin' (vital) or 'composite' (core build-up).
+  // o.maxY / o.minY slice it horizontally: DK.prep(s,{maxY:2}) = 2 mm ferrule of own tooth; DK.prep(s,{material:'composite',minY:2}) = core above it.
+  DK.prep = function (presetOrFdi, o) {
+    o = o || {}; const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const g = crownGeometry(s, prepInset(o));
+    if (o.minY !== undefined || o.maxY !== undefined) { // slice: maxY → ferrule collar of own dentin; minY → core sitting on it
+      const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, clamp(p.getY(i), o.minY ?? -1e9, o.maxY ?? 1e9)); g.computeVertexNormals();
+    }
+    const m = new T.Mesh(g, DK.mat(o.material || 'dentin', o.material === 'composite' ? { cap: 0xe9dfc4 } : { cap: DK.COLORS.dentinCap }));
+    m.name = o.material === 'composite' ? 'Core' : 'Prepared tooth'; return m;
+  };
+  // Crown preparation you can animate: one closed crown mesh that eases from the intact crown to the finished prep.
+  // m.set(incisal, axial), each 0..1 of o.occlusal / o.axial (default 1.8 / 1.2 mm): reduce the incisal or occlusal surface
+  // first, then the axial walls, the way the prep is cut. The surface tint goes from enamel to dentin as it is reduced.
+  // o.margin sets the finish-line width (mm). Put it on DK.tooth(fdi, {omit:['enamel','dentin']}) (root + pulp), margin at y = 0;
+  // DK.restorationCrown(fdi, material, {axial, occlusal, margin}) with the same numbers fits it exactly.
+  DK.prepMorph = function (presetOrFdi, o) {
+    o = Object.assign({ axial: PREP.axial, occlusal: PREP.occlusal }, o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const geo = crownGeometry(s), pos = geo.attributes.position;
+    const mat = DK.mat('enamel', { cap: DK.COLORS.dentinCap }), cE = DK.color(DK.COLORS.enamel), cD = DK.color(DK.COLORS.dentin);
+    const m = new T.Mesh(geo, mat); m.name = 'Prepared tooth'; m.userData.prep = { incisal: 0, axial: 0 };
+    m.set = (inc, ax) => {
+      inc = clamp(inc ?? m.userData.prep.incisal, 0, 1); ax = clamp(ax ?? m.userData.prep.axial, 0, 1); m.userData.prep = { incisal: inc, axial: ax };
+      const k = Math.max(inc, ax), g = crownGeometry(s, Object.assign(prepInset(o), { side: o.axial * ax, top: o.occlusal * inc, reliefScale: lerp(1, 0.45, k), topScale: lerp(1, 0.9, k) }));
+      pos.array.set(g.attributes.position.array); pos.needsUpdate = true; g.dispose(); geo.computeVertexNormals(); geo.computeBoundingSphere();
+      mat.color.copy(cE).lerp(cD, clamp(0.45 * inc + 0.55 * ax, 0, 1));
+      return m;
+    };
+    m.spec = s; m.reduction = { axial: o.axial, occlusal: o.occlusal };
+    return m;
+  };
+  // Diamond bur for a high-speed handpiece. TIP at y = 0, shank up +y, so position = where it cuts and rotation tilts it about
+  // the tip. shape: 'taper' (tapered round-end: chamfer margins, axial walls), 'flat' (flat-end taper: shoulder), 'wheel'
+  // (football: lingual concavity of anteriors), 'flame' (finishing), 'round'. Sizes in mm (head ~8 mm, FG shank Ø1.6).
+  DK.bur = function (o) {
+    o = Object.assign({ shape: 'taper', diameter: 1.2, head: 8, length: 19 }, o);
+    const r = o.diameter / 2, grp = new T.Group(); let H = o.head; grp.name = 'Diamond bur';
+    const grit = DK.mat('steel', { color: 0x9c9d99, roughness: 0.75, metalness: 0.6, bump: 'pores', bumpScale: 0.04 }), steel = DK.mat('steel');
+    const arc = (cy, rr, a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => { const a = lerp(a0, a1, i / n); return [Math.max(0, rr * Math.cos(a)), cy + rr * Math.sin(a)]; });
+    let head;
+    if (o.shape === 'wheel') { H = Math.min(H, 4.5); const R = Math.max(r, 1.15); head = Array.from({ length: 17 }, (_, i) => { const t = i / 16; return [R * Math.sin(Math.PI * t) + (t > 0 && t < 1 ? 0.02 : 0), H * t]; }); }
+    else if (o.shape === 'round') { head = arc(r, r, -Math.PI / 2, Math.PI / 2, 12); }
+    else if (o.shape === 'flame') { head = [[0, 0], [r * 0.35, H * 0.15], [r * 0.9, H * 0.55], [r, H * 0.8], [r * 0.85, H]]; }
+    else if (o.shape === 'flat') { head = [[0, 0], [r * 0.8, 0], [r * 0.82, 0.1], [r, H]]; }
+    else { const rt = r * 0.72; head = arc(rt, rt, -Math.PI / 2, 0, 8).concat([[r, H]]); }
+    const hTop = head[head.length - 1][1];
+    grp.add(DK.lathe(head.concat([[Math.min(r, 0.7) * 0.6, hTop + 0.01]]), 40, grit));
+    grp.add(DK.lathe([[Math.min(r, 0.7) * 0.6, hTop], [0.45, hTop + 1.5], [0.8, hTop + 2.6], [0.8, o.length], [0.5, o.length + 0.2], [0, o.length + 0.2]], 32, steel));
+    grp.userData.spec = o; return grp;
+  };
+  // Crown restoration shaped like that tooth's crown. hollow:true (default) makes a shell whose inside matches DK.prep with the same reductions,
+  // so in section the crown shows as a shell over the prep / core. CEJ / margin at y = 0.
+  DK.restorationCrown = function (presetOrFdi, material, o) {
+    o = Object.assign({ hollow: true }, o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    let geo;
+    if (!o.hollow) geo = crownGeometry(s);
+    else geo = shellGeometry(crownGeometry(s, null, true), crownGeometry(s, prepInset(o), true));
+    if (false) {
+      const A = crownGeometry(s, null, true), B = crownGeometry(s, prepInset(o), true);
+      const pa = A.attributes.position.array, pb = B.attributes.position.array, ia = A.index.array, ib = B.index.array, off = pa.length / 3, cols = CROWN_COLS;
+      const pos = Array.from(pa).concat(Array.from(pb)), idx = Array.from(ia), uv = Array.from(A.attributes.uv.array).concat(Array.from(B.attributes.uv.array));
+      for (let i = 0; i < ib.length; i += 3) idx.push(ib[i] + off, ib[i + 2] + off, ib[i + 1] + off); // inner surface faces inward
+      for (let j = 0; j < cols; j++) { const o0 = j, o1 = j + 1, i0 = off + j, i1 = off + j + 1; idx.push(o0, o1, i0, o1, i1, i0); } // margin ring (row 0 of each surface)
+      geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    }
+    const mesh = new T.Mesh(geo, DK.mat(material || 'zirconia')); mesh.name = 'Crown';
+    return mesh;
+  };
+  // Tapered post (fibre / metal). Top at y = 0 going down `length`; `exposed` mm stick up above y = 0 into the core.
+  DK.post = function (o) {
+    o = Object.assign({ length: 9, exposed: 4, d0: 1.6, d1: 1.0, material: 'fiber' }, o);
+    const m = DK.lathe([[0, -o.length - 0.2], [o.d1 / 2 * 0.8, -o.length - 0.1], [o.d1 / 2, -o.length + 0.2], [o.d0 / 2, 0], [o.d0 / 2, o.exposed - 0.3], [o.d0 / 2 - 0.3, o.exposed], [0, o.exposed]], 32, DK.mat(o.material));
+    m.name = 'Post'; return m;
+  };
+  // Root filling along a canal, from `from` (y) to working length. Closed solid (section-ready). which: canal name or index.
+  DK.guttaPercha = function (spec, which, o) {
+    o = o || {}; const c = findCanal(spec, which), pts = DK.canalPath(spec, which, o);
+    const y0 = pts[0][1], y1 = pts[pts.length - 1][1];
+    const rAt = y => DK.canalAt(spec, which, y).r * 0.92;
+    const m = DK.tube(pts, 1, DK.mat('gutta'), { taper: t => rAt(lerp(y0, y1, t)), radial: 14 });
+    m.name = 'Root filling'; return m;
+  };
+  /* ==== topic: arch (Primary teeth, third molars, arch layouts and numbering charts) ==== */
+  // (reserved)
+  /* ==== end topic: arch ==== */
+
+  /* ==== topic: caries (Caries and direct restorations) ==== */
+  // (reserved)
+  /* ==== end topic: caries ==== */
+
+  /* ==== topic: perio (Periodontal disease) ==== */
+  // (reserved)
+  /* ==== end topic: perio ==== */
+
+  /* ==== topic: prosth (Fixed prosthetics: bridges, veneers, inlays and onlays) ==== */
+  // All preparations here are built on the crown's own (t, th) surface lattice (CROWN_ROWS × CROWN_COLS, the lattice of
+  // crownGeometry), so a restoration made from the same numbers shares the prep's vertices and seats on it exactly.
+  // P = the intact surface point, Q = the prepared point; a restoration is the shell between P and Q.
+  const PR_COLS = CROWN_COLS, PR_ROWS = CROWN_ROWS, PR_W = PR_COLS + 1;
+  const latticeOf = k => { const i = Math.floor(k / PR_W), j = k % PR_W; return { t: i / PR_ROWS, th: (j % PR_COLS) / PR_COLS * Math.PI * 2 }; };
+  // Closed shell between an outer and an inner surface that share the lattice (a restoration over its prep). Where the two
+  // coincide (no reduction) the shell has no thickness: those triangles are dropped, and because a kept triangle's outer and
+  // inner copies meet along any shared zero-thickness edge, the shell closes itself along the margin. Section-ready.
+  function fitShell(outerPos, innerPos) {
+    const A = crownGeometry({ crownL: 1, md: 1, mdC: 1, bl: 1, blC: 1 }, null, true), ia = A.index.array, n = A.attributes.position.count, cols = PR_COLS;
+    const same = new Uint8Array(n);
+    for (let k = 0; k < n; k++) same[k] = Math.abs(outerPos[k * 3] - innerPos[k * 3]) + Math.abs(outerPos[k * 3 + 1] - innerPos[k * 3 + 1]) + Math.abs(outerPos[k * 3 + 2] - innerPos[k * 3 + 2]) < 1e-4 ? 1 : 0;
+    const pos = Array.from(outerPos).concat(Array.from(innerPos)), uv = Array.from(A.attributes.uv.array), idx = [];
+    for (let i = 0; i < ia.length; i += 3) {
+      const a = ia[i], b = ia[i + 1], c = ia[i + 2]; if (same[a] && same[b] && same[c]) continue;
+      idx.push(a, b, c, n + a, n + c, n + b);
+    }
+    for (let j = 0; j < cols; j++) { const o0 = j, o1 = j + 1; if (same[o0] && same[o1]) continue; idx.push(o0, o1, n + o0, o1, n + o1, n + o0); }   // margin ring (row 0)
+    const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv.concat(uv), 2)); geo.setIndex(idx); geo.computeVertexNormals();
+    return geo;
+  }
+  const prostheticMat = m => DK.mat(m === 'composite' ? 'composite' : (m === 'zirconia' || m === 'gold' ? m : 'ceramic'), { cap: m === 'gold' ? 0xb48a2c : 0xe4e0d6 });   // caps a touch darker than the body so a cut reads as a cut
+
+  /* --- Veneer: labial reduction by thirds, three incisal designs, an animatable prep and the shell that fits it --- */
+  // o: { cervical: 0.3, middle: 0.5, incisal: 0.7 (labial depths, mm), edge: 1.5 (incisal reduction, mm),
+  //      type: 'window' | 'butt' | 'overlap', wrap: 1.0 (mm of palatal wrap for 'overlap') }. Margin: a light chamfer ~0.4 mm above the CEJ.
+  function veneerOpts(o) { return Object.assign({ cervical: 0.3, middle: 0.5, incisal: 0.7, edge: 1.5, type: 'butt', wrap: 1.0 }, o); }
+  // Returns Q (Float32Array) from the intact lattice positions P for a veneer prep at fac, inc ∈ 0..1.
+  function veneerDisplace(s, o, P, fac, inc) {
+    const P1 = crownGeometry(s, { side: 1, top: 0, reliefScale: 1, topScale: 1, cervical: 1 }, true).attributes.position.array;   // 1 mm uniform inset: the inward direction per vertex
+    const Q = new Float32Array(P.length), top = s.crownL, edgeY = top - o.edge * inc, hasEdge = o.type !== 'window' && inc > 0.001;
+    for (let k = 0; k < P.length / 3; k++) {
+      const { t, th } = latticeOf(k), sn = Math.sin(th);
+      const depth = t < 0.33 ? lerp(o.cervical, o.middle, t / 0.33) : lerp(o.middle, o.incisal, (t - 0.33) / 0.67);
+      let w = smooth(0.04, 0.14, t) * smooth(0.0, 0.4, sn);                                      // margin ramp (chamfer) × labial face
+      if (o.type === 'window') w *= smooth(1.0, 0.9, t);                                            // stops short of the edge
+      if (o.type === 'overlap' && hasEdge) w = Math.max(w, smooth(edgeY - o.wrap, edgeY, P[k * 3 + 1]) * smooth(0.04, 0.14, t));   // palatal wrap below the new edge
+      const d = depth * w * fac;
+      const x = P[k * 3] + (P1[k * 3] - P[k * 3]) * d, z = P[k * 3 + 2] + (P1[k * 3 + 2] - P[k * 3 + 2]) * d;
+      let y = P[k * 3 + 1] + (P1[k * 3 + 1] - P[k * 3 + 1]) * d;
+      if (hasEdge && y > edgeY) y = edgeY;                                                          // butt joint: flat incisal reduction
+      Q[k * 3] = x; Q[k * 3 + 1] = y; Q[k * 3 + 2] = z;
+    }
+    return Q;
+  }
+  // Veneer preparation you can animate: the tooth's enamel shell whose labial surface eases into the prep. m.set(labial, incisal)
+  // (each 0..1). Add it to DK.tooth(fdi, {omit:['enamel']}).group (dentin, root, pulp): in section the enamel left under the
+  // prep shows how much of the 0.3–0.7 mm stays in enamel. Section group: enamel. m.spec, m.opts.
+  DK.veneerPrep = function (presetOrFdi, o) {
+    o = veneerOpts(o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const geo = shellGeometry(crownGeometry(s, null, true), crownGeometry(s, DEJ, true)), pos = geo.attributes.position;
+    const P = Float32Array.from(crownGeometry(s, null, true).attributes.position.array);
+    const mat = DK.mat('enamel'); mat.userData.capColor = DK.COLORS.enamelCap;
+    const m = new T.Mesh(geo, mat); m.name = 'Prepared tooth'; m.userData.prep = { labial: 0, incisal: 0 };
+    m.set = (fac, inc) => {
+      fac = clamp(fac ?? m.userData.prep.labial, 0, 1); inc = clamp(inc ?? m.userData.prep.incisal, 0, 1); m.userData.prep = { labial: fac, incisal: inc };
+      const Q = veneerDisplace(s, o, P, fac, inc); pos.array.set(Q, 0); pos.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere(); return m;
+    };
+    m.spec = s; m.opts = o; m.intact = P; return m;
+  };
+  // The veneer: a shell between the original labial surface and the finished prep (same numbers as DK.veneerPrep), 0.3–0.7 mm
+  // thick, covering the incisal edge for 'butt' and 'overlap'. material: 'ceramic' (glass-ceramic / feldspathic) or 'composite'.
+  DK.veneer = function (presetOrFdi, o, material) {
+    o = veneerOpts(o); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const P = crownGeometry(s, null, true).attributes.position.array, Q = veneerDisplace(s, o, P, 1, 1);
+    const m = new T.Mesh(fitShell(P, Q), prostheticMat(material)); m.name = 'Veneer'; m.spec = s; m.opts = o; return m;
+  };
+
+  /* --- Inlay / onlay: occlusal isthmus, proximal boxes, cusp coverage, and the restoration that fills them --- */
+  // cav: { isthmus: 2.0 (BL width, mm), depth: 1.8 (pulpal floor below the central fossa, mm), boxes: ['mesial','distal'] | [],
+  //        boxWidth: 0.4 (BL half-width of a box, as a fraction of the crown BL half-width), boxFloor: 1.0 (gingival floor, mm above the CEJ),
+  //        axial: 0.28 (MD depth of the box from the proximal surface, as a fraction of the half MD width),
+  //        cusps: [] | ['buccal','lingual'] (onlay cusp coverage), reduction: 1.5 (mm over covered cusps) }.
+  function cavityOpts(c) { return Object.assign({ isthmus: 2.0, depth: 1.8, boxes: ['mesial', 'distal'], boxWidth: 0.4, boxFloor: 1.0, axial: 0.28, cusps: [], reduction: 1.5 }, c); }
+  function cuspCut(s, c, t, th) {   // mm removed over a covered cusp at lattice (t, th)
+    if (!c.cusps.length) return 0; const sn = Math.sin(th);
+    const side = c.cusps.includes('buccal') && sn > 0 ? smooth(0.05, 0.3, sn) : c.cusps.includes('lingual') && sn < 0 ? smooth(0.05, 0.3, -sn) : 0;
+    return c.reduction * side * smooth(0.6, 0.78, t);
+  }
+  // Cavity outline in the plan as rectangles in normalized crown coordinates (xn, zn in −1..1), each with its floor height:
+  // the isthmus (pulpal floor), and a box per side (gingival floor) whose outer end is open through the proximal surface.
+  function cavityRects(s, c) {
+    const pulpal = s.crownL + (s.relief ? s.relief(0, 0) : 0) - c.depth, hd = s.bl / 2, iw = c.isthmus / 2 / hd, mes = c.boxes.includes('mesial'), dis = c.boxes.includes('distal'), ax = 1 - c.axial;
+    const R = [{ x0: dis ? -2 : -0.62, x1: mes ? 2 : 0.62, z0: -iw, z1: iw, y: pulpal }];
+    if (mes) R.push({ x0: ax, x1: 2, z0: -c.boxWidth, z1: c.boxWidth, y: c.boxFloor });
+    if (dis) R.push({ x0: -2, x1: -ax, z0: -c.boxWidth, z1: c.boxWidth, y: c.boxFloor });
+    return R;
+  }
+  const inRect = (r, x, z) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
+  // Carve a crown lattice (positions P, lattice row 0 at vertex `off`) into the cavity: vertices inside the outline drop to the
+  // floor; the lattice vertices on either side of the outline snap onto it (outside ones exactly, inside ones `taper` mm in), so
+  // every layer gets the same crisp, slightly divergent wall. Covered cusps are lowered by cuspCut. k eases it all in.
+  function carve(s, c, P, k, off, eps) {
+    const R = cavityRects(s, c), hw = s.md / 2, hd = s.bl / 2, n = P.length / 3, Q = new Float32Array(P), W = PR_W, taper = c.depth * Math.tan(8 * Math.PI / 180);
+    const floorAt = (xn, zn) => { let f = null; R.forEach(r => { if (inRect(r, xn, zn)) f = f === null ? r.y : Math.min(f, r.y); }); return f; };
+    const inside = new Uint8Array(n), fl = new Float32Array(n);
+    for (let v = 0; v < n; v++) { const f = floorAt(P[v * 3] / hw, P[v * 3 + 2] / hd); inside[v] = f !== null ? 1 : 0; fl[v] = f ?? 0; }
+    const nearest = (xn, zn, insideNow) => { // nearest point on the outline of the union of rectangles
+      let best = null, bd = 1e9;
+      R.forEach(r => {
+        if (insideNow && !inRect(r, xn, zn)) return;
+        const cands = insideNow ? [[r.x0, zn], [r.x1, zn], [xn, r.z0], [xn, r.z1]] : [[clamp(xn, r.x0, r.x1), clamp(zn, r.z0, r.z1)]];
+        cands.forEach(q => { if (insideNow && R.some(o => o !== r && inRect(o, q[0], q[1]))) return; const d = Math.hypot(q[0] - xn, q[1] - zn); if (d < bd) { bd = d; best = q; } });
+      });
+      return best;
+    };
+    for (let v = 0; v < n; v++) {
+      let x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+      if (v >= off) {
+        const L = v - off, i = Math.floor(L / W), j = L % W, { t, th } = latticeOf(L);
+        y -= cuspCut(s, c, t, th) * k;
+        const nb = [j > 0 ? v - 1 : -1, j < W - 1 ? v + 1 : -1, i > 0 ? v - W : -1, v + W < n ? v + W : -1].filter(u => u >= 0 && u >= off);
+        const crosses = nb.some(u => inside[u] !== inside[v]);
+        if (crosses && (inside[v] === 0 || y > fl[v])) {   // snap onto the outline (inside vertices: a touch inward, for the wall divergence)
+          const xn = x / hw, zn = z / hd, q = nearest(xn, zn, inside[v] === 1);
+          if (q) { let qx = q[0] * hw, qz = q[1] * hd; if (inside[v]) { const dx = x - qx, dz = z - qz, d = Math.hypot(dx, dz) || 1; qx += dx / d * taper; qz += dz / d * taper; } x = lerp(x, qx, k); z = lerp(z, qz, k); }
+        }
+      }
+      if (inside[v] && y > fl[v] - eps) y = lerp(P[v * 3 + 1], fl[v] - eps, k);
+      Q[v * 3] = x; Q[v * 3 + 1] = y; Q[v * 3 + 2] = z;
+    }
+    return Q;
+  }
+  const cavityDisplace = (s, c, P, k) => carve(s, c, P, k, 0, 0.02);
+  // Inlay / onlay preparation on a posterior tooth: a group {enamel, dentin, set(k), spec, cav}. It holds the enamel shell
+  // and the dentin body (both carved); add DK.tooth(fdi, {omit:['enamel','dentin']}).group for the roots and pulp. set(k) eases
+  // the cavity and the cusp reduction in (k 0..1). Section groups: enamel, then dentin (with the roots), then pulp.
+  DK.inlayPrep = function (presetOrFdi, cav) {
+    const c = cavityOpts(cav); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const outer = crownGeometry(s, null, true), inner = crownGeometry(s, DEJ, true), P = Float32Array.from(outer.attributes.position.array), Pd = Float32Array.from(inner.attributes.position.array);
+    const enamelGeo = shellGeometry(outer, inner), ep = enamelGeo.attributes.position, nA = P.length / 3;
+    const dentinGeo = dentinBodyGeometry(s), dp = dentinGeo.attributes.position, nD = dp.count, dStart = (s.roots.length === 1 ? 48 : 16) * PR_W;   // first crown lattice row of the dentin body
+    const Pb = Float32Array.from(dp.array);
+    const mE = DK.mat('enamel'), mD = DK.mat('dentin'); mE.userData.capColor = DK.COLORS.enamelCap;
+    const enamel = new T.Mesh(enamelGeo, mE), dentin = new T.Mesh(dentinGeo, mD); enamel.name = 'Enamel'; dentin.name = 'Dentin';
+    const grp = new T.Group(); grp.name = 'Prepared tooth'; grp.add(enamel, dentin);
+    const set = k => {
+      k = clamp(k, 0, 1); const Qo = carve(s, c, P, k, 0, 0.02), Qi = carve(s, c, Pd, k, 0, 0.02), Qd = carve(s, c, Pb, k, dStart, 0);
+      for (let v = 0; v < nA; v++) { ep.setXYZ(v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]); ep.setXYZ(nA + v, Qi[v * 3], Math.min(Qi[v * 3 + 1], Qo[v * 3 + 1]), Qi[v * 3 + 2]); }
+      ep.needsUpdate = true; enamelGeo.computeVertexNormals(); enamelGeo.computeBoundingSphere();
+      for (let v = 0; v < nD; v++) dp.setXYZ(v, Qd[v * 3], v >= dStart && v - dStart < nA ? Math.min(Qd[v * 3 + 1], Qo[(v - dStart) * 3 + 1] + 0.02) : Qd[v * 3 + 1], Qd[v * 3 + 2]);   // the DEJ follows the cusp reduction
+      dp.needsUpdate = true; dentinGeo.computeVertexNormals(); dentinGeo.computeBoundingSphere();
+      grp.userData.k = k; return grp;
+    };
+    grp.set = set; grp.enamel = enamel; grp.dentin = dentin; grp.spec = s; grp.cav = c;
+    set(1); return grp;
+  };
+  // The inlay or onlay: a solid between the original occlusal surface and the cavity (same cav as DK.inlayPrep), so it seats
+  // exactly. material: 'ceramic' (lithium disilicate), 'gold', 'composite', 'zirconia'. Section: its own group before the tooth.
+  DK.inlay = function (presetOrFdi, cav, material) {
+    const c = cavityOpts(cav); const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const P = crownGeometry(s, null, true).attributes.position.array, Q = cavityDisplace(s, c, P, 1);
+    const m = new T.Mesh(fitShell(P, Q), prostheticMat(material)); m.name = c.cusps.length ? 'Onlay' : 'Inlay'; m.spec = s; m.cav = c; return m;
+  };
+
+  /* --- Bridge (fixed partial denture): retainers on the abutment preps, a pontic shaped like the missing crown, connectors --- */
+  // Minimum connector cross-sections by material (mm, occluso-gingival h × bucco-lingual w): manufacturer / textbook figures
+  // (dental-facts.md §18). Height matters more than width (stiffness ∝ h³).
+  DK.CONNECTORS = {
+    zirconia: { anterior: { h: 3, w: 3, area: 9 }, posterior: { h: 4, w: 3, area: 12 } },                   // IPS e.max ZirCAD IFU: 9 / 12 mm² for a 3-unit
+    'lithium disilicate': { anterior: { h: 4, w: 4, area: 16 }, posterior: { h: 4, w: 4, area: 16 } },     // IPS e.max Press / CAD: 16 mm²
+    'metal-ceramic': { anterior: { h: 3, w: 2.5, area: 7.5 }, posterior: { h: 3, w: 2.5, area: 7.5 } },    // textbook: ~2.5–3 mm high [U]
+    gold: { anterior: { h: 2.5, w: 2.5, area: 6.25 }, posterior: { h: 2.5, w: 2.5, area: 6.25 } }
+  };
+  // x of the proximal surface of a crown at height y (mesial: side = +1, distal: −1).
+  function proximalX(s, y, side) {
+    const ring = crownRingFn(s), th = side > 0 ? 0 : Math.PI; let best = 0, bd = 1e9;
+    for (let i = 0; i <= 60; i++) { const p = ring(i / 60 * 0.72, th), d = Math.abs(p[1] - y); if (d < bd) { bd = d; best = p[0]; } }
+    return best;
+  }
+  // Pontic: the missing tooth's crown (cervical ring at y = 0) over a base shaped by the design, meeting the ridge at ridgeY.
+  // o: { design: 'modified ridge lap' | 'ovate' | 'sanitary' | 'conical', ridgeY: number | (z => y) (ridge top under the pontic, mm),
+  //      clearance: 3 (sanitary gap, mm), depth: 1.2 (ovate: mm into the ridge), contact: 0.35 (modified ridge lap: contact point as
+  //      a fraction of the buccal half-width) }. Returns a closed solid mesh; mesh.contact = [x, y, z] of the tissue contact.
+  DK.pontic = function (presetOrFdi, o, material) {
+    o = Object.assign({ design: 'modified ridge lap', ridgeY: -2.5, clearance: 3, depth: 1.2, contact: 0.35 }, o);
+    const s = typeof presetOrFdi === 'number' ? DK.toothPreset(presetOrFdi) : presetOrFdi;
+    const ridge = typeof o.ridgeY === 'function' ? o.ridgeY : () => o.ridgeY, ring = crownRingFn(s), a = s.mdC / 2, b = s.blC / 2;
+    // base profile: the bottom ring (footprint) blends into the cervical ring; xz follows g(u), y follows h(u) (u: 0 bottom → 1 cervix)
+    const D = o.design; let cz = 0, cy, ra, rb, g, h;
+    if (D === 'modified ridge lap') { cz = o.contact * b; cy = ridge(cz); ra = 0.5 * a; rb = 0.18 * b;
+      g = (u, sn) => Math.pow(u, lerp(0.8, 1.0, smooth(-0.3, 0.5, sn)));                                     // buccal face straight, lingual slightly convex
+      h = (u, sn) => 1 - Math.pow(1 - u, lerp(2.6, 1.0, smooth(-0.3, 0.5, sn))); }                         // lingual rises steeply off the ridge
+    else if (D === 'ovate') { cy = ridge(0) - o.depth; ra = 0.3 * a; rb = 0.3 * b; g = u => 1 - Math.pow(1 - u, 2.2); h = u => u; }
+    else if (D === 'sanitary') { cy = ridge(0) + o.clearance; ra = 0.28 * a; rb = 0.28 * b; g = u => 1 - Math.pow(1 - u, 2.0); h = u => u; }
+    else { cy = ridge(0); ra = 0.1 * a; rb = 0.1 * b; g = u => u; h = u => u; }   // conical
+    // the pontic has no cervix: its tissue end narrows from the ring at t = TC (above the natural crown's cervical bulge) to the footprint
+    const baseRows = 20, TC = 0.28;
+    const geo = gridGeometry(baseRows + PR_ROWS, PR_COLS, (i, j) => {
+      const th = j / PR_COLS * Math.PI * 2;
+      if (i >= baseRows) return ring(TC + (1 - TC) * (i - baseRows) / PR_ROWS, th);
+      const u = i / baseRows, sn = Math.sin(th), gg = g(u, sn), bx = ra * se(Math.cos(th), 2.2), bz = cz + rb * se(sn, 2.2), C = ring(TC, th);
+      return [lerp(bx, C[0], gg), lerp(cy, C[1], h(u, sn)), lerp(bz, C[2], gg)];
+    }, null, [0, cy - 0.02, 0]);
+    const m = new T.Mesh(geo, prostheticMat(material)); m.name = 'Pontic'; m.spec = s; m.design = D; m.contact = [0, cy, cz]; return m;
+  };
+  // Connector between two units: a rounded prism along x from x0 to x1, h × w (mm) centred at (yc, zc).
+  DK.connector = function (x0, x1, yc, zc, h, w, material) {
+    const geo = gridGeometry(6, 36, (i, j) => { const ph = j / 36 * Math.PI * 2; return [lerp(x0, x1, i / 6), yc + h / 2 * se(Math.cos(ph), 3.2), zc - w / 2 * se(Math.sin(ph), 3.2)]; }, [x1, yc, zc], [x0, yc, zc]);
+    const m = new T.Mesh(geo, prostheticMat(material)); m.name = 'Connector'; m.size = { h, w, area: Math.round(h * w * 10) / 10 }; return m;
+  };
+  // Fixed partial denture. units: [{fdi|spec, x, role:'abutment'|'pontic', prep:{axial, occlusal, margin}}] in the jaw frame
+  // (CEJ at y = 0; the retainers seat on DK.prep / DK.prepMorph made with the same prep numbers). o: { material: 'zirconia' |
+  // 'lithium disilicate' | 'metal-ceramic' | 'gold', region: 'anterior' | 'posterior', connector: {h, w} (overrides DK.CONNECTORS),
+  // pontic: DK.pontic options (ridgeY as a number or z => y), connectorY (centre height, default 55% of the shorter crown),
+  // connectorZ }. Returns a group with .retainers, .pontics, .connectors, .units.
+  DK.bridge = function (o) {
+    o = Object.assign({ material: 'zirconia', region: 'posterior', units: [], pontic: {}, connectorZ: 0 }, o);
+    const grp = new T.Group(); grp.name = 'Bridge'; grp.retainers = []; grp.pontics = []; grp.connectors = [];
+    const units = o.units.map(u => Object.assign({}, u, { spec: typeof u.spec === 'object' ? u.spec : DK.toothPreset(u.fdi ?? u.spec) })).sort((p, q) => p.x - q.x);
+    units.forEach(u => {
+      let m;
+      if (u.role === 'pontic') m = DK.pontic(u.spec, o.pontic, o.material);
+      else { m = DK.restorationCrown(u.spec, 'ceramic', Object.assign({ hollow: true }, u.prep || {})); m.name = 'Retainer'; m.material = prostheticMat(o.material); }
+      m.position.x = u.x; u.mesh = m; grp.add(m); (u.role === 'pontic' ? grp.pontics : grp.retainers).push(m);
+    });
+    const cs = o.connector || (DK.CONNECTORS[o.material] || DK.CONNECTORS.zirconia)[o.region];
+    for (let i = 0; i + 1 < units.length; i++) {
+      const A = units[i], B = units[i + 1], yc = o.connectorY ?? 0.55 * Math.min(A.spec.crownL, B.spec.crownL);
+      const xa = A.x + proximalX(A.spec, yc, 1) - 0.6, xb = B.x + proximalX(B.spec, yc, -1) + 0.6;   // ends sink 0.6 mm into each unit
+      const c = DK.connector(xa, xb, yc, o.connectorZ, cs.h, cs.w, o.material); grp.add(c); grp.connectors.push(c);
+    }
+    grp.units = units; grp.spec = o; return grp;
+  };
+  /* ==== end topic: prosth ==== */
+
+  /* ==== topic: ortho (Orthodontics: brackets, archwires, aligners, tooth movement) ==== */
+  // (reserved)
+  /* ==== end topic: ortho ==== */
+
+  /* ==== topic: endo (Endodontic instruments and root canal treatment) ==== */
+  // (reserved)
+  /* ==== end topic: endo ==== */
+
+  // Distance helper for readouts
+  DK.mm = v => (Math.round(v * 10) / 10).toFixed(1) + ' mm';
+
+  window.DK = DK;
+})();
+
+</script>
+<script>
+// Example procedure: a porcelain veneer on the maxillary right central incisor (FDI 11 = Universal 8), crown up (model
+// convention), seen in a labio-lingual cut so the labial depths read against the enamel thickness on the cut face.
+// The enamel shell is one DK.veneerPrep mesh that eases from the intact tooth to the finished prep (labial first, then the
+// incisal edge); DK.veneer with the same numbers seats on it exactly. Frame: +x = mesial, +z = labial, CEJ at y = 0. Sizes in mm.
+const FDI = 11;
+const V = { cervical: 0.3, middle: 0.5, incisal: 0.7, edge: 1.5, type: 'butt' };   // enamel-preserving depths by third (dental-facts.md §18)
+
+const fig = DK.figure({
+  title: 'Preparing an incisor for a veneer',
+  subtitle: 'FDI 11 (Universal 8), crown up. Labial 0.3–0.7 mm, incisal 1.5 mm, butt joint.',
+  view: { theta: 1.1, phi: 1.3 }
+});
+
+// --- context: bone and gingiva around the root (fit: false, so the camera frames the tooth)
+const tooth = DK.tooth(FDI, { omit: ['enamel'] }), s = tooth.spec;      // dentin, root and pulp; the enamel is the morphing prep
+const bone = DK.bone({ width: 16, height: 17, depth: 11, crest: 1.5 }); bone.position.y = -3.4;
+const gum = DK.gingiva({ width: 16, height: 3.2, depth: 11.6, crest: 1.2, around: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, rise: 0.8 }] }); gum.position.y = -2.0;
+fig.part(bone, { name: 'Bone', label: false, fit: false, info: 'Alveolar bone around the incisor root (shown crown up).' });
+fig.part(gum, { name: 'Gingiva', label: false, fit: false, info: 'The veneer margin stays at or just above the gingival margin.' });
+
+// --- the tooth: enamel as a morphing prep over the dentin body, plus a ghost of the intact labial surface
+const prep = DK.veneerPrep(s, V); tooth.group.add(prep);
+const ghostMat = new THREE.MeshBasicMaterial({ color: fig.accent, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+const ghost = new THREE.Mesh(DK.crownGeometry(s), ghostMat); tooth.group.add(ghost);
+fig.part(tooth.group, { name: 'Central incisor 11', anchor: [0, 6, s.bl / 2], info: 'Upper right central incisor: the widest anterior crown, enamel ~0.3 mm thick at the cervix and ~1 mm at the incisal third.' });
+fig.part(prep, { inPlace: true, name: 'Labial reduction', sub: `${V.cervical} → ${V.incisal} mm, in enamel`, anchor: [0, 6, s.blC / 2 - 0.5], accent: true, dim: false, info: 'Only the labial face is reduced, deeper toward the edge, so the prep stays in enamel: a veneer bonded to enamel lasts far longer than one on dentin.' });
+fig.part(prep, { inPlace: true, name: 'Incisal edge', sub: `${V.edge} mm, butt joint`, anchor: [0, s.crownL - V.edge, 0.3], info: 'The edge is shortened and the veneer wraps it, which protects the thin ceramic from chipping.' });
+fig.part(prep, { inPlace: true, name: 'Chamfer', sub: '~0.3 mm, at the gum line', anchor: [0, 0.5, s.blC / 2 - 0.1], info: 'A light chamfer at or just above the gingival margin, still in enamel.' });
+fig.part(ghost, { inPlace: true, name: 'Removed enamel', anchor: [0, s.crownL - 1, s.bl / 2 - 0.5], dim: false, info: 'Outline of the intact tooth: the thin layer the veneer replaces.' });
+fig.part(tooth.layers.dentin, { inPlace: true, name: 'Dentin', anchor: [0, 2.5, -2.3], info: 'Under the enamel. A veneer prep that reaches dentin bonds less reliably.', when: (e, sec) => sec && sec.enabled });
+
+// --- tools and the veneer (fig.world, moved by params)
+const bur = DK.bur({ shape: 'taper', diameter: 1.2 });
+const veneer = DK.veneer(s, V, 'ceramic');
+[bur, veneer].forEach(o => fig.world.add(o));
+fig.part(bur, { inPlace: true, name: 'Diamond bur', sub: 'tapered, round end', anchor: [0, 10, 0], info: 'Depth cutters set 0.3 / 0.5 mm grooves first; a tapered diamond then joins them, following the two planes of the labial face.' });
+fig.part(veneer, { inPlace: true, name: 'Veneer', sub: 'glass-ceramic, 0.3–0.7 mm', anchor: [0, s.crownL - 3, s.bl / 2 + 0.1], info: 'A thin ceramic shell bonded to the enamel with resin cement. It is not a crown: the lingual surface stays untouched.' });
+
+// --- params
+const cut = { fac: 0, inc: 0 };
+fig.param('fac', 0, v => { cut.fac = v; prep.set(cut.fac, cut.inc); });
+fig.param('inc', 0, v => { cut.inc = v; prep.set(cut.fac, cut.inc); });
+fig.param('ghost', 0, k => { ghostMat.opacity = 0.2 * k; ghost.visible = k > 0.01; });
+const b = { burX: 0, burY: 40, burZ: 0, burTilt: 0 };
+Object.keys(b).forEach(k => fig.param(k, b[k], v => { b[k] = v; bur.visible = b.burY < 30; bur.position.set(b.burX, b.burY, b.burZ); bur.rotation.x = b.burTilt; }));
+fig.param('veneer', 0, k => { veneer.visible = k > 0.001; veneer.position.z = (1 - k) * 9; });
+
+fig.enableSection([1, 0, 0], [
+  { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
+  { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
+  { objects: [gum], color: DK.COLORS.gingivaCap },
+  { objects: [veneer], color: 0xe4e0d6 },
+  { objects: [prep], color: DK.COLORS.enamelCap },
+  { objects: [tooth.layers.dentin, tooth.layers.root], color: DK.COLORS.dentinCap },
+  { objects: [tooth.layers.pulp], color: DK.COLORS.pulpCap }
+]);
+ghostMat.clippingPlanes = [fig.section.plane];
+fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-4, 4], offset: 0 } });
+
+// --- the procedure (camera on +x looks at the cut face: labial (+z) on the viewer's left)
+const TOP = s.crownL, LAB = s.bl / 2, park = { burY: 40 };
+fig.procedure([
+  { label: 'Incisor', caption: 'The upper central incisor before preparation.', beats: [
+    { dur: 0, hold: 0.8, theta: 1.1, phi: 1.3, zoom: 1, section: false, labels: ['Central incisor 11'] },
+    { dur: 0, hold: 0, section: true, offset: 6 },
+    { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.7, focus: [0, 4.5, 0], offset: 0, labels: ['Central incisor 11', 'Dentin'], key: true }] },
+  { label: 'Labial reduction', caption: `Labial face reduced ${V.cervical}–${V.incisal} mm, staying in enamel.`, beats: [
+    { dur: 1.2, hold: 0.1, zoom: 0.6, focus: [0, 5, 1], set: { burX: 3, burY: TOP - 1, burZ: LAB + 0.9, burTilt: -0.35 }, labels: ['Diamond bur'] },
+    { dur: 2.2, hold: 0.2, set: { fac: 1, ghost: 1, burX: -3, burY: 0.6, burZ: LAB - 0.1, burTilt: 0.05 }, labels: ['Diamond bur'] },
+    { dur: 0.7, hold: 1.2, set: park, labels: ['Labial reduction', 'Removed enamel', 'Dentin'], key: true }] },
+  { label: 'Incisal edge', caption: `Edge shortened ${V.edge} mm for a butt joint.`, beats: [
+    { dur: 1.1, hold: 0.1, zoom: 0.5, focus: [0, TOP - 1.5, 0], set: { burX: 3, burY: TOP + 0.5, burZ: 0.2, burTilt: -1.1 }, labels: ['Diamond bur'] },
+    { dur: 1.6, hold: 0.2, set: { inc: 1, burX: -3, burY: TOP - V.edge + 0.1 }, labels: ['Diamond bur'] },
+    { dur: 0.7, hold: 1.2, set: park, labels: ['Incisal edge', 'Removed enamel'], key: true }] },
+  { label: 'Margin', caption: 'A light chamfer at the gum line, still in enamel.', beats: [
+    { dur: 1.6, hold: 1.6, zoom: 0.5, focus: [0, 2.4, s.blC / 2 - 0.6], theta: Math.PI / 2 - 0.2, set: { ghost: 0.5 }, labels: ['Chamfer', 'Dentin'], key: true }] },
+  { label: 'Veneer', caption: 'The ceramic shell bonded to the enamel.', beats: [
+    { dur: 1.4, hold: 0.1, zoom: 0.72, focus: [0, 4.5, 0], theta: Math.PI / 2, set: { ghost: 0 }, labels: [] },
+    { dur: 1.6, hold: 0.3, set: { veneer: 1 }, labels: ['Veneer'] },
+    { dur: 1.8, hold: 1.4, theta: 1.1, phi: 1.3, zoom: 0.8, labels: ['Veneer', 'Labial reduction'], key: true }] }
+]);
+fig.start();
+
+</script>
+</body></html>

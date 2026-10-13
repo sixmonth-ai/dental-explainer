@@ -140,7 +140,11 @@ _(reserved)_
 
 <!-- topic: prosth -->
 ### Fixed prosthetics: bridges, veneers, inlays and onlays
-_(reserved)_
+Numbers from dental-facts.md §18 (connector sizes by material, pontic designs, veneer depths, inlay/onlay rules); name the material in the subtitle. Kit: `references/kit-api.md` → "Fixed prosthetics".
+- **Bridge** ("bridge vs implant", "what holds a bridge"): copy `examples/bridge-46.js`. Abutment roots with `DK.prep` stumps, `DK.bridge` as **one exploding part** (retainers, pontic, connectors), a resorbed ridge (bone and gingiva scallop dipping under the pontic), a bucco-lingual cut **through the pontic** for the hero shot (pontic base vs ridge), panel buttons that swap `DK.pontic` designs. Label the connector with its computed mm². Default pontic: modified ridge lap (posterior mandible: sanitary is also correct). Never give the pontic a root or "attach" it to the gum.
+- **Veneer** ("what is a veneer", "veneer vs crown"): copy `examples/veneer-11.js` (a procedure, crown up, labio-lingual cut). `DK.veneerPrep` morphs **only the labial face** (depth by third) and then the incisal edge; `DK.veneer` seats on it. The teaching shot is the cut: the enamel left under the prep. Keep the lingual surface untouched and say "not a crown" in the hover text.
+- **Inlay / onlay**: copy `examples/onlay-36.js`. `DK.inlayPrep` (isthmus, boxes, `cusps` for an onlay) + `DK.inlay`; explode the restoration up; cut **bucco-lingually through the central fossa** so the isthmus depth, the reduced cusp and the intact cusp read together; an `Occlusal` view for the outline. No bevels on ceramic.
+- Maryland (resin-bonded) and cantilever bridges: build with `DK.bridge` (a cantilever is a pontic at one end only); a bonded wing is not in the kit yet: draw it as a thin lathe/box on the palatal surface and say it is schematic.
 <!-- end topic: prosth -->
 
 <!-- topic: ortho -->

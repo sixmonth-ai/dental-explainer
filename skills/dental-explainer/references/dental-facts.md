@@ -206,7 +206,7 @@ The eruption sequence for primary teeth is central incisor, lateral incisor, **1
 ---
 
 ## 9. Orthodontics basics
-- **Bracket slot sizes**: **0.018 × 0.025 in** and **0.022 × 0.028 in** (the slot depths 0.025 and 0.028 in are [U]). Angle proposed the 0.022 in slot (1925). A systematic review (Vieira et al., Angle Orthod 2018; 4 trials) found no reliable evidence that either slot is more efficient, although most studies suggested shorter treatment with 0.018 in [V].
+- **Bracket slot sizes**: **0.018 × 0.025 in** and **0.022 × 0.028 in** (inches: 0.018 in = 0.457 mm, 0.022 in = 0.559 mm) [V, slot dimensions confirmed in a 2023 BMC Oral Health slot review; see §19]. Angle proposed the 0.022 in slot (1925). A systematic review (Vieira et al., Angle Orthod 2018; 4 trials) found no reliable evidence that either slot is more efficient, although most studies suggested shorter treatment with 0.018 in [V].
 - **Archwires**: nickel-titanium (NiTi; superelastic, low force, used for initial alignment), stainless steel (stiff, used for working and finishing), TMA / beta-titanium (intermediate stiffness, formable), cobalt-chromium (Elgiloy) [U, standard textbook].
 - **Force**: light, continuous forces are preferred, because heavy forces cause PDL hyalinization and undermining resorption [U, standard textbook].
 

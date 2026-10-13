@@ -9,17 +9,15 @@ You make one figure per request: a 3D model built from real millimetre dimension
 
 Files in this skill:
 - `assets/dentkit.js`: the drawing kit (three.js r128). API: `references/kit-api.md`.
-- `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read it every time.
-- `examples/*.js`: finished figures. Copy their structure:
+- `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read §1–14 every time, plus the section for your topic (§15–20, named under Topics below).
+- `examples/*.js`: finished figures. Copy their structure (topic examples, such as caries, perio, endo, prosthetics, ortho, primary teeth and charts, are named under Topics below):
   - `mb2-16.js`: axial cut at the canal orifices, a story that ends on the teaching shot, view buttons, markers that follow the cut.
   - `implant-placement-36.js`: a **procedure**: pilot and final drills, osteotomy, implant threading in, healing abutment, crown, driven by `fig.param` + `fig.procedure`.
   - `implant-36.js`: exploded implant stack, CBCT-style section, X-ray toggle, computed safety readouts.
   - `molar-36-section.js`: tissue layers in section with a movable cut.
   - `left-side-dentition.js`: a row of teeth with FDI and Universal numbering and mirrored maxillary teeth.
   - `post-core-crown-45.js`: restorative stack (root filling, fibre post, core, ferrule, hollow crown).
-  - `caries-46.js`: **caries progression** in section, one ICDAS stage per step, driven by `DK.cariesLesion`.
-  - `class-ii-composite-25.js`: a **Class II composite** procedure: lesion, step and box (`DK.cavityPrep`), selective caries removal, matrix and wedge, composite increments (`DK.filling`).
-  - `crown-prep-13.js`: a **tooth preparation** procedure: the crown reduced step by step with `DK.prepMorph`, a moving `DK.bur`, a ghost of the removed tooth, the margin, then the crown seated. Start here for any prep (crown, veneer, onlay).
+  - `crown-prep-13.js`: a **tooth preparation** procedure: the crown reduced step by step with `DK.prepMorph`, a moving `DK.bur`, a ghost of the removed tooth, the margin, then the crown seated. Start here for a full-coverage crown prep; veneers and onlays have their own examples (Topics).
 - `scripts/build.py`: wraps your figure script into a standalone page (`--mode interactive|image`).
 - `scripts/render.py`: turns an image page into a `.png` (needs Playwright + Chromium; uses the GPU when there is one).
 - `scripts/check.py`: a JS-error check and screenshots of the states that matter (every step of a procedure), combined into one `sheet.png`.
@@ -154,7 +152,7 @@ Numbers and stages: dental-facts.md §16 (ICDAS/ICCMS, lesion shapes, ICCC 2016 
 <!-- topic: prosth -->
 ### Fixed prosthetics: bridges, veneers, inlays and onlays
 Numbers from dental-facts.md §18 (connector sizes by material, pontic designs, veneer depths, inlay/onlay rules); name the material in the subtitle. Kit: `references/kit-api.md` → "Fixed prosthetics".
-- **Bridge** ("bridge vs implant", "what holds a bridge"): copy `examples/bridge-46.js`. Abutment roots with `DK.prep` stumps, `DK.bridge` as **one exploding part** (retainers, pontic, connectors), a resorbed ridge (bone and gingiva scallop dipping under the pontic), a bucco-lingual cut **through the pontic** for the hero shot (pontic base vs ridge), panel buttons that swap `DK.pontic` designs. Label the connector with its computed mm². Default pontic: modified ridge lap (posterior mandible: sanitary is also correct). Never give the pontic a root or "attach" it to the gum.
+- **Bridge** ("bridge vs implant", "what holds a bridge"): copy `examples/bridge-46.js`. Abutment roots with `DK.prep` stumps, `DK.bridge` as **one exploding part** (retainers, pontic, connectors), a resorbed ridge (bone and gingiva scallop dipping under the pontic), a story that ends on the whole bridge in a three-quarter buccal view (abutments, pontic, connectors, ridge), a bucco-lingual cut **through the pontic** as a view button for the pontic base vs ridge, panel buttons that swap `DK.pontic` designs. Label the connector with its computed mm². Default pontic: modified ridge lap (posterior mandible: sanitary is also correct). Never give the pontic a root or "attach" it to the gum.
 - **Veneer** ("what is a veneer", "veneer vs crown"): copy `examples/veneer-11.js` (a procedure, crown up, labio-lingual cut). `DK.veneerPrep` morphs **only the labial face** (depth by third) and then the incisal edge; `DK.veneer` seats on it. The teaching shot is the cut: the enamel left under the prep. Keep the lingual surface untouched and say "not a crown" in the hover text.
 - **Inlay / onlay**: copy `examples/onlay-36.js`. `DK.inlayPrep` (isthmus, boxes, `cusps` for an onlay) + `DK.inlay`; explode the restoration up; cut **bucco-lingually through the central fossa** so the isthmus depth, the reduced cusp and the intact cusp read together; an `Occlusal` view for the outline. No bevels on ceramic.
 - Maryland (resin-bonded) and cantilever bridges: build with `DK.bridge` (a cantilever is a pontic at one end only); a bonded wing is not in the kit yet: draw it as a thin lathe/box on the palatal surface and say it is schematic.
@@ -203,7 +201,11 @@ Facts: §8 (working length, ISO files) and §20 (colour cycle, access outlines, 
 ## What the kit can't do (say so instead of faking it)
 - Patient-specific anatomy from scans or radiographs. Figures are parametric and population-average. If the user uploads a CBCT or STL, explain this limit. You may still match key measurements they give (implant size, bone height).
 - Photorealistic soft tissue, faces, or histology at cell level. Draw a schematic and say it's schematic.
-- Wall-by-wall tooth preparation. `DK.prepMorph` reduces the incisal/occlusal surface and then all axial walls together; depth grooves, the lingual concavity and separate labial / lingual / proximal passes can't be shown. Merge them into one "axial walls" step and name what it covers in its label or hover text.
+- Wall-by-wall crown preparation. `DK.prepMorph` reduces the incisal/occlusal surface and then all axial walls together; depth grooves, the lingual concavity and separate labial / lingual / proximal passes can't be shown. Merge them into one "axial walls" step and name what it covers in its label or hover text. (Labial-only veneer preps and inlay/onlay cavities *are* possible: `DK.veneerPrep`, `DK.inlayPrep`. Bevels on cast-gold inlays and bonded Maryland wings are not; draw wings schematically.)
+- True holes. Cavities, access cavities and preps are rendered as recesses whose cut face is painted as empty space, not carved out of the mesh: build fillings, access and preps as **section figures**, and expect a thin lip at some oblique 3D angles.
+- Instrument mishaps and tissue at cell level. Files follow the canal centre line but don't cut, bind or deform it (no ledges, transportation, perforations or separated files); caries zones, PDL hyalinisation, bleeding, plaque biofilm and tooth mobility are schematic or text only.
+- Patient arches and malocclusion. `DK.arch` is a population arch form: no crowding, rotations, spacing or Angle classes. Developing teeth are complete crowns on short roots; an impaction shows angulation and depth, not the ramus relation.
+- A periodontal diagnosis from one tooth. Staging and grading are whole-mouth: label a single tooth "consistent with Stage III". Furcation involvement is a bone-height dip that reads in section, not a carved tunnel.
 - Exact proprietary implant geometries. Draw a generic implant of the stated diameter, length and connection, and don't use brand names on it.
 
 ## Platform notes

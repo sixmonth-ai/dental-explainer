@@ -47,12 +47,13 @@ const arrowMat = new THREE.MeshBasicMaterial({ color: DK.color(0x7a766e), toneMa
 const arrow = DK.arrow({ from: [0.2, 6.5, s.bl / 2 + 4.6], to: [0.2, 6.5, s.bl / 2 + 0.8], width: 0.5, head: 1.2, normal: [1, 0, 0], material: arrowMat });
 fig.world.add(arrow);
 fig.part(arrow, { inPlace: true, name: 'Force', sub: 'light, continuous', anchor: [0, 0.3, 3.6], labelOffset: [-90, -50], info: 'Optimal forces are light: about 35–60 g for tipping and 70–120 g for bodily movement (Proffit). More force does not move teeth faster.' });
-const newBoneMat = new THREE.MeshBasicMaterial({ color: DK.color(0xcbbf9f), toneMapped: false, side: THREE.DoubleSide, transparent: true, opacity: 0, depthWrite: false });
-const newBonePts = dz => outline(LAB, CREST - 0.1, APEX, 24).map(p => [0.14, p[1], p[2] + GAP + dz / 2]);
-const newBone = DK.ribbon(newBonePts(0), 0.02, [1, 0, 0], { material: newBoneMat, name: 'New bone' }); fig.world.add(newBone);
-const buildNewBone = dz => { const g = DK.ribbon(newBonePts(dz), Math.max(Math.abs(dz), 0.02), [1, 0, 0], { material: newBoneMat }).geometry; newBone.geometry.dispose(); newBone.geometry = g; };
-fig.part(newBone, { inPlace: true, name: 'Apposition', sub: 'new bone on the tension side', anchor: [0, 0, 0], labelOffset: [-110, 40], info: 'Osteoblasts fill the stretched side with new bone: the socket wall keeps its distance to the root.' });
-fig.part(socket, { inPlace: true, name: 'Resorption', sub: 'bone removed on the pressure side', accent: true, anchor: [0.15, -5, -(s.blC / 2 + GAP)], labelOffset: [100, 40], info: 'Osteoclasts resorb the socket wall ahead of the moving root. The tooth moves about 1 mm a month; bone turns over, it is not pushed aside.' });
+// remodelling: thin layers on the socket wall (children of the socket, so they follow it): new bone on the tension side,
+// the resorbing front on the pressure side (accent)
+const wallPts = (th, out) => outline(th, CREST - 1.0, APEX + 0.2, 24).map(p => [0.14, p[1], p[2] + out * (GAP + 0.17)]);
+const newBone = DK.ribbon(wallPts(LAB, 1), 0.34, [1, 0, 0], { color: 0xb9ab86, alpha: 0, name: 'New bone' }); socket.add(newBone);
+const resorb = DK.ribbon(wallPts(LIN, -1), 0.34, [1, 0, 0], { color: fig.accent, alpha: 0, name: 'Resorbing front' }); socket.add(resorb);
+fig.part(newBone, { inPlace: true, name: 'Apposition', sub: 'new bone on the tension side', anchor: wallPts(LAB, 1)[10], labelOffset: [-110, 40], info: 'Osteoblasts line the stretched side with new bone, so the socket wall keeps its distance to the root.' });
+fig.part(resorb, { inPlace: true, name: 'Resorption', sub: 'bone removed on the pressure side', accent: true, anchor: wallPts(LIN, -1)[10], labelOffset: [100, 40], info: 'Osteoclasts resorb the socket wall ahead of the moving root. The tooth moves about 1 mm a month; bone turns over, it is not pushed aside.' });
 
 // --- params
 const st = { tip: 0, shift: 0, socket: 0, mode: 0, zones: 0 };
@@ -62,13 +63,11 @@ const paint = () => { const k = st.mode, a = st.zones;   // mode 0: tipping (dia
   set(zones.linTop, 1); set(zones.labBot, 1 - k); set(zones.labTop, 0); set(zones.linBot, k); };
 fig.param('tip', 0, v => { st.tip = v; place(); });
 fig.param('shift', 0, v => { st.shift = v; place(); });
-fig.param('socket', 0, v => { st.socket = v; socket.position.z = v; buildNewBone(v); });
+fig.param('socket', 0, v => { st.socket = v; socket.position.z = v; });
 fig.param('mode', 0, v => { st.mode = v; paint(); });
 fig.param('zones', 0, v => { st.zones = v; paint(); });
 fig.param('arrow', 0, v => { arrowMat.opacity = v; arrow.visible = v > 0.01; });
-fig.param('newBone', 0, v => { newBoneMat.opacity = 0.95 * v; });
-// a label's anchor must sit on its part: the Apposition label follows the strip's middle
-newBone.userData.part.setAnchor(() => { const p = DK.rootRing(r, tOf(-6), LAB, sc, L); return [0.16, p[1], p[2] + GAP + st.socket / 2]; });
+fig.param('newBone', 0, v => { newBone.material.opacity = 0.95 * v; resorb.material.opacity = 0.9 * v; });
 
 fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
@@ -86,15 +85,15 @@ const TIP = -0.07;   // ~4°: crown ~1.2 mm lingually, apex ~0.4 mm labially
 fig.procedure([
   { label: 'Force on the crown', caption: 'A light force from the wire pushes the crown lingually.', beats: [
     { dur: 0, hold: 0.6, theta: Math.PI / 2, phi: 1.45, zoom: 1, section: true, offset: 0, labels: ['PDL'] },
-    { dur: 1.6, hold: 1.4, zoom: 0.96, focus: [0, -0.5, 0], set: { arrow: 1 }, labels: ['Force', 'PDL', 'Centre of resistance'], key: true }] },
+    { dur: 1.6, hold: 1.4, zoom: 1, focus: 'auto', set: { arrow: 1 }, labels: ['Force', 'PDL', 'Centre of resistance'], key: true }] },
   { label: 'Tipping', caption: 'One force at the crown: the tooth rotates near its centre of resistance.', beats: [
-    { dur: 2.0, hold: 0.2, zoom: 0.68, focus: [0, -4, 0], set: { tip: TIP, mode: 0, zones: 1 }, labels: ['Force'] },
-    { dur: 1.4, hold: 2.2, zoom: 0.72, focus: [0, -3.5, 0], labels: ['Pressure side', 'Tension side', 'Centre of resistance'], key: true }] },
+    { dur: 2.0, hold: 0.2, theta: Math.PI / 2 + 0.06, set: { tip: TIP, mode: 0, zones: 1 }, labels: ['Force'] },
+    { dur: 1.2, hold: 2.2, labels: ['Pressure side', 'Tension side', 'Centre of resistance'], key: true }] },
   { label: 'Bodily movement', caption: 'Force plus a counter-moment: the whole root moves the same way.', beats: [
-    { dur: 2.0, hold: 0.2, set: { tip: 0, shift: -0.36, mode: 1 }, labels: ['Force'] },
-    { dur: 1.2, hold: 2.2, zoom: 0.72, focus: [0, -3.5, 0], labels: ['Pressure side', 'Tension side', 'Centre of resistance'], key: true }] },
+    { dur: 2.0, hold: 0.2, theta: Math.PI / 2 - 0.06, set: { tip: 0, shift: -0.36, mode: 1 }, labels: ['Force'] },
+    { dur: 1.2, hold: 2.2, labels: ['Pressure side', 'Tension side', 'Centre of resistance'], key: true }] },
   { label: 'Bone remodels', caption: 'Resorption ahead of the root, apposition behind it: the socket follows.', beats: [
-    { dur: 2.8, hold: 0.2, zoom: 0.68, focus: [0, -5, -0.5], set: { shift: -1.4, socket: -1.05, newBone: 1, zones: 0 }, labels: ['Resorption', 'Apposition'] },
+    { dur: 2.8, hold: 0.2, theta: Math.PI / 2, set: { shift: -1.4, socket: -1.05, newBone: 1, zones: 0 }, labels: ['Resorption', 'Apposition'] },
     { dur: 1.4, hold: 2.4, set: { socket: -1.4, arrow: 0 }, labels: ['Resorption', 'Apposition', 'PDL'], key: true }] }
 ]);
 fig.start();

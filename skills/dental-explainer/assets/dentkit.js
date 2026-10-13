@@ -1529,7 +1529,7 @@
   function sweepGeometry(curve, profile, o) {
     o = o || {}; const segs = o.segments || 96, cols = o.radial || 24, up = v3(o.up || [0, 1, 0]), closed = !!o.closed, P = [], U = [], N = [];
     for (let i = 0; i <= segs; i++) { const t = closed ? (i % segs) / segs : i / segs, p = curve.getPointAt(t), tg = curve.getTangentAt(t).normalize(); const u = up.clone().sub(tg.clone().multiplyScalar(up.dot(tg))).normalize(); P.push(p); U.push(u); N.push(new T.Vector3().crossVectors(tg, u).normalize()); }
-    const g = gridGeometry(segs, cols, (i, j) => { const [a, b] = profile(j / cols); return [P[i].x + U[i].x * a + N[i].x * b, P[i].y + U[i].y * a + N[i].y * b, P[i].z + U[i].z * a + N[i].z * b]; },
+    const g = gridGeometry(segs, cols, (i, j) => { const [a, b] = profile(j / cols, i / segs, { P: P[i], U: U[i], N: N[i] }); return [P[i].x + U[i].x * a + N[i].x * b, P[i].y + U[i].y * a + N[i].y * b, P[i].z + U[i].z * a + N[i].z * b]; },
       closed ? null : [P[segs].x, P[segs].y, P[segs].z], closed ? null : [P[0].x, P[0].y, P[0].z]);
     // orient outward (the profile's sense depends on the frame): test one surface triangle against the path point
     const pa = g.attributes.position, ia = g.index.array, A = new T.Vector3().fromBufferAttribute(pa, ia[0]), B = new T.Vector3().fromBufferAttribute(pa, ia[1]), C = new T.Vector3().fromBufferAttribute(pa, ia[2]);
@@ -1659,6 +1659,53 @@
     const mat = new T.MeshPhysicalMaterial({ color: DK.color(0xf3f5f7), roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.1, transparent: true, opacity: o.opacity, depthWrite: false, envMapIntensity: 1.2 });
     mat.userData.capColor = 0xdfe3e6;
     const m = new T.Mesh(shellGeometry(outer, inner), mat); m.name = 'Aligner'; m.renderOrder = 10; m.userData.spec = { thickness: o.thickness, gap: o.gap }; return m;
+  };
+  // One continuous aligner over a whole arch: rays from a spine curve (through the middle of the crowns, in WORLD space) are cast
+  // around the arch against the crown meshes (enamel shells and attachments, any transforms); the shell is `thickness` mm outside
+  // the farthest hit, bridged across the contacts and trimmed where the hit rises above `trimY` (the gingival margin, world y).
+  // Returns one closed mesh in world coordinates (section-ready, kind 'plain'). o.sweep [rad]: half-range of the cast around the
+  // spine (0 = straight down toward the incisal edges for crowns-down teeth; set o.down to [0,1,0] for crowns-up teeth).
+  DK.alignerArch = function (curve, meshes, o) {
+    o = Object.assign({ thickness: 0.5, gap: 0.05, segments: 120, around: 36, sweep: 2.55, trimY: -0.9, down: [0, -1, 0], opacity: 0.42, maxDist: 16 }, o);
+    const ray = new T.Raycaster(); ray.far = o.maxDist; const down = v3(o.down).normalize(), rows = [];
+    meshes.forEach(m => m.updateMatrixWorld(true));
+    for (let i = 0; i <= o.segments; i++) {
+      const t = i / o.segments, P = curve.getPointAt(t), tg = curve.getTangentAt(t).normalize();
+      const D = down.clone().sub(tg.clone().multiplyScalar(down.dot(tg))).normalize(), N = new T.Vector3().crossVectors(tg, D).normalize();
+      const row = { P, dirs: [], d: [] };
+      for (let j = 0; j <= o.around; j++) {
+        const ph = lerp(-o.sweep, o.sweep, j / o.around), dir = N.clone().multiplyScalar(Math.sin(ph)).add(D.clone().multiplyScalar(Math.cos(ph))).normalize();
+        ray.set(P, dir); const hits = ray.intersectObjects(meshes, false); let best = null;
+        hits.forEach(h => { if (h.point.y * (-down.y) < o.trimY * (-down.y) || down.y === 0) { if (!best || h.distance > best.distance) best = h; } });
+        row.dirs.push(dir); row.d.push(best ? best.distance : null);
+      }
+      rows.push(row);
+    }
+    // bridge the contacts: a missing distance is interpolated along the arch from the nearest hits at the same angle
+    for (let j = 0; j <= o.around; j++) {
+      let i = 0; while (i <= o.segments) {
+        if (rows[i].d[j] !== null) { i++; continue; }
+        let k = i; while (k <= o.segments && rows[k].d[j] === null) k++;
+        const a = i - 1, b = k; if (a >= 0 && b <= o.segments) for (let m = i; m < k; m++) rows[m].d[j] = lerp(rows[a].d[j], rows[b].d[j], (m - a) / (b - a));
+        i = k;
+      }
+    }
+    // smooth the cast distances a little (3 × 3 box over hits only) so the shell reads as one drawn surface, not a lattice
+    for (let pass = 0; pass < (o.smooth ?? 2); pass++) {
+      const prev = rows.map(r => r.d.slice());
+      for (let i = 0; i <= o.segments; i++) for (let j = 0; j <= o.around; j++) { if (prev[i][j] === null) continue; let sum = 0, n = 0;
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const q = prev[i + a] && prev[i + a][j + b]; if (q !== null && q !== undefined) { sum += q; n++; } } rows[i].d[j] = sum / n; }
+    }
+    const valid = rows.map(r => r.d.some(v => v !== null)); const i0 = valid.indexOf(true), i1 = valid.lastIndexOf(true);
+    const R = rows.slice(i0, i1 + 1).map(r => { // per row: the valid angular range (trimmed cervically on both sides)
+      let a = r.d.findIndex(v => v !== null), b = r.d.length - 1; while (b > a && r.d[b] === null) b--;
+      const at = u => { const x = a + (b - a) * u, k = Math.floor(x), f = x - k, d0 = r.d[k], d1 = r.d[Math.min(k + 1, b)], dir = r.dirs[k].clone().lerp(r.dirs[Math.min(k + 1, b)], f).normalize(); return { d: lerp(d0, d1 ?? d0, f), dir }; };
+      return { P: r.P, at };
+    });
+    const g = slabGeometry(R.length - 1, o.around, (i, j) => { const q = R[i].at(j / o.around); const p = k => [R[i].P.x + q.dir.x * k, R[i].P.y + q.dir.y * k, R[i].P.z + q.dir.z * k]; return [p(q.d + o.gap), p(q.d + o.gap + o.thickness)]; });
+    const mat = new T.MeshPhysicalMaterial({ color: DK.color(0xf3f5f7), roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.1, transparent: true, opacity: o.opacity, depthWrite: false, envMapIntensity: 1.2 });
+    mat.userData.capColor = 0xdfe3e6;
+    const m = new T.Mesh(g, mat); m.name = 'Aligner'; m.renderOrder = 10; m.userData.spec = { thickness: o.thickness, gap: o.gap }; return m;
   };
   /* --- tooth movement biology --- */
   // Centre of resistance of a single-rooted tooth: about 40% (33–42%) of the root length below the alveolar crest.

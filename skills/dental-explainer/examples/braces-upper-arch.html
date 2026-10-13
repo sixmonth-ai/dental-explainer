@@ -2558,35 +2558,45 @@
   }
   DK.sweepGeometry = orthoSweep; DK.roundedRect = roundedRect;   // roundedRect(hw, hd, r): s → [a, b], a closed outline for sweeps
   const box = (w, h, d, x, y, z, mat) => { const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m; };
-  const bondPad = (surf, x0, y0, w, h, thick, mat) => { // bonding base: a patch of the crown surface, `thick` mm proud along +z (labial)
-    const g = slabGeometry(8, 8, (i, j) => { const q = surf.at(x0 + (i / 8 - 0.5) * w, y0 + (j / 8 - 0.5) * h); return [[q.p[0], q.p[1], q.p[2] - 0.04], [q.p[0], q.p[1], q.p[2] + thick]]; });
+  // Appliance frame at a point of the crown surface: local z = the surface normal there, local y = the tooth's long axis projected
+  // onto the surface plane (occluso-gingival), x = mesio-distal. {P0, R (Matrix4 rotation), toLocal(p)}: a bracket body built along
+  // local z stands square on the crown however the facial surface slopes (lower incisors: ~20–25°).
+  function surfaceFrame(c) {
+    const Z = v3(c.n).normalize(), Y = new T.Vector3(0, 1, 0).sub(Z.clone().multiplyScalar(Z.y)).normalize(), X = new T.Vector3().crossVectors(Y, Z).normalize();
+    const R = new T.Matrix4().makeBasis(X, Y, Z), Ri = R.clone().transpose(), P0 = v3(c.p);
+    return { P0, R, X, Y, Z, toLocal: p => v3(p).sub(P0).applyMatrix4(Ri) };
+  }
+  // Bonding base in the appliance frame: inner face = the crown surface, outer face = the flat plane z = thick (the body's back),
+  // so the pad is contoured between the two (thicker toward the edges as the crown curves away).
+  const bondPad = (surf, F, x0, y0, w, h, thick, mat) => {
+    const g = slabGeometry(8, 8, (i, j) => { const q = surf.at(x0 + (i / 8 - 0.5) * w, y0 + (j / 8 - 0.5) * h), l = F.toLocal(q.p); return [[l.x, l.y, Math.min(l.z, thick - 0.1) - 0.04], [l.x, l.y, thick]]; });
     const m = new T.Mesh(g, mat); m.name = 'Base'; return m;
   };
-  // Twin (Siamese) edgewise bracket seated on the labial surface. Origin of the returned group = the SLOT CENTRE (tooth frame);
-  // the pad hugs the crown. o.height: slot centre from the incisal edge / cusp tip (mm); default = mid-crown (Andrews' FA point).
-  // o.slot '0.022' | '0.018'; o.width (MD), o.tall (OG), o.x (MD offset), o.material 'steel' | 'ceramic'.
-  // group.wirePoint(wireDepthMm) → the wire's centre line point in the TOOTH frame (wire bottomed in the slot).
+  // Twin (Siamese) edgewise bracket seated on the labial surface, square to it (the slot's z axis is the surface normal at the
+  // FA point, its y axis the tooth's long axis). Origin of the returned group = the SLOT CENTRE; the pad hugs the crown.
+  // o.height: slot centre from the incisal edge / cusp tip (mm); default = mid-crown (Andrews' FA point). o.slot '0.022' | '0.018';
+  // o.width (MD), o.tall (OG), o.x (MD offset), o.material 'steel' | 'ceramic'.
+  // group.wirePoint(wireDepthMm) → the wire's centre line point (wire bottomed in the slot) in the frame of the group's outermost
+  // ancestor: the tooth frame while the bracket is loose or a child of the tooth group, the world once that group is in a scene.
   DK.bracket = function (specOrFdi, o) {
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
     o = Object.assign({ slot: '0.022', height: null, x: 0, width: null, tall: 3.0, pad: 0.3, material: 'steel', gap: 0.5 }, o);
     const S = typeof o.slot === 'string' ? DK.SLOTS[o.slot] : o.slot, surf = crownSurface(s), h = o.height ?? s.crownL / 2, y0 = s.crownL - h;
     const W = o.width ?? clamp(s.md * 0.4, 2.6, 3.6), H = o.tall, mat = o.material === 'ceramic' ? DK.mat('ceramic', { cap: 0xe8e4dc }) : DK.mat('steel', { cap: 0x9ea4aa });
-    const c = surf.at(o.x, y0), x0 = c.p[0];
-    const pad = bondPad(surf, x0, y0, W + 0.3, H + 0.3, o.pad, mat);
-    let zb = -1e9; pad.geometry.attributes.position.array.forEach((v, k) => { if (k % 3 === 2) zb = Math.max(zb, v); });
-    const zf = zb + 0.55, zF = zf + S.d, wW = (W - o.gap) / 2, neckH = H / 2 - 0.6 - S.w / 2, capH = H / 2 - S.w / 2;
-    const grp = new T.Group(); grp.name = 'Bracket'; grp.add(pad);
-    grp.add(box(W, H - 1.2, zf - zb + 0.12, x0, y0, (zb - 0.12 + zf) / 2, mat));   // base body under the slot floor
+    const c = surf.at(o.x, y0), x0 = c.p[0], F = surfaceFrame(c);
+    const zb = o.pad, zf = zb + 0.55, zF = zf + S.d, wW = (W - o.gap) / 2, neckH = H / 2 - 0.6 - S.w / 2, capH = H / 2 - S.w / 2;
+    const grp = new T.Group(); grp.name = 'Bracket'; grp.add(bondPad(surf, F, x0, y0, W + 0.3, H + 0.3, o.pad, mat));
+    grp.add(box(W, H - 1.2, zf - zb + 0.12, 0, 0, (zb - 0.12 + zf) / 2, mat));   // base body under the slot floor
     [-1, 1].forEach(sx => [-1, 1].forEach(sy => {
-      const xw = x0 + sx * (o.gap / 2 + wW / 2);
-      grp.add(box(wW, neckH, S.d, xw, y0 + sy * (S.w / 2 + neckH / 2), zf + S.d / 2, mat));           // tie-wing neck (slot wall)
-      grp.add(box(wW, capH, 0.45, xw, y0 + sy * (S.w / 2 + capH / 2), zF - 0.225, mat));               // tie-wing cap (undercut for the ligature)
+      const xw = sx * (o.gap / 2 + wW / 2);
+      grp.add(box(wW, neckH, S.d, xw, sy * (S.w / 2 + neckH / 2), zf + S.d / 2, mat));           // tie-wing neck (slot wall)
+      grp.add(box(wW, capH, 0.45, xw, sy * (S.w / 2 + capH / 2), zF - 0.225, mat));               // tie-wing cap (undercut for the ligature)
     }));
-    const centre = [x0, y0, zf + S.d / 2];
-    grp.children.forEach(m => m.geometry.translate(-centre[0], -centre[1], -centre[2]));
-    grp.position.set(...centre);
-    grp.userData = { spec: s, slot: S, width: W, tall: H, floor: zf - centre[2], face: zF - centre[2], gap: o.gap, normal: c.n, height: h };
-    grp.wirePoint = d => [centre[0], centre[1], zf + (d ?? S.d) / 2];
+    const zc = zf + S.d / 2;   // slot centre along the normal
+    grp.children.forEach(m => m.geometry.translate(0, 0, -zc));
+    grp.quaternion.setFromRotationMatrix(F.R); grp.position.copy(F.P0).add(F.Z.clone().multiplyScalar(zc));
+    grp.userData = { spec: s, slot: S, width: W, tall: H, floor: zf - zc, face: zF - zc, gap: o.gap, normal: c.n, height: h, frame: F };
+    grp.wirePoint = d => { grp.updateWorldMatrix(true, false); return new T.Vector3(0, 0, zf + (d ?? S.d) / 2 - zc).applyMatrix4(grp.matrixWorld).toArray(); };
     return grp;
   };
   // Elastomeric O-ring around the four tie wings, in the BRACKET's frame (same position as the bracket in the tooth frame: add
@@ -2629,20 +2639,19 @@
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
     o = Object.assign({ slot: '0.022', height: null, x: 0, length: 4.0, pad: 0.3, band: 0, hook: true, material: 'steel' }, o);
     const S = typeof o.slot === 'string' ? DK.SLOTS[o.slot] : o.slot, surf = crownSurface(s), h = o.height ?? s.crownL * 0.45, y0 = s.crownL - h, L = o.length;
-    const mat = DK.mat('steel', { cap: 0x9ea4aa }), c = surf.at(o.x, y0), x0 = c.p[0], grp = new T.Group(); grp.name = 'Molar tube';
-    let zb;
-    if (o.band) zb = c.p[2] + o.band + 0.02;
-    else { const pad = bondPad(surf, x0, y0, L + 0.8, S.w + 2.4, o.pad, mat); grp.add(pad); zb = -1e9; pad.geometry.attributes.position.array.forEach((v, k) => { if (k % 3 === 2) zb = Math.max(zb, v); }); }
+    const mat = DK.mat('steel', { cap: 0x9ea4aa }), c = surf.at(o.x, y0), x0 = c.p[0], F = surfaceFrame(c), grp = new T.Group(); grp.name = 'Molar tube';
+    const zb = o.band ? o.band + 0.02 : o.pad;
+    if (!o.band) grp.add(bondPad(surf, F, x0, y0, L + 0.8, S.w + 2.4, o.pad, mat));
     const wall = 0.35, Ty = S.w + 2 * wall, zf = zb + wall, zF = zf + S.d, zTop = zF + 0.3;
-    grp.add(box(L, Ty, zf - zb + 0.1, x0, y0, (zb - 0.1 + zf) / 2, mat));                                   // floor
-    grp.add(box(L, Ty, 0.3, x0, y0, zF + 0.15, mat));                                                       // roof
-    [-1, 1].forEach(sy => grp.add(box(L, wall, S.d, x0, y0 + sy * (S.w / 2 + wall / 2), zf + S.d / 2, mat)));  // gingival / occlusal walls
-    if (o.hook) { const xd = x0 - L / 2 + 0.4, yg = y0 - Ty / 2, zm = (zb + zTop) / 2; grp.add(DK.tube([[xd, yg + 0.2, zm], [xd, yg - 0.9, zm + 0.1], [xd, yg - 1.5, zm + 0.7]], 0.28, mat, { segments: 12, radial: 10 })); }   // hook curves gingivally (−y) then out
-    const centre = [x0, y0, zf + S.d / 2];
-    grp.children.forEach(m => { if (m.geometry) m.geometry.translate(-centre[0], -centre[1], -centre[2]); m.children.forEach(cc => cc.position.sub(v3(centre))); });
-    grp.position.set(...centre);
-    grp.userData = { spec: s, slot: S, length: L, floor: zf - centre[2], face: zF - centre[2], normal: c.n, height: h };
-    grp.wirePoint = d => [centre[0], centre[1], zf + (d ?? S.d) / 2];
+    grp.add(box(L, Ty, zf - zb + 0.1, 0, 0, (zb - 0.1 + zf) / 2, mat));                                   // floor
+    grp.add(box(L, Ty, 0.3, 0, 0, zF + 0.15, mat));                                                       // roof
+    [-1, 1].forEach(sy => grp.add(box(L, wall, S.d, 0, sy * (S.w / 2 + wall / 2), zf + S.d / 2, mat)));  // gingival / occlusal walls
+    if (o.hook) { const xd = -L / 2 + 0.4, yg = -Ty / 2, zm = (zb + zTop) / 2; grp.add(DK.tube([[xd, yg + 0.2, zm], [xd, yg - 0.9, zm + 0.1], [xd, yg - 1.5, zm + 0.7]], 0.28, mat, { segments: 12, radial: 10 })); }   // hook curves gingivally (−y) then out
+    const zc = zf + S.d / 2;
+    grp.children.forEach(m => { if (m.geometry) m.geometry.translate(0, 0, -zc); m.children.forEach(cc => { cc.position.z -= zc; }); });
+    grp.quaternion.setFromRotationMatrix(F.R); grp.position.copy(F.P0).add(F.Z.clone().multiplyScalar(zc));
+    grp.userData = { spec: s, slot: S, length: L, floor: zf - zc, face: zF - zc, normal: c.n, height: h, frame: F };
+    grp.wirePoint = d => { grp.updateWorldMatrix(true, false); return new T.Vector3(0, 0, zf + (d ?? S.d) / 2 - zc).applyMatrix4(grp.matrixWorld).toArray(); };
     return grp;
   };
   // Orthodontic band: a thin steel ring hugging the crown between y = o.bottom and o.top (tooth frame, mm above the CEJ).
@@ -2726,6 +2735,32 @@
     const mat = new T.MeshPhysicalMaterial({ color: DK.color(0xf3f5f7), roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.1, transparent: true, opacity: o.opacity, depthWrite: false, envMapIntensity: 1.2 });
     mat.userData.capColor = 0xdfe3e6;
     const m = new T.Mesh(g, mat); m.name = 'Aligner'; m.renderOrder = 10; m.userData.spec = { thickness: o.thickness, gap: o.gap }; return m;
+  };
+  // Gingiva along a DK.arch: a thin ridge swept from the distal of the last tooth on one side to the other, whose face toward
+  // the crowns drops `rise` mm into a free gingival margin around every neck (summed cuffs make the papillae), with low
+  // eminences over the roots on the facial side and a wider section over the molars. Works for either jaw: the ridge sits
+  // above crown-down teeth (maxilla, placement 'jaw') and below crown-up teeth (mandible). Returns a mesh in the arch's parent
+  // frame (add it to the world, `fit: false`); section-ready (gingiva cap). Call after the arch is in the scene.
+  DK.gingivaArch = function (arch, o) {
+    o = Object.assign({ height: 4.4, depth: 4.0, molarExtra: 1.8, round: 1.9, rise: 0.9, eminence: 0.5, segments: 240, radial: 64 }, o);
+    arch.group.updateWorldMatrix(true, true);
+    const down = arch.group.scale.y < 0, sgn = down ? 1 : -1, HW = o.height / 2, teeth = arch.teeth, tmp = new T.Vector3();
+    const local = (t, X, Z) => t.tooth.group.worldToLocal(tmp.set(X, 0, Z));
+    const cuff = (X, Z) => { let v = 0; teeth.forEach(t => { const l = local(t, X, Z), a = t.spec.mdC / 2, b = t.spec.blC / 2, rho = Math.pow(Math.pow(Math.abs(l.x) / a, 2.3) + Math.pow(Math.abs(l.z) / b, 2.3), 1 / 2.3); v += o.rise * smooth(1.5, 0.1, (rho - 1) * Math.min(a, b)); }); return Math.min(v, 1.35 * o.rise); };
+    const emin = (X, Z) => { let v = 0; teeth.forEach(t => { const l = local(t, X, Z); if (l.z > 0) v += Math.exp(-2.5 * Math.pow(l.x / (t.spec.mdC / 2), 2)); }); return Math.min(v, 1); };
+    const slot = t => arch.slots[t.fdi], first = slot(teeth[0]), last = slot(teeth[teeth.length - 1]);
+    const end = s => [s.c[0] - s.t[0] * (s.md / 2 + 1), s.c[1] - s.t[1] * (s.md / 2 + 1)];
+    const pts = [end(first), ...teeth.map(t => slot(t).c), end(last)].map(c => new T.Vector3(c[0], sgn * HW, c[1]));
+    const curve = new T.CatmullRomCurve3(pts, false, 'centripetal');
+    const prof = t => roundedRect(HW, o.depth + o.molarExtra * smooth(0.55, 0.85, Math.abs(t - 0.5) * 2), o.round);
+    const g = orthoSweep(curve, (s, t, f) => {
+      let [a, b] = prof(t)(s); const X = f.P.x + f.U.x * a + f.N.x * b, Z = f.P.z + f.U.z * a + f.N.z * b;
+      const toward = -sgn * a;   // distance of this profile point toward the crowns (positive on the face that meets them)
+      const w = smooth(HW - 1.3, HW - 0.15, toward); if (w > 0) a -= sgn * w * cuff(X, Z);   // the margin reaches over the necks
+      if (b > 0.3) b += o.eminence * emin(X, Z) * (1 - (HW - toward) / (2 * HW)) * smooth(0.3, 2.2, b);
+      return [a, b];
+    }, { segments: o.segments, radial: o.radial });
+    const m = new T.Mesh(g, o.material || DK.mat('gingiva')); m.name = 'Gingiva'; return m;
   };
   /* --- tooth movement biology --- */
   // Centre of resistance of a single-rooted tooth: about 40% (33–42%) of the root length below the alveolar crest.
@@ -3011,8 +3046,7 @@
 // The teeth come from DK.arch (maxilla in the mouth: crowns down, left teeth mirrored, contacts touching), seen from the
 // front and slightly below with the patient's right on the viewer's left. Arch frame: +x = patient's left, +z = anterior, y up.
 // Appliance parts are built in each tooth's own frame (DK.bracket, DK.ligature, DK.molarTube), then moved into the world
-// with the tooth's matrix so they can explode on their own. The gingiva is a thin ridge swept along the arch whose lower face
-// drops into a free gingival margin around every neck, with a papilla where two margins meet. Sizes in mm.
+// with the tooth's matrix so they can explode on their own. DK.gingivaArch draws the ridge with its scalloped margin. Sizes in mm.
 const SLOT = '0.022', WIRE = '0.019x0.025';
 const HOME = { theta: 0.45, phi: 1.66 };
 const fig = DK.figure({
@@ -3020,8 +3054,7 @@ const fig = DK.figure({
   subtitle: 'FDI 16–26 in the mouth. 0.022 in slots, 0.019 × 0.025 in steel wire.',
   view: Object.assign({ margin: 0.6 }, HOME)
 });
-const HEIGHT = { 1: 5.0, 2: 4.5, 3: 5.0, 4: 4.5, 5: 4.5 };   // slot centre from the incisal edge / cusp tip (MBT chart, average crowns)
-const TUBE_HEIGHT = 3.5;
+const HEIGHT = { 1: 5.0, 2: 4.5, 3: 5.0, 4: 4.5, 5: 4.0, 6: 3.5 };   // slot centre from the incisal edge / cusp tip: MBT-style chart, average upper crowns (facts §19)
 
 // --- the arch: crowns only (the roots sit inside the ridge)
 const arch = DK.arch({ jaw: 'maxilla', placement: 'jaw', teeth: [16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26], build: (fdi, spec) => DK.tooth(spec, { omit: ['dentin', 'pulp', 'root'] }) });
@@ -3031,8 +3064,8 @@ const teeth = [], wirePts = [];
 arch.teeth.forEach(({ fdi, tooth: t, spec: sp, slot }) => {
   const p = fdi % 10, n = new THREE.Vector3(slot.n[0], 0, slot.n[1]);   // outward normal in the arch frame
   fig.part(t.group, { inPlace: true, name: String(fdi), label: false, info: `${sp.name}, FDI ${fdi}.` });
-  const part = p === 6 ? DK.molarTube(sp, { slot: SLOT, height: TUBE_HEIGHT, hook: true }) : DK.bracket(sp, { slot: SLOT, height: HEIGHT[p] });
-  wirePts.push(t.group.localToWorld(new THREE.Vector3(...part.wirePoint(DK.wireSize(WIRE).d))).toArray());
+  const part = p === 6 ? DK.molarTube(sp, { slot: SLOT, height: HEIGHT[6], hook: true }) : DK.bracket(sp, { slot: SLOT, height: HEIGHT[p] });
+  wirePts.push(t.group.localToWorld(new THREE.Vector3(...part.wirePoint(DK.wireSize(WIRE).d))).toArray());   // loose part: wirePoint is in the tooth frame
   const lig = p === 6 ? null : DK.ligature(part);
   [part, lig].forEach(o => { if (!o) return; o.updateMatrix(); o.applyMatrix4(t.group.matrixWorld); });   // into the world, exploding on their own
   teeth.push({ fdi, t, n, part, lig });
@@ -3042,24 +3075,14 @@ arch.teeth.forEach(({ fdi, tooth: t, spec: sp, slot }) => {
     fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', label: fdi === 21, anchor: [-(part.userData.width / 2 + 0.12), 0, part.userData.face + 0.3], explode: n.clone().multiplyScalar(11).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring stretched over the four tie wings; it holds the wire in the slot and is changed at each visit.' });
   }
 });
-
-// --- gingiva: a thin ridge swept along the arch (from the distal of 16 to the distal of 26); its lower face drops 0.9 mm
-// into a free gingival margin around each neck (summed cuffs make the papillae), with low eminences over the roots
-const HW = 2.2, RISE = 0.9, tmp = new THREE.Vector3();
-const local = (o, X, Z) => o.t.group.worldToLocal(tmp.set(X, 0, Z));
-const cuff = (X, Z) => { let v = 0; teeth.forEach(o => { const l = local(o, X, Z), a = o.t.spec.mdC / 2, b = o.t.spec.blC / 2, rho = Math.pow(Math.pow(Math.abs(l.x) / a, 2.3) + Math.pow(Math.abs(l.z) / b, 2.3), 1 / 2.3); v += RISE * DK.util.smooth(1.5, 0.1, (rho - 1) * Math.min(a, b)); }); return Math.min(v, 1.35 * RISE); };
-const emin = (X, Z) => { let v = 0; teeth.forEach(o => { const l = local(o, X, Z); if (l.z > 0) v += Math.exp(-2.5 * Math.pow(l.x / (o.t.spec.mdC / 2), 2)); }); return Math.min(v, 1); };
-const ends = [teeth[0], teeth[teeth.length - 1]].map(o => { const s = arch.slots[o.fdi]; return [s.c[0] - s.t[0] * (s.md / 2 + 1), s.c[1] - s.t[1] * (s.md / 2 + 1)]; });
-const ridgePts = [ends[0], ...teeth.map(o => arch.slots[o.fdi].c), ends[1]].map(c => new THREE.Vector3(c[0], HW, c[1]));
-const ridgeCurve = new THREE.CatmullRomCurve3(ridgePts, false, 'centripetal');
-const rr = t => DK.roundedRect(HW, 4.0 + 1.8 * DK.util.smooth(0.55, 0.85, Math.abs(t - 0.5) * 2), 1.9);   // wider at the molars (BL 11 mm)
-const ridge = new THREE.Mesh(DK.sweepGeometry(ridgeCurve, (s, t, f) => { let [a, b] = rr(t)(s); const X = f.P.x + f.U.x * a + f.N.x * b, Z = f.P.z + f.U.z * a + f.N.z * b, w = DK.util.smooth(-HW + 1.3, -HW + 0.15, a);
-  if (w > 0) a -= w * cuff(X, Z); if (b > 0.3) b += 0.5 * emin(X, Z) * (1 - (a + HW) / (2 * HW)) * DK.util.smooth(0.3, 2.2, b); return [a, b]; }, { segments: 240, radial: 64 }), DK.mat('gingiva'));
+// --- gingiva: a thin ridge along the arch, its lower face dropping into a free gingival margin around each neck
+const ridge = DK.gingivaArch(arch);
 fig.part(ridge, { name: 'Gingiva', label: false, fit: false, info: 'Attached gingiva and the alveolar ridge (schematic); the free margin hugs every neck.' });
 
 // --- the archwire through every slot (wire bottomed in the slot: centre = slot floor + half the wire depth)
 const wire = DK.archwire(wirePts, { size: WIRE, material: 'steel', overhang: 1.2 });
-fig.part(wire, { name: 'Archwire', sub: `${DK.wireSize(WIRE).name} stainless steel`, anchor: wirePts[3], explode: [0, 0, 16], labelOffset: [-120, 60], info: 'A rectangular working wire fills the slot, so the slot\'s built-in tip and torque are expressed. Initial alignment uses thin round NiTi wires (0.014 in).' });
+const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+fig.part(wire, { name: 'Archwire', sub: `${DK.wireSize(WIRE).name} stainless steel`, anchor: mid(wirePts[3], wirePts[4]), explode: [0, 0, 16], labelOffset: [-120, 60], info: 'A rectangular working wire fills the slot, so the slot\'s built-in tip and torque are expressed. Initial alignment uses thin round NiTi wires (0.014 in).' });
 // --- slot label on the bracket of 21 (the one thing to find when the bracket stands alone)
 const t21 = teeth.find(t => t.fdi === 21), b21 = t21.part;
 fig.part(b21, { inPlace: true, name: 'Slot', sub: `${DK.SLOTS[SLOT].name}`, accent: true, anchor: [b21.userData.width / 2 + 0.1, 0, b21.userData.floor + 0.2], when: e => e > 0.6, labelOffset: [90, 70], info: `The slot: ${DK.SLOTS[SLOT].w.toFixed(3)} mm high, ${DK.SLOTS[SLOT].d.toFixed(3)} mm deep. The wire is bent to the arch form; the slot's angles do the rest.` });
@@ -3076,7 +3099,7 @@ fig.story([
   { dur: 2.4, hold: 2.0, theta: 0.6, phi: 1.5, explode: 1, labels: ['Bracket', 'Ligature', 'Archwire', 'Molar tube'], caption: 'Lifted off: the parts, in the order they go on.' },
   { dur: 2.0, hold: 2.2, zoom: 0.17, theta: 0.35, phi: 1.55, focus: P21.clone().addScaledVector(N21, 7).toArray(), labels: ['Slot', 'Bracket'], caption: 'The slot runs mesio-distally; its height and depth are standardised.' },
   { dur: 2.2, hold: 2.4, explode: 0, zoom: 0.2, focus: P21.toArray(), labels: ['Bracket', 'Ligature', 'Archwire'], caption: 'Seated: the wire lies in the slot and the ring over the wings holds it there.' },
-  { dur: 2.2, hold: 2.0, zoom: fig.mode === 'image' ? 1.35 : 1, focus: 'auto', theta: HOME.theta, phi: HOME.phi, labels: ['Archwire', 'Molar tube', 'Bracket'], caption: '' }
+  { dur: 2.2, hold: 2.0, zoom: 1, focus: 'auto', theta: HOME.theta, phi: HOME.phi, labels: ['Archwire', 'Molar tube', 'Bracket'], caption: '' }
 ]);
 fig.start();
 

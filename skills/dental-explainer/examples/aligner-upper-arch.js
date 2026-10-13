@@ -33,17 +33,9 @@ arch.teeth.forEach(({ fdi, tooth: t, spec: sp }) => {
   teeth.push({ fdi, t, att });
 });
 const t21 = teeth.find(t => t.fdi === 21), s21 = t21.t.spec, X21 = t21.t.group.getWorldPosition(new THREE.Vector3()).x;
-
-// --- gingiva: a thin ridge along the arch with a free margin around each neck and papillae (see braces-upper-arch.js)
-const HW = 2.2, RISE = 0.9, tmp = new THREE.Vector3();
-const local = (o, X, Z) => o.t.group.worldToLocal(tmp.set(X, 0, Z));
-const cuff = (X, Z) => { let v = 0; teeth.forEach(o => { const l = local(o, X, Z), a = o.t.spec.mdC / 2, b = o.t.spec.blC / 2, rho = Math.pow(Math.pow(Math.abs(l.x) / a, 2.3) + Math.pow(Math.abs(l.z) / b, 2.3), 1 / 2.3); v += RISE * DK.util.smooth(1.5, 0.1, (rho - 1) * Math.min(a, b)); }); return Math.min(v, 1.35 * RISE); };
-const emin = (X, Z) => { let v = 0; teeth.forEach(o => { const l = local(o, X, Z); if (l.z > 0) v += Math.exp(-2.5 * Math.pow(l.x / (o.t.spec.mdC / 2), 2)); }); return Math.min(v, 1); };
+// --- gingiva: a thin ridge along the arch with a free margin around each neck (DK.gingivaArch)
 const ends = [teeth[0], teeth[teeth.length - 1]].map(o => { const s = arch.slots[o.fdi]; return [s.c[0] - s.t[0] * (s.md / 2 + 1), s.c[1] - s.t[1] * (s.md / 2 + 1)]; });
-const ridgeCurve = new THREE.CatmullRomCurve3([ends[0], ...teeth.map(o => arch.slots[o.fdi].c), ends[1]].map(c => new THREE.Vector3(c[0], HW, c[1])), false, 'centripetal');
-const rr = t => DK.roundedRect(HW, 4.0 + 1.8 * DK.util.smooth(0.55, 0.85, Math.abs(t - 0.5) * 2), 1.9);
-const ridge = new THREE.Mesh(DK.sweepGeometry(ridgeCurve, (s, t, f) => { let [a, b] = rr(t)(s); const X = f.P.x + f.U.x * a + f.N.x * b, Z = f.P.z + f.U.z * a + f.N.z * b, w = DK.util.smooth(-HW + 1.3, -HW + 0.15, a);
-  if (w > 0) a -= w * cuff(X, Z); if (b > 0.3) b += 0.5 * emin(X, Z) * (1 - (a + HW) / (2 * HW)) * DK.util.smooth(0.3, 2.2, b); return [a, b]; }, { segments: 240, radial: 64 }), DK.mat('gingiva'));
+const ridge = DK.gingivaArch(arch);
 fig.part(ridge, { name: 'Gingiva', label: false, fit: false, info: 'Attached gingiva and the alveolar ridge (schematic).' });
 
 // --- the aligner: one shell cast from a spine through the middle of the crowns (world coordinates), glassy material
@@ -79,6 +71,6 @@ fig.story([
   { dur: 2.0, hold: 1.2, explode: 0, zoom: 0.3, theta: 0.4, focus: P21, labels: ['Aligner'], caption: 'Seated: the shell bulges over every attachment.' },
   { dur: 0, hold: 0, section: true, offset: X21 + 7 },
   { dur: 2.2, hold: 2.6, theta: Math.PI / 2 - 0.15, phi: 1.5, zoom: 0.26, offset: X21, labels: ['Shell', 'Attachment'], caption: 'Cut through 21: 0.5 mm of plastic over the enamel, gripping the attachment.' },
-  { dur: 2.2, hold: 2.0, zoom: fig.mode === 'image' ? 1.35 : 1, focus: 'auto', theta: HOME.theta, phi: HOME.phi, section: false, labels: ['Aligner', 'Attachment'], caption: '' }
+  { dur: 2.2, hold: 2.0, zoom: 1, focus: 'auto', theta: HOME.theta, phi: HOME.phi, section: false, labels: ['Aligner', 'Attachment'], caption: '' }
 ]);
 fig.start();

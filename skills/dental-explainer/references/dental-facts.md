@@ -640,7 +640,14 @@ Extends §9. Appliance sizes are **nominal**; measured slots run oversized (5–
 ### Edgewise slots and brackets
 - **Slot sizes** [V]: the original edgewise slot was **0.022 × 0.028 in** (height × depth = 0.559 × 0.711 mm); **0.018 × 0.025 in** (0.457 × 0.635 mm) came later. The kit's `DK.SLOTS` carries both. (§9 tags the depths 0.025 / 0.028 in as [U]; the BMC Oral Health 2023 review confirms them, so §9 can drop that tag.)
 - **Twin (Siamese) bracket** [U, from patents and catalogues; no measured dimension study found]: four tie wings around the slot, roughly 2.5–3.5 mm mesio-distally and ~3 mm occluso-gingivally, bonded on a mesh base pad; "mini" twins are ~30 % shorter occluso-gingivally. The kit defaults to width ≈ 0.4 × crown MD (2.6–3.6 mm), 3.0 mm tall, ~1.3 mm profile.
-- **Placement** [V]: Andrews' straight-wire reference is the **FA point** (facial axis point): the centre of the clinical crown, both occluso-gingivally and mesio-distally, on the facial axis of the clinical crown. Molars use the buccal groove as the mesio-distal landmark. Charts give the slot-centre height from the incisal edge / cusp tip instead; the MBT chart for average maxillary crowns [V, smile-arc article quoting the MBT table]: **central 5.0, lateral 4.5, canine 5.0, first premolar 4.5 mm**. Second premolars and the mandibular arch are 0.5–1.0 mm less; molar tubes sit about 3–3.5 mm from the cusp tips [U]. Charts assume ideally proportioned crowns; short crowns take a lower row of the chart [V].
+- **Placement** [V]: Andrews' straight-wire reference is the **FA point** (facial axis point): the centre of the clinical crown, both occluso-gingivally and mesio-distally, on the facial axis of the clinical crown. Molars use the buccal groove as the mesio-distal landmark. Charts give the slot-centre height from the incisal edge / cusp tip instead. **MBT-style chart, "average" row** (mm; the same chart has rows at ±0.5 and +1 mm for other crown sizes) [V, FAQ.FIX technical note reproducing the MBT-derived chart; the maxillary central / lateral / canine / first-premolar values also appear in the smile-arc article]:
+
+  | Arch | Central | Lateral | Canine | 1st premolar | 2nd premolar | 1st molar (tube) | 2nd molar |
+  |---|---|---|---|---|---|---|---|
+  | Maxillary | 5.0 | 4.0–4.5 | 5.0 | 4.5 | 4.0 | 3.5 | 3.0 |
+  | **Mandibular** | **4.0** | **4.0** | **5.0** | **4.0** | **4.0** | **3.5** | **3.5** |
+
+  Charts assume ideally proportioned crowns; measure the clinical crown and pick the row that fits most teeth, lower rows for short crowns [V]. Some sources quote the lower canine at 4.5 mm [U].
 - **Molar tubes** [V, catalogues]: bondable buccal tubes with the same slot sizes, 3.6–4.7 mm long on first molars (3.5–5.2 mm across brands), often with a gingival hook; a band (stainless-steel strip, 0.10–0.15 mm thick [V, band stock listing; U as the typical finished band]) carries a welded tube when bonding is unreliable.
 - **Elastomeric ligatures** [V, one catalogue]: polyurethane O-rings, about 2.8 mm outside / 1.2 mm inside diameter, ~0.8 mm thick, stretched over the four tie wings; replaced at each visit. **Power chain** = ligature modules joined in a strip (closed / short / long spacing) to close spaces [V]. Steel ligatures (~0.010 in) and self-ligating clips are alternatives [U].
 
@@ -670,7 +677,7 @@ Extends §9. Appliance sizes are **nominal**; measured slots run oversized (5–
 3. Treating a single force at the bracket as bodily movement. One force **tips** the tooth about a point near its centre of resistance; translation needs a counter-moment (a rectangular wire in the slot).
 4. Placing the centre of resistance at the CEJ, the crown or the apex. It is in the root, roughly 40 % of the embedded root length below the crest.
 5. Quoting "0.022 slot" in millimetres, or swapping slot and wire dimensions. Slots and wires are in **inches**; 0.022 in = 0.56 mm. The first wire number is the occluso-gingival height.
-6. One bracket height for all teeth, or brackets "at the gum line". Charts differ by tooth (MBT upper: 5.0 / 4.5 / 5.0 / 4.5 mm) and by prescription; the reference is the centre of the clinical crown.
+6. One bracket height for all teeth, or brackets "at the gum line". Charts differ by tooth and arch (MBT-style average: upper 5.0 / 4.5 / 5.0 / 4.5 mm, lower 4.0 / 4.0 / 5.0 / 4.0 mm) and by prescription; the reference is the centre of the clinical crown.
 7. Starting treatment with a stiff rectangular steel wire. Alignment begins with thin round NiTi; rectangular steel comes later.
 8. "Aligners need no attachments" or "aligners can do anything braces do." Most rotations, extrusions and bodily movements need attachments, and some movements remain harder with aligners.
 9. An aligner "1 mm thick" or "paper thin". Sheets are ~0.75 mm and thin to ~0.4–0.55 mm when formed.

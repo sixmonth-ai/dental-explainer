@@ -32,6 +32,7 @@ fig.part(tooth.layers.dentin, { inPlace: true, name: 'Dentin', anchor: [0, 2.5, 
 // --- tools and the veneer (fig.world, moved by params)
 const bur = DK.bur({ shape: 'taper', diameter: 1.2 });
 const veneer = DK.veneer(s, V, 'ceramic');
+veneer.material = DK.mat('ceramic', { color: 0xf7f8fa, cap: 0xeef0f3 });   // a cooler white than enamel, so the shell reads against it
 [bur, veneer].forEach(o => fig.world.add(o));
 fig.part(bur, { inPlace: true, name: 'Diamond bur', sub: 'tapered, round end', anchor: [0, 10, 0], info: 'Depth cutters set 0.3 / 0.5 mm grooves first; a tapered diamond then joins them, following the two planes of the labial face.' });
 fig.part(veneer, { inPlace: true, name: 'Veneer', sub: 'glass-ceramic, 0.3–0.7 mm', anchor: [0, s.crownL - 3, s.bl / 2 + 0.1], info: 'A thin ceramic shell bonded to the enamel with resin cement. It is not a crown: the lingual surface stays untouched.' });
@@ -49,7 +50,7 @@ fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [veneer], color: 0xe4e0d6 },
+  { objects: [veneer], color: 0xeef0f3, kind: 'plain' },
   { objects: [prep], color: DK.COLORS.enamelCap },
   { objects: [tooth.layers.dentin, tooth.layers.root], color: DK.COLORS.dentinCap },
   { objects: [tooth.layers.pulp], color: DK.COLORS.pulpCap }
@@ -63,20 +64,20 @@ fig.procedure([
   { label: 'Incisor', caption: 'The upper central incisor before preparation.', beats: [
     { dur: 0, hold: 0.8, theta: 1.1, phi: 1.3, zoom: 1, section: false, labels: ['Central incisor 11'] },
     { dur: 0, hold: 0, section: true, offset: 6 },
-    { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.7, focus: [0, 4.5, 0], offset: 0, labels: ['Central incisor 11', 'Dentin'], key: true }] },
+    { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.68, focus: [0, 4.2, 0], offset: 0, labels: ['Central incisor 11', 'Dentin'], key: true }] },
   { label: 'Labial reduction', caption: `Labial face reduced ${V.cervical}–${V.incisal} mm, staying in enamel.`, beats: [
-    { dur: 1.2, hold: 0.1, zoom: 0.6, focus: [0, 5, 1], set: { burX: 3, burY: TOP - 1, burZ: LAB + 0.9, burTilt: -0.35 }, labels: ['Diamond bur'] },
+    { dur: 1.2, hold: 0.1, set: { burX: 3, burY: TOP - 1, burZ: LAB + 0.9, burTilt: -0.35 }, labels: ['Diamond bur'] },
     { dur: 2.2, hold: 0.2, set: { fac: 1, ghost: 1, burX: -3, burY: 0.6, burZ: LAB - 0.1, burTilt: 0.05 }, labels: ['Diamond bur'] },
     { dur: 0.7, hold: 1.2, set: park, labels: ['Labial reduction', 'Removed enamel', 'Dentin'], key: true }] },
   { label: 'Incisal edge', caption: `Edge shortened ${V.edge} mm for a butt joint.`, beats: [
-    { dur: 1.1, hold: 0.1, zoom: 0.5, focus: [0, TOP - 1.5, 0], set: { burX: 3, burY: TOP + 0.5, burZ: 0.2, burTilt: -1.1 }, labels: ['Diamond bur'] },
+    { dur: 1.1, hold: 0.1, set: { burX: 3, burY: TOP + 0.5, burZ: 0.2, burTilt: -1.1 }, labels: ['Diamond bur'] },
     { dur: 1.6, hold: 0.2, set: { inc: 1, burX: -3, burY: TOP - V.edge + 0.1 }, labels: ['Diamond bur'] },
     { dur: 0.7, hold: 1.2, set: park, labels: ['Incisal edge', 'Removed enamel'], key: true }] },
   { label: 'Margin', caption: 'A light chamfer at the gum line, still in enamel.', beats: [
-    { dur: 1.6, hold: 1.6, zoom: 0.5, focus: [0, 2.4, s.blC / 2 - 0.6], theta: Math.PI / 2 - 0.2, set: { ghost: 0.5 }, labels: ['Chamfer', 'Dentin'], key: true }] },
+    { dur: 1.6, hold: 1.6, theta: Math.PI / 2 - 0.2, set: { ghost: 0.5 }, labels: ['Chamfer', 'Dentin'], key: true }] },
   { label: 'Veneer', caption: 'The ceramic shell bonded to the enamel.', beats: [
-    { dur: 1.4, hold: 0.1, zoom: 0.72, focus: [0, 4.5, 0], theta: Math.PI / 2, set: { ghost: 0 }, labels: [] },
+    { dur: 1.4, hold: 0.1, theta: Math.PI / 2, set: { ghost: 0 }, labels: [] },
     { dur: 1.6, hold: 0.3, set: { veneer: 1 }, labels: ['Veneer'] },
-    { dur: 1.8, hold: 1.4, theta: 1.1, phi: 1.3, zoom: 0.8, labels: ['Veneer', 'Labial reduction'], key: true }] }
+    { dur: 1.8, hold: 1.4, theta: 1.1, phi: 1.3, labels: ['Veneer'], key: true }] }
 ]);
 fig.start();

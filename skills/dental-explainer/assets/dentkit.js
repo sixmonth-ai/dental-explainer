@@ -1556,41 +1556,29 @@
     return R;
   }
   const inRect = (r, x, z) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1;
-  // Carve a crown lattice (positions P, lattice row 0 at vertex `off`) into the cavity: vertices inside the outline drop to the
-  // floor; the lattice vertices on either side of the outline snap onto it (outside ones exactly, inside ones `taper` mm in), so
-  // every layer gets the same crisp, slightly divergent wall. Covered cusps are lowered by cuspCut. k eases it all in.
+  // Carve a crown lattice (positions P, lattice row 0 at vertex `off`) into the cavity. The cavity is one analytic surface:
+  // the floor inside the outline, rising as a wall (8° divergence) with the plan distance outside it; every layer (enamel,
+  // DEJ, dentin) samples the same surface, so their walls line up without moving any vertex in plan. Covered cusps are
+  // lowered by cuspCut. k eases it all in. Returns {Q, inside} (inside: 1 where the vertex lies within the outline).
   function carve(s, c, P, k, off, eps) {
-    const R = cavityRects(s, c), hw = s.md / 2, hd = s.bl / 2, n = P.length / 3, Q = new Float32Array(P), W = PR_W, taper = c.depth * Math.tan(8 * Math.PI / 180);
-    const floorAt = (xn, zn) => { let f = null; R.forEach(r => { if (inRect(r, xn, zn)) f = f === null ? r.y : Math.min(f, r.y); }); return f; };
-    const inside = new Uint8Array(n), fl = new Float32Array(n);
-    for (let v = 0; v < n; v++) { const f = floorAt(P[v * 3] / hw, P[v * 3 + 2] / hd); inside[v] = f !== null ? 1 : 0; fl[v] = f ?? 0; }
-    const nearest = (xn, zn, insideNow) => { // nearest point on the outline of the union of rectangles
-      let best = null, bd = 1e9;
-      R.forEach(r => {
-        if (insideNow && !inRect(r, xn, zn)) return;
-        const cands = insideNow ? [[r.x0, zn], [r.x1, zn], [xn, r.z0], [xn, r.z1]] : [[clamp(xn, r.x0, r.x1), clamp(zn, r.z0, r.z1)]];
-        cands.forEach(q => { if (insideNow && R.some(o => o !== r && inRect(o, q[0], q[1]))) return; const d = Math.hypot(q[0] - xn, q[1] - zn); if (d < bd) { bd = d; best = q; } });
-      });
+    const R = cavityRects(s, c), hw = s.md / 2, hd = s.bl / 2, n = P.length / 3, Q = new Float32Array(P), W = PR_W, slope = 1 / Math.tan(8 * Math.PI / 180);
+    const inside = new Uint8Array(n);
+    const cutY = (x, z) => { // height of the cavity surface at plan (x, z): the floor inside, the wall outside; null far away
+      const xn = x / hw, zn = z / hd; let best = null;
+      R.forEach(r => { const d = Math.hypot((xn - clamp(xn, r.x0, r.x1)) * hw, (zn - clamp(zn, r.z0, r.z1)) * hd), y = r.y + d * slope; if (best === null || y < best.y) best = { y, d }; });
       return best;
     };
     for (let v = 0; v < n; v++) {
-      let x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
-      if (v >= off) {
-        const L = v - off, i = Math.floor(L / W), j = L % W, { t, th } = latticeOf(L);
-        y -= cuspCut(s, c, t, th) * k;
-        const nb = [j > 0 ? v - 1 : -1, j < W - 1 ? v + 1 : -1, i > 0 ? v - W : -1, v + W < n ? v + W : -1].filter(u => u >= 0 && u >= off);
-        const crosses = nb.some(u => inside[u] !== inside[v]);
-        if (crosses && (inside[v] === 0 || y > fl[v])) {   // snap onto the outline (inside vertices: a touch inward, for the wall divergence)
-          const xn = x / hw, zn = z / hd, q = nearest(xn, zn, inside[v] === 1);
-          if (q) { let qx = q[0] * hw, qz = q[1] * hd; if (inside[v]) { const dx = x - qx, dz = z - qz, d = Math.hypot(dx, dz) || 1; qx += dx / d * taper; qz += dz / d * taper; } x = lerp(x, qx, k); z = lerp(z, qz, k); }
-        }
-      }
-      if (inside[v] && y > fl[v] - eps) y = lerp(P[v * 3 + 1], fl[v] - eps, k);
+      const x = P[v * 3], z = P[v * 3 + 2]; let y = P[v * 3 + 1];
+      if (v >= off) { const { t, th } = latticeOf(v - off); y -= cuspCut(s, c, t, th) * k; }
+      const cy = cutY(x, z);
+      if (cy && cy.d < 1e-6) inside[v] = 1;
+      if (cy && y > cy.y - eps) y = lerp(P[v * 3 + 1], cy.y - eps, k);
       Q[v * 3] = x; Q[v * 3 + 1] = y; Q[v * 3 + 2] = z;
     }
-    return Q;
+    return { Q, inside };
   }
-  const cavityDisplace = (s, c, P, k) => carve(s, c, P, k, 0, 0.02);
+  const cavityDisplace = (s, c, P, k) => carve(s, c, P, k, 0, 0.02).Q;
   // Inlay / onlay preparation on a posterior tooth: a group {enamel, dentin, set(k), spec, cav}. It holds the enamel shell
   // and the dentin body (both carved); add DK.tooth(fdi, {omit:['enamel','dentin']}).group for the roots and pulp. set(k) eases
   // the cavity and the cusp reduction in (k 0..1). Section groups: enamel, then dentin (with the roots), then pulp.
@@ -1604,8 +1592,11 @@
     const enamel = new T.Mesh(enamelGeo, mE), dentin = new T.Mesh(dentinGeo, mD); enamel.name = 'Enamel'; dentin.name = 'Dentin';
     const grp = new T.Group(); grp.name = 'Prepared tooth'; grp.add(enamel, dentin);
     const set = k => {
-      k = clamp(k, 0, 1); const Qo = carve(s, c, P, k, 0, 0.02), Qi = carve(s, c, Pd, k, 0, 0.02), Qd = carve(s, c, Pb, k, dStart, 0);
-      for (let v = 0; v < nA; v++) { ep.setXYZ(v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]); ep.setXYZ(nA + v, Qi[v * 3], Math.min(Qi[v * 3 + 1], Qo[v * 3 + 1]), Qi[v * 3 + 2]); }
+      k = clamp(k, 0, 1); const O = carve(s, c, P, k, 0, 0.02), Qo = O.Q, Qi = carve(s, c, Pd, k, 0, 0.02).Q, Qd = carve(s, c, Pb, k, dStart, 0).Q;
+      for (let v = 0; v < nA; v++) {   // under the cavity floor there is no enamel: the DEJ collapses onto the floor there
+        ep.setXYZ(v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]);
+        if (O.inside[v] && k > 0.999) ep.setXYZ(nA + v, Qo[v * 3], Qo[v * 3 + 1], Qo[v * 3 + 2]); else ep.setXYZ(nA + v, Qi[v * 3], Math.min(Qi[v * 3 + 1], Qo[v * 3 + 1]), Qi[v * 3 + 2]);
+      }
       ep.needsUpdate = true; enamelGeo.computeVertexNormals(); enamelGeo.computeBoundingSphere();
       for (let v = 0; v < nD; v++) dp.setXYZ(v, Qd[v * 3], v >= dStart && v - dStart < nA ? Math.min(Qd[v * 3 + 1], Qo[(v - dStart) * 3 + 1] + 0.02) : Qd[v * 3 + 1], Qd[v * 3 + 2]);   // the DEJ follows the cusp reduction
       dp.needsUpdate = true; dentinGeo.computeVertexNormals(); dentinGeo.computeBoundingSphere();

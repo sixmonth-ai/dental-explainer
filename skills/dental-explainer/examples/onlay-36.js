@@ -14,7 +14,7 @@ const roots = DK.tooth(FDI, { omit: ['enamel', 'dentin'] }), s = roots.spec;    
 const prep = DK.inlayPrep(s, CAV); roots.group.add(prep);                           // carved enamel shell + dentin body
 const onlay = DK.inlay(s, CAV, 'lithium disilicate');
 const CREST = -1.8;
-const bone = DK.bone({ width: 22, height: 17, depth: 12.5, cortical: 1.3, crest: 1.6 }); bone.position.y = CREST;
+const bone = DK.bone({ width: 22, height: 14, depth: 12.5, cortical: 1.3, crest: 1.6 }); bone.position.y = CREST;
 const gum = DK.gingiva({ width: 22, height: 3.2, depth: 13.2, crest: 1.3, around: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, rise: 0.8 }] }); gum.position.y = 1.2;
 
 fig.part(bone, { name: 'Bone', label: false, fit: false, explode: [0, -8, 0], info: 'Alveolar bone around the two roots.' });
@@ -47,6 +47,6 @@ fig.story([
   { dur: 2.2, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.5, phi: 1.4, explode: 0, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 8 },
   { dur: 2.2, hold: 1.8, offset: 0, labels: ['Onlay', 'Dentin', 'Pulp'], caption: 'Cut through the central fossa: the isthmus is 1.8 mm deep, in dentin.' },
-  { dur: 1.8, hold: 2.6, zoom: 0.62, focus: [0, 5, 0], theta: 1.35, explode: 0.22, labels: ['Onlay', 'Prepared tooth', 'Pulp'], caption: 'The buccal cusp is covered by 1.5 mm of ceramic; the lingual cusp keeps its enamel.' }
+  { dur: 1.8, hold: 2.6, zoom: 0.72, focus: [0, 3.2, 0], theta: 1.35, explode: 0, labels: ['Onlay', 'Prepared tooth', 'Pulp'], caption: 'The buccal cusp is covered by 1.5 mm of ceramic; the lingual cusp keeps its enamel.' }
 ]);
 fig.start();

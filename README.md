@@ -57,7 +57,11 @@ Show an exploded view of an implant replacing 36
 Why does MB2 get missed in upper first molars? Cut through the tooth
 Healthy lower molar vs periodontitis, with furcation involvement
 Root-filled premolar with fibre post, core and crown, for patients
+How does a cavity reach the nerve? For a patient, as an image
+Mixed dentition of an 8-year-old, lower left
 ```
+
+**What it covers.** Permanent and primary teeth (every FDI position, real third molars, impactions), numbering charts (FDI, Universal, Palmer) and arches, tooth anatomy in section, implants, crown preparations, bridges, veneers, inlays and onlays, posts and cores, caries and fillings, periodontal disease and probing, root canal treatment and endodontic instruments, braces, aligners and tooth movement.
 
 <br>
 
@@ -79,11 +83,31 @@ Every figure below was made by the skill, shown here in image mode. The same scr
   <tr>
     <td width="50%" valign="top">
       <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-dentition-dark.png"><img alt="Fourteen permanent teeth labelled with FDI and Universal numbers" src=".github/assets/fig-dentition-light.png"></picture>
-      <br><b>Permanent teeth, left side</b><br><sub>Built to Wheeler averages, labelled FDI with Universal below. Three roots upper, two roots lower.</sub>
+      <br><b>Permanent teeth, left side</b><br><sub>Seen from the left cheek, built to Wheeler averages, FDI with Universal below. Three roots upper, two roots lower.</sub>
     </td>
     <td width="50%" valign="top">
       <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-restorative-dark.png"><img alt="Sectioned premolar with root filling, fibre post, core, ferrule and crown" src=".github/assets/fig-restorative-light.png"></picture>
       <br><b>Root filling, post, core, crown</b><br><sub>What each layer does, with a 2 mm ferrule and ≥4 mm apical seal checked in the readout.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-perio-dark.png"><img alt="Healthy lower molar beside one with periodontitis: bone loss, pocket, calculus and furcation involvement" src=".github/assets/fig-perio-light.png"></picture>
+      <br><b>Healthy vs periodontitis</b><br><sub>One shared cut. Bone loss, pocket depth and attachment loss computed from the same numbers; furcation Class III, calculus, recession.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-endo-dark.png"><img alt="Seven-step storyboard of root canal treatment on a lower first molar" src=".github/assets/fig-endo-light.png"></picture>
+      <br><b>Root canal treatment of 36</b><br><sub>Access, working length 0.5 mm short of the apex, shaping to 25/.06, irrigation, obturation, restoration, healing.</sub>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-bridge-dark.png"><img alt="Three-unit zirconia bridge lifted off two prepared abutment teeth over a healed ridge" src=".github/assets/fig-bridge-light.png"></picture>
+      <br><b>Three-unit bridge replacing 46</b><br><sub>Retainers seat exactly on the preps; the connector is labelled with its cross-section against the material's minimum.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-caries-dark.png"><img alt="Six-step storyboard of a caries lesion progressing from sound tooth to pulp exposure" src=".github/assets/fig-caries-light.png"></picture>
+      <br><b>How decay reaches the pulp</b><br><sub>ICDAS stages from white spot to pulp exposure; selective removal leaves the firm, affected dentin.</sub>
     </td>
   </tr>
 </table>
@@ -113,7 +137,7 @@ Values carry their sources. Anything not yet checked against a source is tagged 
 2. **Teaching point.** The agent pins down the one idea the figure must show.
 3. **Facts.** It looks up the numbers in the facts file instead of guessing.
 4. **Plan.** Parts with real sizes in millimetres, the cut planes, and a short story of camera moves that ends on the shot that answers the question. Every piece of text has to earn its place. Procedures (placing an implant, shaping a canal) become named clinical steps: a stepper on the page or a numbered storyboard image.
-5. **Build.** A short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position, implants, crowns, posts, bone and gingiva.
+5. **Build.** A short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position (primary teeth too), implants, crowns, bridges, veneers, fillings, posts, endodontic files, brackets, aligners, bone, gingiva and periodontal defects.
 6. **Verify and deliver.** Where a browser is available, it renders the PNG (or screenshots the page), looks at it, and fixes what's wrong.
 
 ```
@@ -127,7 +151,7 @@ dental-explainer/
     │   ├── dental-facts.md      verified values and sources: the correction layer
     │   └── kit-api.md           drawing-kit reference
     ├── assets/dentkit.js        3D kit (loads three.js r128 from cdnjs)
-    ├── examples/                seven finished figures, .js source and .html pages
+    ├── examples/                finished figures across every topic, .js source and .html pages
     └── scripts/                 build.py (assemble a page) · render.py (PNG, GPU when available) · check.py (screenshot and error check)
 ```
 

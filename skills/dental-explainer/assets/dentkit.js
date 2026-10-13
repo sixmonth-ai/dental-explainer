@@ -837,7 +837,21 @@
       if (box.isEmpty()) world.traverse(m => { if (m.isMesh && !m.userData.isStencil && m.material.visible !== false && isVisible(m)) box.expandByObject(m); });
       return box;
     }
+    // framed (image) layouts: the subject sits between the title block and the footer, not behind them
+    function frameInsets() {
+      if (!still) return { t: 0, b: 0, f: 1 };
+      const sr = stage.getBoundingClientRect(), tt = card.querySelector('.dk-ov-title'), ft = card.querySelector('.dk-ov-foot');
+      const shown = el => el && el.style.visibility !== 'hidden' && el.offsetParent !== null;
+      const t = shown(tt) ? Math.max(0, tt.getBoundingClientRect().bottom - sr.top + 10) : 0, b = shown(ft) ? Math.max(0, sr.bottom - ft.getBoundingClientRect().top + 8) : 0;
+      return { t, b, f: clamp((sr.height - t - b) / (sr.height || 1), 0.55, 1) };
+    }
+    function applyInsets() {
+      const ins = frameInsets(), h = stage.clientHeight || 1;
+      if (ins.t || ins.b) camera.setViewOffset(1, 1, 0, -(ins.t - ins.b) / 2 / h, 1, 1); else camera.clearViewOffset();
+      return ins;
+    }
     function fit(margin) {
+      const ins = applyInsets();
       const vf = camera.fov * Math.PI / 180, asp = Math.max(0.5, stage.clientWidth / stage.clientHeight), hf = 2 * Math.atan(Math.tan(vf / 2) * asp);
       fits = [0, 1].map(e => {
         parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); }); world.updateMatrixWorld(true);
@@ -845,7 +859,7 @@
         // the diagonal fit alone clips long, thin subjects (a single tooth standing up): also fit the height and the width
         const k = (margin || 0.85) / 0.85 * 1.08;
         const d = Math.max(size.length() / 2 / Math.sin(Math.min(vf, hf) / 2) * (margin || 0.85), size.y / 2 * k / Math.tan(vf / 2), Math.max(size.x, size.z) / 2 * k / Math.tan(hf / 2));
-        return { c, d: d * (still ? 1.15 : 1) };
+        return { c, d: d * (still ? Math.max(1.1, 1.02 / ins.f) : 1) };
       });
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base); });
       world.updateMatrixWorld(true);
@@ -984,7 +998,7 @@
     // resize & loop
     function resize() {
       const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
-      renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false); camera.aspect = w / h; applyInsets(); camera.updateProjectionMatrix();
       if (fits && !o.view?.dist) { const z = orbit.zoom; fit(o.view?.margin); orbit.zoom = z; }
     }
     window.addEventListener('resize', resize);

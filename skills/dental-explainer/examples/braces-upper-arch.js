@@ -5,11 +5,11 @@
 // Appliance parts are built in each tooth's own frame (DK.bracket, DK.ligature, DK.molarTube), then moved into the world
 // with the tooth's matrix so they can explode on their own. DK.gingivaArch draws the ridge with its scalloped margin. Sizes in mm.
 const SLOT = '0.022', WIRE = '0.019x0.025';
-const HOME = { theta: 0.45, phi: 1.66 };
+const HOME = { theta: 0.68, phi: 1.98 };
 const fig = DK.figure({
   title: 'Fixed appliance on the upper arch',
   subtitle: 'FDI 16–26 in the mouth. 0.022 in slots, 0.019 × 0.025 in steel wire.',
-  view: Object.assign({ margin: 0.6 }, HOME)
+  view: Object.assign({ margin: 0.68 }, HOME)
 });
 const HEIGHT = { 1: 5.0, 2: 4.5, 3: 5.0, 4: 4.5, 5: 4.0, 6: 3.5 };   // slot centre from the incisal edge / cusp tip: MBT-style chart, average upper crowns (facts §19)
 
@@ -29,7 +29,7 @@ arch.teeth.forEach(({ fdi, tooth: t, spec: sp, slot }) => {
   if (p === 6) fig.part(part, { name: 'Molar tube', sub: 'bondable, with hook', label: fdi === 26, anchor: [0, 0, part.userData.face + 0.2], explode: n.clone().multiplyScalar(7).toArray(), labelOffset: [90, -40], info: 'A tube instead of a bracket on the first molar: the wire slides in from the front and stops at the distal end. The hook holds elastics.' });
   else {
     fig.part(part, { name: 'Bracket', sub: `twin, ${DK.SLOTS[SLOT].name} slot`, label: fdi === 21, anchor: [part.userData.width / 2 - 0.2, part.userData.tall / 2 - 0.12, part.userData.face + 0.05], dim: false, explode: n.clone().multiplyScalar(7).toArray(), labelOffset: [110, -70], info: `Stainless-steel twin bracket bonded at ${HEIGHT[p]} mm from the incisal edge (MBT-style chart). Four tie wings hold the ligature; the slot runs mesio-distally.` });
-    fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', label: fdi === 21, anchor: [-(part.userData.width / 2 + 0.12), 0, part.userData.face + 0.3], explode: n.clone().multiplyScalar(11).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring stretched over the four tie wings; it holds the wire in the slot and is changed at each visit.' });
+    fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', label: fdi === 21, anchor: lig.userData.sidePoints[0], explode: n.clone().multiplyScalar(11).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring stretched over the four tie wings; it holds the wire in the slot and is changed at each visit.' });
   }
 });
 // --- gingiva: a thin ridge along the arch, its lower face dropping into a free gingival margin around each neck

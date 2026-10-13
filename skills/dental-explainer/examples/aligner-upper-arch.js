@@ -4,11 +4,11 @@
 // (DK.alignerArch: rays cast from a spine through the crowns, 0.5 mm outside the enamel and the attachments, bridged across
 // the contacts, trimmed at the gingival margin). A labio-lingual cut through 21 shows the shell over the enamel and the
 // attachment inside its bump. Patient's right on the viewer's left. Arch frame: +x = patient's left, +z = anterior, y up. Sizes in mm.
-const THICK = 0.5, HOME = { theta: 0.45, phi: 1.66 };
+const THICK = 0.5, HOME = { theta: 0.68, phi: 1.98 };
 const fig = DK.figure({
   title: 'Clear aligner with attachments',
   subtitle: 'FDI 16–26 in the mouth. Shell ~0.5 mm; attachments are bonded composite.',
-  view: Object.assign({ margin: 0.6 }, HOME)
+  view: Object.assign({ margin: 0.68 }, HOME)
 });
 
 // --- attachments per tooth (tooth frame: +x mesial, +z labial, y above the CEJ; gingival = −y)
@@ -19,7 +19,7 @@ const ATT = {
 };
 // --- the arch: full teeth with the roots shortened so they stay inside the thin ridge (only the cut through 21 shows a root)
 const arch = DK.arch({ jaw: 'maxilla', placement: 'jaw', teeth: [16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26],
-  build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 3.2) })); return DK.tooth(spec); } });
+  build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 2.7) })); return DK.tooth(spec); } });
 fig.part(arch.group, { name: 'Upper arch', label: false, info: 'Maxillary teeth 16–26, in the mouth.' });
 arch.group.updateMatrixWorld(true);
 const teeth = [];
@@ -40,9 +40,7 @@ fig.part(ridge, { name: 'Gingiva', label: false, fit: false, info: 'Attached gin
 
 // --- the aligner: one shell cast from a spine through the middle of the crowns (world coordinates), glassy material
 const spine = new THREE.CatmullRomCurve3([ends[0], ...teeth.map(o => arch.slots[o.fdi].c), ends[1]].map(c => new THREE.Vector3(c[0], -4.2, c[1])), false, 'centripetal');
-const shell = DK.alignerArch(spine, teeth.map(o => o.t.layers.enamel).concat(teeth.filter(o => o.att).map(o => o.att)), { thickness: THICK, trimY: -0.9, segments: 150, around: 44 });
-shell.material = DK.mat('zirconia', { color: 0xf2f5f8, opacity: 0.5, roughness: 0.08, rim: [0.93, 0.97, 1.0, 0.85], cap: 0xdfe3e6 });
-shell.material.depthWrite = false; shell.material.side = THREE.DoubleSide;
+const shell = DK.alignerArch(spine, teeth.map(o => o.t.layers.enamel).concat(teeth.filter(o => o.att).map(o => o.att)), { thickness: THICK, trimY: -0.9, segments: 220, around: 72 });
 const onShell = (o, y, extra) => o.t.group.localToWorld(new THREE.Vector3(0, y, o.t.spec.bl / 2 + THICK + (extra || 0.1))).toArray();
 const t22 = teeth.find(t => t.fdi === 22);
 fig.part(shell, { name: 'Aligner', sub: `${THICK} mm shell`, anchor: onShell(t22, s21.crownL * 0.7), explode: [0, -10, 0], labelOffset: [-120, 70], info: 'Thermoformed polyurethane or PET-G, nominally 0.75 mm, ~0.4–0.55 mm after forming. Each aligner is built ~0.25 mm ahead of the teeth and worn ~22 h a day for 1–2 weeks.' });

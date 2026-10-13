@@ -201,7 +201,8 @@ Pitfalls:
 - A regular `fig.part` resets its object's position every frame, so a tooth moved by `DK.moveTooth` must sit inside a holder group that is the part (see `examples/tooth-movement-11.js`).
 - To explode brackets, ligatures or aligner shells separately, build them in the tooth frame, then `obj.updateMatrix(); obj.applyMatrix4(tooth.group.matrixWorld)` and register them as world parts (the braces and aligner examples do this).
 - Per-tooth `DK.aligner` shells overlap at the contacts (doubled edges); use `DK.alignerArch` for an arch. With `DK.aligner`, pass the attachments' `userData.spec` as `bumps` or the shell cuts through them.
-- Arch examples: build the teeth first, then the gingival ridge (its cuff function needs the tooth positions); `view.margin` ≈ 0.46 fills the frame with a 12-tooth arch, and the hero view is a three-quarter shot from slightly below (`theta` 0.6, `phi` 1.72) for a maxillary arch.
+- Arch examples: place the teeth with `DK.arch` (register `arch.group` as the regular part, teeth `inPlace`), then build the appliance parts in each tooth's frame and move them into the world with `tooth.group.matrixWorld` (left teeth are mirrored, which the decomposed scale carries). The gingival ridge is a sweep along `arch.slots[].c` whose cuff function uses `tooth.group.worldToLocal`; `view.margin` ≈ 0.6 keeps 16–26 in frame with some air, and the hero view is a three-quarter shot from slightly below (`theta` 0.45, `phi` 1.66) for a maxillary arch.
+- Inside the kit, keep topic helpers uniquely named: function declarations are hoisted across topic blocks, so two `function sweepGeometry` definitions silently replace each other (the ortho sweep is `orthoSweep`, exported as `DK.sweepGeometry`).
 - Crowns-only teeth (`DK.tooth(fdi, {omit:['dentin','pulp','root']})`) are hollow in section; for a cut through an arch keep full teeth and shorten `spec.roots[].len` so the roots stay inside the ridge.
 <!-- end topic: ortho -->
 

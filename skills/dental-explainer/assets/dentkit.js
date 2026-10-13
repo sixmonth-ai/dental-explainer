@@ -2199,7 +2199,240 @@
   /* ==== end topic: ortho ==== */
 
   /* ==== topic: endo (Endodontic instruments and root canal treatment) ==== */
-  // (reserved)
+  // ---- ISO 3630-1 sizes and handle colours. Size = tip diameter D0 in hundredths of a mm; the six-colour cycle
+  // white → yellow → red → blue → green → black runs 15–40, 45–80, 90–140 (then 150 white); 06 pink, 08 grey, 10 purple.
+  const ISO_CYCLE = ['white', 'yellow', 'red', 'blue', 'green', 'black'];
+  const ISO_SIZES = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
+  // the real ISO hues (a dentist must recognise them), toned down to sit with the palette
+  DK.ISO_COLORS = { pink: 0xd3a3b0, grey: 0x9d9d9a, purple: 0x7a5696, white: 0xf3f0e9, yellow: 0xd2b24e, red: 0xb24640, blue: 0x3b5f92, green: 0x4a8862, black: 0x2e2d2a };
+  DK.isoColor = function (size) {
+    const k = ISO_SIZES.indexOf(size);
+    const name = size === 6 ? 'pink' : size === 8 ? 'grey' : size === 10 ? 'purple' : k >= 0 ? ISO_CYCLE[k % 6] : null;
+    if (!name) throw new Error('Not an ISO file size: ' + size);
+    return { name, hex: DK.ISO_COLORS[name] };
+  };
+  // Diameter (mm) of a file of ISO `size` and `taper` (0.02 = ISO .02) at `d` mm from the tip: D0 + taper × d. D16 = D0 + 16 × taper.
+  DK.fileDiameter = (size, taper, d) => size / 100 + (taper ?? 0.02) * Math.max(0, d);
+
+  // ---- sweeps: a cross-section carried along a curve (files, needles, cones, shaped canals). The tip is at the curve
+  // start (d = 0). rAt(d) → radius (mm); shape(th, d) → radial multiplier (1 = round). Closed with flat caps.
+  function sweepGeometry(curve, L, rAt, shape, o) {
+    o = o || {};
+    const rows = Math.max(4, Math.round(L * (o.rowsPerMm || 4))), cols = o.cols || 12, fr = curve.computeFrenetFrames(rows, false);
+    const P0 = curve.getPointAt(0), P1 = curve.getPointAt(1);
+    return gridGeometry(rows, cols, (i, j) => {
+      const u = i / rows, d = u * L, th = j / cols * Math.PI * 2, p = curve.getPointAt(u), n = fr.normals[i], b = fr.binormals[i];
+      const r = Math.max(0.005, rAt(d) * (shape ? shape(th, d) : 1)), c = Math.cos(th), s = -Math.sin(th);   // −sin keeps the winding outward
+      return [p.x + (n.x * c + b.x * s) * r, p.y + (n.y * c + b.y * s) * r, p.z + (n.z * c + b.z * s) * r];
+    }, [P1.x, P1.y, P1.z], [P0.x, P0.y, P0.z]);
+  }
+  const curveOf = pts => new T.CatmullRomCurve3(pts.map(p => new T.Vector3(...p)), false, 'centripetal');
+  const polyLength = pts => pts.reduce((a, p, i) => i ? a + Math.hypot(p[0] - pts[i - 1][0], p[1] - pts[i - 1][1], p[2] - pts[i - 1][2]) : 0, 0);
+  // Points a tool occupies when its tip sits `depth` mm (arc length) along `path` (from the path's first point): the body
+  // follows the path back toward the start, then continues straight along the path's initial direction.
+  function toolPoints(path, depth, bodyLen, step) {
+    const curve = curveOf(path), Lp = curve.getLength(), P0 = curve.getPointAt(0), t0 = curve.getTangentAt(0), pts = [];
+    depth = Math.min(depth, Lp); const n = Math.max(2, Math.ceil(bodyLen / (step || 0.5)));
+    for (let i = 0; i <= n; i++) { const s = depth - i / n * bodyLen, p = s >= 0 ? curve.getPointAt(s / Lp) : P0.clone().addScaledVector(t0, s); pts.push([p.x, p.y, p.z]); }
+    return pts;
+  }
+  // A flexible instrument: a swept metal body (tip at the origin, +y up when straight) plus rigid parts (handle, stop,
+  // hub) at a given distance from the tip. tool.insert(path, depth) bends it along a canal path; tool.straight() resets.
+  function endoTool(o) {
+    const grp = new T.Group(); grp.name = o.name || 'Instrument';
+    const body = new T.Mesh(new T.BufferGeometry(), o.mat); body.name = o.name || 'Instrument'; grp.add(body);
+    const rigid = [], up = new T.Vector3(0, 1, 0);
+    grp.rigid = (obj, d) => { grp.add(obj); rigid.push({ obj, d }); return obj; };
+    grp.insert = (path, depth) => {
+      const extra = 16, pts = toolPoints(path || [[0, 0, 0], [0, -50, 0]], path ? (depth ?? 0) : 0, o.length + extra, 0.5);
+      const full = curveOf(pts), Lf = full.getLength(), nBody = Math.min(pts.length - 1, Math.ceil(o.length / 0.5) + 1);
+      const bc = curveOf(pts.slice(0, nBody + 1));
+      body.geometry.dispose(); body.geometry = sweepGeometry(bc, Math.min(o.length, bc.getLength()), o.rAt, o.shape, o.sweep);
+      rigid.forEach(r => { const u = clamp(r.d / Lf, 0, 1); r.obj.position.copy(full.getPointAt(u)); r.obj.quaternion.setFromUnitVectors(up, full.getTangentAt(u)); });
+      grp.userData.points = pts; grp.userData.depth = path ? depth : 0; return grp;
+    };
+    grp.straight = () => grp.insert(null);
+    grp.body = body; return grp;
+  }
+  const sqSection = th => Math.pow(Math.pow(Math.abs(Math.cos(th)), 4) + Math.pow(Math.abs(Math.sin(th)), 4), -0.25) / 1.1892;   // rounded square, corners at 1
+  // Endodontic file. kind: 'K' (hand K-file: twisted square, ISO-coloured handle), 'rotary' (NiTi, triangular section,
+  // latch shank with an ISO ring), 'spreader' (finger spreader, pointed, smooth), 'plugger' (flat-ended). size = ISO tip size,
+  // taper in mm/mm (.02 hand, .04 / .06 rotary), length = overall length 21 | 25 | 31 (tip to handle), flutes = cutting
+  // length (16 mm), stop = rubber stop at this many mm from the tip (the working length). Tip at the origin, handle up +y.
+  DK.endoFile = function (o) {
+    o = Object.assign({ kind: 'K', size: 25, length: 25, flutes: 16, stop: null }, o);
+    if (o.taper == null) o.taper = o.kind === 'rotary' ? 0.06 : 0.02;
+    const iso = DK.isoColor(o.size), D = d => DK.fileDiameter(o.size, o.taper, d), rot = o.kind === 'rotary', flutes = Math.min(o.flutes, o.length);
+    const shaftR = Math.max(D(flutes) / 2, 0.28);
+    const rAt = d => d >= flutes ? shaftR : (o.kind === 'plugger' ? D(d) / 2 : Math.min(D(d) / 2, 0.03 + d * 0.9));
+    const shape = (o.kind === 'K' || rot) ? (th, d) => { if (d >= flutes) return 1; const pitch = rot ? 1.7 + 0.16 * d : 0.9 + 0.08 * d, ph = th + d / pitch * Math.PI * 2; return rot ? 1 - 0.13 * (1 + Math.cos(3 * ph)) : sqSection(ph); } : null;
+    const mat = rot ? DK.mat('steel', { color: DK.COLORS.nickelTi, cap: 0x8e9296, roughness: 0.35 }) : DK.mat('steel', { cap: 0x9ea4aa });
+    const name = rot ? `Rotary file ${o.size}/.${String(Math.round(o.taper * 100)).padStart(2, '0')}` : o.kind === 'K' ? `K-file ${o.size}` : (o.kind === 'spreader' ? 'Finger spreader ' : 'Plugger ') + o.size;
+    const grp = endoTool({ name, length: o.length, rAt, shape, mat, sweep: { rowsPerMm: 5, cols: rot ? 12 : 12 } });
+    if (rot) { // latch-type shank (Ø2.35, ISO 1797) with the size ring; the groove near the top is the latch
+      const steel = DK.mat('steel', { cap: 0x9ea4aa });
+      grp.handle = grp.rigid(DK.lathe([[0, 0], [shaftR, 0], [0.9, 0.9], [0.9, 1.3], [1.175, 1.7], [1.175, 9.6], [0.95, 9.8], [0.95, 10.4], [1.175, 10.6], [1.175, 11.8], [0, 11.8]], 40, steel), o.length);
+      grp.ring = grp.rigid(DK.lathe([[1.17, 2.2], [1.24, 2.3], [1.24, 3.4], [1.17, 3.5]], 40, DK.mat(iso.hex, { roughness: 0.45 })), o.length);
+    } else { // plastic handle in the ISO colour
+      const plastic = DK.mat(iso.hex, { roughness: 0.45, cap: iso.hex });
+      grp.handle = grp.rigid(DK.lathe([[0, 0], [0.8, 0], [1.25, 0.5], [1.95, 2.0], [2.1, 3.4], [1.75, 4.9], [1.7, 6.0], [2.15, 7.5], [2.3, 9.4], [2.1, 10.6], [1.6, 11.0], [0, 11.0]], 40, plastic), o.length);
+    }
+    if (o.stop) { const stop = DK.lathe([[0, -0.55], [1.25, -0.55], [1.4, -0.4], [1.4, 0.4], [1.25, 0.55], [0, 0.55]], 32, DK.mat(0x4b4a46, { roughness: 0.6, cap: 0x4b4a46 })); stop.name = 'Rubber stop'; grp.stop = grp.rigid(stop, o.stop); }
+    grp.spec = Object.assign({ iso: iso.name, D0: D(0), D16: D(16) }, o); grp.straight();
+    return grp;
+  };
+  // Irrigation needle: 27–31 G, closed rounded tip with a side vent (or `vent: 'open'`), Luer hub at `length`. Tip at the origin.
+  DK.irrigationNeedle = function (o) {
+    o = Object.assign({ gauge: 30, length: 25, vent: 'side' }, o);
+    const OD = { 25: 0.51, 27: 0.41, 28: 0.36, 30: 0.31, 31: 0.26 }[o.gauge] || 0.31, r = OD / 2;
+    const grp = endoTool({ name: `Irrigation needle ${o.gauge} G`, length: o.length, rAt: d => Math.min(r, 0.02 + d * 1.2), mat: DK.mat('steel', { cap: 0x9ea4aa }), sweep: { rowsPerMm: 3, cols: 10 } });
+    if (o.vent === 'side') { const v = new T.Mesh(new T.CylinderGeometry(0.075, 0.075, 0.03, 16), new T.MeshBasicMaterial({ color: DK.color(0x2a2927), toneMapped: false })); v.rotation.z = Math.PI / 2; v.position.x = r; const w = new T.Group(); w.add(v); grp.rigid(w, 0.9); }
+    grp.rigid(DK.lathe([[0, 0], [0.5, 0], [0.9, 0.5], [1.0, 2.2], [1.7, 2.6], [1.7, 5.8], [2.2, 6.2], [2.2, 7.2], [0, 7.2]], 32, DK.mat(0xd8d4cc, { roughness: 0.4, opacity: 0.9 })), o.length);
+    grp.spec = Object.assign({ OD }, o); grp.straight(); return grp;
+  };
+  // Gutta-percha cone matching a file size and taper (ISO cones are ~28 mm). Tip at the origin; cone.insert(path, depth) seats it.
+  DK.gpCone = function (o) {
+    o = Object.assign({ size: 25, taper: 0.06, length: 28 }, o);
+    const grp = endoTool({ name: 'Gutta-percha cone', length: o.length, rAt: d => Math.min(DK.fileDiameter(o.size, o.taper, d) / 2, 0.04 + d * 1.5), mat: DK.mat('gutta'), sweep: { rowsPerMm: 3, cols: 12 } });
+    grp.spec = o; grp.straight(); return grp;
+  };
+
+  // ---- canal geometry
+  function canalSpecOf(spec, which) { return canalSpec(spec, findCanal(spec, which)); }
+  // Radius of the untouched canal at y, including the orifice funnel the pulp mesh carries.
+  function canalRadius(spec, which, y) {
+    const c = findCanal(spec, which), cs = canalSpecOf(spec, which), L = cs.len, t = clamp((cs.start - y) / (L + cs.start), 0, 1);
+    return DK.canalAt(spec, which, y).r * lerp(1, 1.4, Math.pow(smooth(0.12, 0, t), 2));
+  }
+  // The path an instrument takes into a canal: straight from a coronal reference point (`ref`, e.g. the cusp tip the stop
+  // rests on) to the orifice, then along the canal to working length (`short` mm from the apex, default 0.5).
+  // Returns {points, wl (mm along the path = the working length), orifice:[x,y,z], apex:[x,y,z], toY}.
+  DK.canalAccessPath = function (spec, which, o) {
+    o = o || {}; const cs = canalSpecOf(spec, which), c = findCanal(spec, which), short = o.short ?? 0.5;
+    const toY = -(cs.len - short - (c.short || 0)), canal = DK.canalPath(spec, which, { from: o.from ?? cs.start, to: toY, n: o.n || 32 });
+    const ref = o.ref || [canal[0][0], spec.crownL + 1, canal[0][2]], pts = [ref].concat(canal);
+    const [ax, az] = rootCenter(cs, -cs.len);
+    return { points: pts, wl: polyLength(pts), orifice: canal[0], apex: [ax, -cs.len, az], toY, canal };
+  };
+  // Shaped canal: a closed solid along the canal, from `from` (y, default the orifice) to working length, that widens from
+  // the original canal (k = 0) to a continuously tapering preparation of ISO `size` and `taper` at the apex (k = 1):
+  // m.set(k). Put it in a section group after the pulp (dark `color` = empty canal space), or pass material 'gutta'.
+  DK.canalShape = function (spec, which, o) {
+    o = Object.assign({ size: 25, taper: 0.06, short: 0.5, color: 0x5f5750, material: null, k: 0, scale: 1 }, o);
+    const cs = canalSpecOf(spec, which), c = findCanal(spec, which), toY = -(cs.len - o.short - (c.short || 0));
+    // starts 0.5 mm above the orifice, inside the chamber, so the funnel merges with the chamber like the pulp mesh does
+    const pts = DK.canalPath(spec, which, { from: o.from ?? cs.start + 0.5, to: toY, n: 40 }), curve = curveOf(pts), L = curve.getLength();
+    const y0 = pts[0][1], y1 = pts[pts.length - 1][1];
+    const mat = o.material ? DK.mat(o.material) : DK.mat('pdl', { color: o.color, cap: o.color });
+    const m = new T.Mesh(new T.BufferGeometry(), mat); m.name = o.material === 'gutta' ? 'Root filling' : 'Canal';
+    const rAt = (d, k) => { const y = lerp(y0, y1, d / L), r0 = canalRadius(spec, which, y), r1 = Math.max(r0, DK.fileDiameter(o.size, o.taper, L - d) / 2); return lerp(r0, r1, k) * o.scale; };
+    m.set = k => { k = clamp(k, 0, 1); m.userData.k = k; m.geometry.dispose(); m.geometry = sweepGeometry(curve, L, d => rAt(d, k), null, { rowsPerMm: 3, cols: 14 }); return m; };
+    m.radiusAt = y => rAt(clamp((y - y0) / (y1 - y0), 0, 1) * L, m.userData.k);
+    m.wlY = toY; m.length = L; m.set(o.k); return m;
+  };
+  // Root filling in a shaped canal: gutta-percha from `from` (y) to working length, fitting the finished shape exactly.
+  DK.rootFilling = function (spec, which, o) { return DK.canalShape(spec, which, Object.assign({ material: 'gutta', k: 1, scale: 0.97 }, o)); };
+
+  // ---- access cavity: a removable volume from the crown surface into the pulp chamber. Outline by tooth type: triangle
+  // (base buccal) for maxillary molars, rhomboid with `mb2: true`, trapezoid (wider mesially) for mandibular molars, an oval
+  // elongated bucco-lingually for premolars, and on anterior teeth a lingual opening (triangle, base incisal, for maxillary
+  // central incisors; oval otherwise). The top follows the real crown surface (`lift` mm proud of it, so it reads as the
+  // opening); cavity.set(k) deepens it from the surface (0) to the chamber (1). material: 'void' (dark, the default) or
+  // 'composite' (the coronal restoration that fills the same cavity: build a second one).
+  function roundedPolygon(corners, m, n) { // Minkowski offset of a convex CCW polygon by a circle of radius m, n points
+    const K = corners.length, out = [], total = corners.reduce((a, c, i) => { const d = corners[(i + 1) % K]; return a + Math.hypot(d[0] - c[0], d[1] - c[1]); }, 0) + 2 * Math.PI * m;
+    for (let i = 0; i < K; i++) {
+      const a = corners[i], b = corners[(i + 1) % K], p = corners[(i + K - 1) % K];
+      const inAng = Math.atan2(a[1] - p[1], a[0] - p[0]) - Math.PI / 2, outAng0 = Math.atan2(b[1] - a[1], b[0] - a[0]) - Math.PI / 2;
+      let sweep = outAng0 - inAng; while (sweep < 0) sweep += 2 * Math.PI; while (sweep > 2 * Math.PI) sweep -= 2 * Math.PI;
+      const na = Math.max(2, Math.round(n * (sweep * m) / total));
+      for (let j = 0; j < na; j++) { const ang = inAng + sweep * j / (na - 1); out.push([a[0] + m * Math.cos(ang), a[1] + m * Math.sin(ang)]); }
+      const eLen = Math.hypot(b[0] - a[0], b[1] - a[1]), ne = Math.max(1, Math.round(n * eLen / total)), nx = Math.cos(outAng0) * m, ny = Math.sin(outAng0) * m;
+      for (let j = 1; j < ne; j++) { const t = j / ne; out.push([a[0] + (b[0] - a[0]) * t + nx, a[1] + (b[1] - a[1]) * t + ny]); }
+    }
+    return out;
+  }
+  DK.accessOutline = function (spec, o) {
+    o = o || {}; const s = spec, cs = s.canals || [], n = o.n || 48;
+    const at = i => { const c = canalSpecOf(s, i); const [x, z] = rootCenter(c, c.start); return [x, z]; };
+    const ccw = pts => { let a = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return a < 0 ? pts.slice().reverse() : pts; };
+    if (s.incisal || s.coneTip) { // lingual access, outline in (mesial x, incisal↑) mm
+      const tri = s.incisal && s.md >= 8;   // maxillary central: triangle, base incisal
+      return { plane: 'lingual', points: tri ? roundedPolygon(ccw([[-1.2, 1.1], [1.2, 1.1], [0, -1.3]]), 0.8, n) : roundedPolygon([[0, 1.0], [0, -1.0]], 0.95, n), shape: tri ? 'triangle' : 'oval' };
+    }
+    if (s.roots.length >= 3 || (s.maxillary && cs.length >= 3)) { // maxillary molar: MB1–DB–P triangle, rhomboid with MB2
+      const names = cs.map(c => c.name), pick = nm => at(names.indexOf(nm));
+      const corners = o.mb2 && names.includes('MB2') ? [pick('MB1'), pick('MB2'), pick('P'), pick('DB')] : [pick('MB1'), pick('P'), pick('DB')];
+      return { plane: 'occlusal', points: roundedPolygon(ccw(corners), 0.9, n), shape: o.mb2 ? 'rhomboid' : 'triangle' };
+    }
+    if (s.roots.length === 2 && cs.length >= 3) { // mandibular molar: trapezoid, wider mesially (two mesial orifices)
+      const d = cs.findIndex(c => c.name === 'D'), dw = 0.55 * (cs[d].rbk || cs[d].r), D = at(d), mes = cs.map((c, i) => i).filter(i => i !== d).map(at);
+      return { plane: 'occlusal', points: roundedPolygon(ccw(mes.concat([[D[0], D[1] + dw], [D[0], D[1] - dw]])), 0.85, n), shape: 'trapezoid' };
+    }
+    if (cs.length >= 2) { const a = at(0), b = at(1); return { plane: 'occlusal', points: roundedPolygon([a, b], 0.9, n), shape: 'oval' }; }   // two-canal premolar
+    const c = cs[0] || { r: 0.4 }, e = Math.max(0.5, (c.rbk || c.r) * 1.2), a = at(0);
+    return { plane: 'occlusal', points: roundedPolygon([[a[0], a[1] + e], [a[0], a[1] - e]], 0.9, n), shape: 'oval' };
+  };
+  // Empty space in a figure is painted in the stage tone of the theme (so a cut cavity reads as a hole, not a dark solid),
+  // with a thin ink rim: build the rim as a slightly larger copy in a section group just before the void.
+  DK.voidColor = fig => (fig && fig.dark) ? 0x1D1C19 : 0xE9E4D9;
+  DK.RIM = 0x3a3733;
+  DK.inflateGeometry = function (geo, d) { // copy of a geometry pushed `d` mm along its vertex normals (rims, outlines)
+    const g = geo.clone(); if (!g.attributes.normal) g.computeVertexNormals();
+    const p = g.attributes.position, n = g.attributes.normal;
+    for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) + n.getX(i) * d, p.getY(i) + n.getY(i) * d, p.getZ(i) + n.getZ(i) * d);
+    p.needsUpdate = true; g.computeBoundingSphere(); return g;
+  };
+  DK.accessCavity = function (specOrFdi, o) {
+    o = Object.assign({ material: 'void', color: 0xE9E4D9, lift: 0.03, bottomScale: 0.85, k: 1, grow: 1 }, o);
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi, ol = DK.accessOutline(s, o), pts = ol.points.map(p => [p[0] * o.grow, p[1] * o.grow]), N = pts.length;
+    // frame: origin at the cavity floor, axis out of the tooth, (u, v) span the opening plane
+    let origin, axis, u, v;
+    if (ol.plane === 'lingual') { origin = new T.Vector3(0, s.crownL * 0.42, 0); const top = new T.Vector3(0, s.crownL * 0.4, -s.bl / 2); axis = top.clone().sub(origin).normalize(); u = new T.Vector3(1, 0, 0); v = new T.Vector3().crossVectors(axis, u).normalize(); }
+    else { origin = new T.Vector3(0, o.floorY ?? (-(s.trunk ? 1.2 : 0.4) + 1.0), 0); axis = new T.Vector3(0, 1, 0); u = new T.Vector3(1, 0, 0); v = new T.Vector3(0, 0, 1); }
+    const probe = new T.Mesh(crownGeometry(s), new T.MeshBasicMaterial({ side: T.DoubleSide })); probe.updateMatrixWorld();
+    const rc = new T.Raycaster(); rc.far = 40;
+    const surface = (a, b) => { const from = origin.clone().addScaledVector(u, a).addScaledVector(v, b); rc.set(from, axis); const h = rc.intersectObject(probe); const p = h.length ? h[h.length - 1].point : from.clone().addScaledVector(axis, s.crownL); return p.addScaledVector(axis, o.lift); };
+    const rings = 4, top = [], bottom = [];
+    for (let r = 0; r <= rings; r++) { const row = []; const rho = r / rings; for (let j = 0; j < N; j++) row.push(r === 0 ? surface(0.15, 0.1) : surface(pts[j][0] * rho, pts[j][1] * rho)); top.push(row); }   // the centre ray is nudged off the crown axis, where the crown surface has a ~0.1 mm open ring
+    for (let j = 0; j < N; j++) bottom.push(origin.clone().addScaledVector(u, pts[j][0] * o.bottomScale).addScaledVector(v, pts[j][1] * o.bottomScale));
+    probe.geometry.dispose();
+    // vertex order: top rings (ring 0 = centre point ×N), wall rows W, bottom ring, bottom centre
+    const W = 3, pos = [], idx = [], at = (ring, j) => ring * N + (j % N);
+    top.forEach(row => row.forEach(p => pos.push(p.x, p.y, p.z)));
+    for (let w = 1; w <= W; w++) for (let j = 0; j < N; j++) pos.push(0, 0, 0);
+    pos.push(0, 0, 0);
+    const wallRing = w => rings + w, bottomCentre = (rings + W + 1) * N;
+    for (let r = 0; r < rings + W; r++) for (let j = 0; j < N; j++) { const a = at(r, j), b = at(r, j + 1), c = at(r + 1, j + 1), d = at(r + 1, j); if (r > 0) idx.push(a, b, d); idx.push(b, c, d); }
+    for (let j = 0; j < N; j++) idx.push(at(wallRing(W), j), at(wallRing(W), j + 1), bottomCentre);   // opposite to the top fan, so the floor faces outward (a flipped floor punches holes in the stencil cap)
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+    const mat = o.material === 'composite' ? DK.mat('composite', { cap: 0xf1e4c6 }) : o.material === 'ink' ? DK.mat('pdl', { color: DK.RIM, cap: DK.RIM, roughness: 0.9 }) : DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.95 });
+    const m = new T.Mesh(g, mat); m.name = o.material === 'composite' ? 'Coronal restoration' : 'Access cavity';
+    const P = g.attributes.position;
+    m.set = k => {
+      k = clamp(k, 0, 1); m.userData.k = k; m.visible = k > 0.02;
+      const floor = new T.Vector3(); let cx = 0, cy = 0, cz = 0;
+      for (let j = 0; j < N; j++) { const t = top[rings][j], b = bottom[j]; for (let w = 1; w <= W; w++) { const f = k * w / W; const x = lerp(t.x, b.x, f), y = lerp(t.y, b.y, f), z = lerp(t.z, b.z, f); P.setXYZ(at(wallRing(w), j), x, y, z); if (w === W) { cx += x; cy += y; cz += z; } } }
+      P.setXYZ(bottomCentre, cx / N, cy / N, cz / N); P.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); return m;
+    };
+    // orient outward: flip if the signed volume is negative
+    m.set(1); { let vol = 0; const a = new T.Vector3(), b = new T.Vector3(), c = new T.Vector3(); for (let i = 0; i < idx.length; i += 3) { a.fromBufferAttribute(P, idx[i]); b.fromBufferAttribute(P, idx[i + 1]); c.fromBufferAttribute(P, idx[i + 2]); vol += a.dot(b.clone().cross(c)); } if (vol < 0) { for (let i = 0; i < idx.length; i += 3) { const t = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = t; } g.setIndex(idx); g.computeVertexNormals(); } }
+    m.set(o.k); m.outline = ol; m.floor = origin.clone(); m.opening = top[0][0].clone();
+    return m;
+  };
+  // Periapical lesion (apical periodontitis): an irregular closed blob to centre on a root apex, in a section group after
+  // the cancellous bone and before the tooth. lesion.set(k) scales it (healing: k → 0).
+  DK.periapicalLesion = function (o) {
+    o = Object.assign({ radius: 2.5, color: 0x8a736d, seed: 5 }, o);
+    const g = new T.SphereGeometry(1, 28, 20), p = g.attributes.position, v = new T.Vector3(), rnd = seeded(o.seed), ph = [rnd() * 6, rnd() * 6, rnd() * 6];
+    for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const f = 1 + 0.12 * Math.sin(3.1 * v.x + ph[0]) * Math.cos(2.3 * v.y + ph[1]) + 0.09 * Math.sin(4.2 * v.z + ph[2] + 2.0 * v.x); v.multiplyScalar(f); p.setXYZ(i, v.x, v.y, v.z); }
+    g.computeVertexNormals();
+    const m = new T.Mesh(g, DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.7 })); m.name = 'Periapical lesion';
+    m.set = k => { k = clamp(k, 0, 1); m.visible = k > 0.02; m.scale.setScalar(Math.max(0.01, k * o.radius)); m.userData.k = k; return m; };
+    m.set(1); return m;
+  };
+  // Change the cut-face colour of section group `index` after the fact (a pulp going necrotic, a canal filling with irrigant).
+  DK.capColor = (section, index, hex) => { const c = section && section.caps[index]; if (c) c.material.uniforms.uColor.value.copy(DK.color(hex)); };
   /* ==== end topic: endo ==== */
 
   // Distance helper for readouts

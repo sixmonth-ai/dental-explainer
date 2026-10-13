@@ -582,7 +582,78 @@ _(reserved)_
 
 <!-- topic: endo -->
 ## 20. Endodontic instruments and root canal treatment
-_(reserved)_
+Working length and the ISO file basics (D0, .02 taper, 16 mm flutes, 21/25/31 mm) are in §8; canal numbers per tooth in §4. This section adds what a root canal figure needs.
+
+### Diagnosis
+- **Pulp necrosis** = death of the pulp; the tooth is usually non-responsive to pulp testing. Necrosis by itself is symptom-free; symptoms come from the **periapical tissues** once the canal is infected [V, AAE diagnostic terminology].
+- **Apical periodontitis**: inflammation of the apical periodontium; *symptomatic* = pain on biting, percussion or palpation (with or without a radiolucency); *asymptomatic* = a radiolucency without symptoms [V, AAE].
+- **Periapical radiolucency**: loss of the apical lamina dura, a round or ill-defined dark area at the apex. Granulomas average ~7 mm and radicular cysts ~11 mm on radiographs; size alone cannot tell them apart, only histology can [V]. Draw a lesion of about 3–6 mm on a single root.
+- **Healing** after treatment is judged on follow-up radiographs; it takes from months to about 4 years, so cases are reviewed over a prolonged period [V, ESE S3 2023 for prolonged review; the "up to 4 years" figure U, secondary sources]. Pooled success of primary treatment with strict radiographic criteria is **68–85%** (Ng et al. 2007); a pre-operative lesion lowers the odds [V].
+
+### ISO instruments (ISO 3630-1)
+- **Handle colour cycle** [V, ISO 3630 as tabulated in US patent 5,498,158]: 06 pink, 08 grey (some sources "silver"), 10 purple, then **white, yellow, red, blue, green, black** for 15, 20, 25, 30, 35, 40; the same six repeat for 45, 50, 55, 60, 70, 80 and for 90, 100, 110, 120, 130, 140 (150 is white again). Rotary NiTi files carry the tip-size colour as a ring on the latch shank [U, manufacturer convention].
+- **Diameter at any point**: D(d) = size/100 + taper × d mm, d from the tip. A 25/.02 K-file is 0.25 at D0 and 0.57 at D16; a 25/.06 rotary file is 0.25 at D0 and **1.21 at D16** [V, §8 and the ISO taper definition].
+- **K-file**: twisted square (or rhomboid) stainless-steel blank, .02 taper; used by hand for scouting, patency and working length (sizes 06–15), then the glide path [V for cross-section; U for sizes].
+- **NiTi rotary files** use greater or variable tapers (.04, .06, up to about .08) and triangular or convex-triangular sections; the handpiece shank is the ISO 1797 latch type (Ø2.35 mm) [V for tapers; U for the shank diameter].
+- **Rubber stop**: a silicone disc on the shaft set at the working length; it rests on a stable coronal reference (a cusp tip or incisal edge) [V, manufacturer listings].
+- **Irrigation needles**: 27–31 G (OD 0.41–0.26 mm; 30 G = 0.31 mm) [V, needle gauge chart], side-vented or open-ended. In a CFD model a side-vented needle only replaces irrigant to working length when placed **1 mm short**; open-ended needles reach further but raise apical pressure; clinical guidance is 1–3 mm short, never wedged (Boutsioukis et al. 2010) [V].
+
+### Access cavity [V, study-guide summary of standard texts; wording U]
+| Tooth | Outline | Direction |
+|---|---|---|
+| Maxillary central incisor | Triangle, base incisal | Lingual surface, toward the incisal edge |
+| Maxillary lateral, canine; mandibular anteriors | Oval (narrow triangle/ovoid on lower incisors) | Lingual surface |
+| Premolars | Oval, elongated bucco-lingually | Occlusal |
+| Maxillary molars | Triangle (MB1, DB, P), **rhomboid** when MB2 is included (the usual case, §4) | Occlusal, within the mesial two-thirds |
+| Mandibular molars | Trapezoid or rectangle, **wider mesially** (two mesial canals), extended distally only as far as the distal canal(s) | Occlusal |
+Goals: remove the whole chamber roof (no pulp horns left), find every orifice, straight-line access to each canal; a rubber dam is used throughout [V, ESE 2006 and S3 2023 expert statements].
+
+### Shaping (Schilder's mechanical objectives, 1974) [V, secondary sources]
+1. A **continuously tapering funnel** from the orifice to the apex; 2. narrowest at the apex; 3. the preparation **follows the original canal** (no transportation); 4. the **apical foramen stays in its original position**; 5. the apical opening is kept **as small as practical**. Working length 0.5–1 mm short of the radiographic apex (§8). Minimum apical size for irrigation to reach the apical third: most studies recommend ≥ #30, a few accept #25 [V, systematic review]; the figure's 25/.06 is a common choice, say "sizes vary by case".
+
+### Irrigation [V unless noted]
+- **Sodium hypochlorite** (NaOCl) 0.5–6%, most often 1–5.25%: dissolves pulp tissue and kills bacteria; the ESE S3 guideline lists NaOCl 1–5.25% with or without a following EDTA rinse as the acceptable protocol.
+- **EDTA 17%** (final rinse, ~1 min) removes the smear layer [V for the role; the 17%/1 min figures U, standard teaching].
+- **Chlorhexidine 2%** is an adjunct, not a tissue solvent; never mix it with NaOCl (precipitate) [V].
+- Adjunct activation (ultrasonic, laser, ozone) is **not** recommended over conventional irrigation by the ESE S3 guideline [V].
+
+### Obturation [V, ESE S3 2023 and reviews]
+- Gutta-percha plus a sealer, by **cold lateral compaction**, **warm vertical compaction**, **carrier-based** or **single cone**; all may be considered. Sealers: epoxy resin, zinc-oxide-eugenol or calcium-silicate (bioceramic). Single cone + bioceramic sealer gives fillings comparable to warm vertical in systematic reviews.
+- Fill to working length; obturation within 0–2 mm of the radiographic apex gives the best outcomes (§8).
+- **Single-visit** treatment without inter-appointment calcium hydroxide is recommended when procedures are adequate (strong recommendation, ESE S3).
+
+### After the root filling [V]
+- The quality of the **coronal restoration** affects periapical health at least as much as the root filling (Ray & Trope 1995, 1,010 teeth).
+- Root-treated posterior teeth usually need **cuspal coverage** (crown or onlay): in Aquilino & Caplan 2002 uncrowned teeth were lost about six times as often; a 2019 pooled analysis found no difference, so say "usually" [V both].
+- AAE patient facts: the **pulp is removed, the roots stay**; treated teeth can last a lifetime with a permanent restoration [V, AAE "Myths about root canals"].
+
+### Common AI mistakes (endo)
+1. "A root canal removes the root(s)." No: the pulp is removed from the canals; the roots and the tooth stay [V, AAE].
+2. "The tooth is dead, so it can't hurt." A necrotic pulp feels nothing, but the periodontal ligament and bone at the apex are alive and inflamed: apical periodontitis hurts on biting [V, AAE terminology].
+3. Drawing the file as long as the tooth or to the very tip of the root. The file stops at the working length, 0.5–1 mm short of the apex, and its stop sits on a cusp tip (§8).
+4. Giving every file the same colour or inventing colours. Size 15 is white, 20 yellow, 25 red, 30 blue, 35 green, 40 black; 10 purple.
+5. Confusing size and taper: 25/.06 and 25/.02 have the same 0.25 mm tip; they differ along the shaft (D16 1.21 vs 0.57 mm).
+6. A lower molar with one canal, or treating only the canal on the cut face. A lower first molar has three (MB, ML, D) and all are shaped and filled (§4).
+7. A straight file in a curved canal, or a canal that ends up wider at the apex than at the orifice. Files follow the curve; the shape tapers continuously and is narrowest at the apex.
+8. Needles jammed to the apex or extruding fluid: irrigation needles stay 1–3 mm short and loose in the canal.
+9. Restoring with a filling only and calling it done: the coronal seal and, for molars, cuspal coverage are part of the treatment.
+10. "The lesion is gone right after treatment": bone fills in over months to years; the first review is a year later.
+
+### Sources (endo)
+- AAE Consensus Conference recommended diagnostic terminology: https://www.aae.org/specialty/wp-content/uploads/sites/2/2017/07/aaeconsensusconferencerecommendeddiagnosticterminology.pdf ; Endodontic diagnosis (AAE Fall 2013): https://www.aae.org/specialty/wp-content/uploads/sites/2/2023/12/Fall2013-EndoDiagnosis.pdf
+- AAE, Myths about root canals: https://aae.org/patients/root-canal-treatment/myths-root-canals/
+- ESE S3-level clinical practice guideline, treatment of pulpal and apical disease (Duncan et al. 2023, Int Endod J 56 S3): https://pmc.ncbi.nlm.nih.gov/articles/PMC11991915/ ; ESE Quality guidelines 2006: https://pubmed.ncbi.nlm.nih.gov/17180780/
+- ISO colour cycle as tabulated (US 5,498,158, prior-art table of ISO sizes/colours): https://patents.google.com/patent/US5498158 ; ISO 3630-1:2019 scope: https://www.iso.org/standard/87795.html
+- Endodontic files and reamers (D0/D16, lengths, K-file section, NiTi tapers): https://en.wikipedia.org/wiki/Endodontic_files_and_reamers
+- Needle gauges: https://en.wikipedia.org/wiki/Needle_gauge_comparison_chart
+- Boutsioukis et al. 2010, needle-insertion depth and irrigant flow (J Endod 36:1664): https://research.utwente.nl/en/publications/the-effect-of-needle-insertion-depth-on-the-irrigant-flow-in-the-/
+- Sodium hypochlorite concentrations (AAE post): https://www.aae.org/specialty/wp-json/wp/v2/posts/18568 ; irrigation review (PMC6383907): https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6383907/
+- Access outlines by tooth (study guide): https://open-exam-prep.com/study-guides/ca-ndeb-afk/endodontics/canal-morphology-access ; maxillary molar access and MB2 (JCDA 2001): https://www.cda-adc.ca/jcda/vol-67/issue-4/211.pdf
+- Schilder's objectives (secondary): https://dentistrytoday.com/?p=39488 ; https://www.oralhealthgroup.com/features/from-concept-to-creation-a-vision-forty-years-on/
+- Minimum apical size for irrigation (systematic review, Iran Endod J): https://journals.sbmu.ac.ir/iej/issue/view/1588 ; Khademi et al. 2006: https://pubmed.ncbi.nlm.nih.gov/16631839/
+- Obturation techniques: single cone vs warm vertical systematic review (PMC11193544): https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11193544/ ; overview: https://dentistry.co.uk/2021/07/18/sealing-the-deal-in-endodontics-obturation/
+- Ray & Trope 1995 (Int Endod J 28:12): https://whitecross.co.jp/pub-med/view/7642323 ; cuspal coverage review (PMC3018977): https://pmc.ncbi.nlm.nih.gov/articles/PMC3018977 ; 2019 pooled analysis: https://doaj.org/article/fa54e7d8d387442481ad20a7eda3674d
+- Ng et al. 2007 primary treatment outcome: https://researchonline.lshtm.ac.uk/6030/ ; periapical lesion sizes (granuloma vs cyst): https://pubmed.ncbi.nlm.nih.gov/18634946/ ; https://pathologyoutlines.com/topic/mandiblemaxilladentalgranuloma.html
 <!-- end topic: endo -->
 
 ---

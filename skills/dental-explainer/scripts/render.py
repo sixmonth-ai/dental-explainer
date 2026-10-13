@@ -50,7 +50,7 @@ def main():
         if not pg.evaluate("typeof THREE !== 'undefined'"):
             print("SKIP: three.js did not load (no access to cdnjs?). Deliver the HTML page instead."); b.close(); sys.exit(2)
         try:
-            pg.wait_for_function("window.__dkReady === true", timeout=90000)   # software GL compiles every shader on the first frame
+            pg.wait_for_function("window.__dkReady === true", timeout=240000 if "swiftshader" in gl.lower() else 90000)   # software GL compiles every shader on the first frame
         except Exception:
             print("FAIL: the figure never finished starting.\n" + ("\n".join(errors) or "(no JS error was reported)")); b.close(); sys.exit(1)
         pg.evaluate("document.fonts.ready")

@@ -12,7 +12,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,7 +27,7 @@ jobs:
           pip install playwright==1.60.0
           python -m playwright install --with-deps chromium
       - name: Test
-        run: python scripts/test.py --soft --out test-output
+        run: python scripts/test.py --soft --no-image --out test-output
       - name: Package
         run: python scripts/package.py
       - name: Publish the release

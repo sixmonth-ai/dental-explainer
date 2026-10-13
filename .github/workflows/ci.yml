@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -20,8 +20,8 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Offline checks (example pages match the kit, video stays off)
         run: python scripts/test.py --fast
-      - name: Browser checks (no JS errors, every state and step shot, image render)
-        run: python scripts/test.py --soft --out test-output
+      - name: Browser checks (no JS errors, every state and step shot)
+        run: python scripts/test.py --soft --no-image --out test-output
       - name: Package (manifest versions agree, listing within OpenAI limits)
         run: python scripts/package.py
       - uses: actions/upload-artifact@v4

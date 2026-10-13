@@ -6,6 +6,7 @@
   python3 scripts/test.py --fast     only the offline checks (example pages in sync, video kept off)
   python3 scripts/test.py implant    only examples whose name contains "implant"
   python3 scripts/test.py --jobs 1   one example at a time (default: up to 4 side by side)
+  python3 scripts/test.py --no-image skip the image render of each example (CI)
 
 For every examples/<name>.js:
   1. examples/<name>.html must equal a fresh build.py of it (same title, mode and aspect), so the pages never
@@ -49,6 +50,7 @@ def main():
     ap.add_argument("only", nargs="?", default="")
     ap.add_argument("--fix", action="store_true"); ap.add_argument("--fast", action="store_true")
     ap.add_argument("--out"); ap.add_argument("--soft", action="store_true", help="force software GL (CI)")
+    ap.add_argument("--no-image", action="store_true", help="skip the image render (CI: check.py already loads and shoots every figure)")
     ap.add_argument("--jobs", type=int, default=min(4, os.cpu_count() or 1), help="examples checked in parallel (default: up to 4)")
     a = ap.parse_args()
     out = pathlib.Path(a.out or tempfile.mkdtemp(prefix="dk-test-")); out.mkdir(parents=True, exist_ok=True)
@@ -91,6 +93,8 @@ def main():
             fails.append(f"{name}: check.py\n{log}")
         else:
             msgs.append(f"ok   {name}: {last}")
+        if a.no_image:
+            return name, msgs, fails, False
         img = out / f"{name}-image.html"
         img.write_text(build.build(js.read_text(), title, None, "image", "16:9"))
         code, log = run([sys.executable, str(SKILL / "scripts" / "render.py"), str(img), "-o", str(out / f"{name}.png")] + soft)

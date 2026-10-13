@@ -13,11 +13,11 @@
       "interface": {
         "displayName": "Dental Explainer",
         "shortDescription": "Accurate 3D dental figures",
-        "longDescription": "Dental Explainer turns a dental concept into an accurate 3D figure, delivered as an image, a short video or an interactive page. It covers exploded views of implants and restorations, tooth cross-sections, root and canal anatomy, numbering charts and procedure steps such as implant placement or a crown preparation.\n\nEvery model is built from real millimetre dimensions and checked against a verified dental facts file, so the anatomy, numbering (FDI and Universal) and implant rules are right. It is made for dentists, dental students and patient educators who need a figure for a lecture, a patient conversation or social media.\n\nAsk in plain words, for example \"Show an exploded view of an implant replacing 36\". The assistant asks which format you want unless you say.\n\nLimitations: figures are parametric and population-average, not built from a patient's scans or radiographs. Soft tissue is schematic, and implants are drawn generically without brand geometry. Interactive pages load three.js from cdnjs.cloudflare.com; the plugin sends no data anywhere.",
+        "longDescription": "Dental Explainer turns a dental concept into an accurate 3D figure, delivered as an image or an interactive page (video is coming soon). It covers exploded views of implants and restorations, tooth cross-sections, root and canal anatomy, numbering charts and procedure steps such as implant placement or a crown preparation.\n\nEvery model is built from real millimetre dimensions and checked against a verified dental facts file, so the anatomy, numbering (FDI and Universal) and implant rules are right. It is made for dentists, dental students and patient educators who need a figure for a lecture, a patient conversation or social media.\n\nAsk in plain words, for example \"Show an exploded view of an implant replacing 36\". The assistant asks which format you want unless you say.\n\nLimitations: figures are parametric and population-average, not built from a patient's scans or radiographs. Soft tissue is schematic, and implants are drawn generically without brand geometry. Interactive pages load three.js from cdnjs.cloudflare.com; the plugin sends no data anywhere.",
         "developerName": "Sixmonth",
         "category": "Education & Research",
         "capabilities": [
-          "3D dental figures as an image, video or interactive page",
+          "3D dental figures as an image or interactive page",
           "Exploded views, cross-sections and procedure steps",
           "FDI and Universal tooth numbering"
         ],

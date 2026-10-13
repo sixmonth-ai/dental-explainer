@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Playwright and Chromium
+        run: |
+          pip install playwright==1.60.0
+          python -m playwright install --with-deps chromium
+      - name: Offline checks (example pages match the kit, video stays off)
+        run: python scripts/test.py --fast
+      - name: Browser checks (no JS errors, every state and step shot, image render)
+        run: python scripts/test.py --soft --out test-output
+      - name: Package (manifest versions agree, listing within OpenAI limits)
+        run: python scripts/package.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-output
+          path: test-output/
+          retention-days: 7

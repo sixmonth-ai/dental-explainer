@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-"""Render a figure page built with --mode image or --mode video to a file (needs Python Playwright + Chromium).
+"""Render a figure page built with --mode image to a PNG (needs Python Playwright + Chromium).
 
 usage: python3 render.py figure.html -o figure.png [--width 1600] [--dark]
-       python3 render.py figure.html -o figure.mp4 [--width 1920] [--fps 30] [--dark]
-       python3 render.py figure.html -o sheet.png --sheet 12     (video page: a contact sheet of 12 frames, in seconds)
-       python3 render.py figure.html -o draft.mp4 --preview      (video page: 960 px, 12 fps draft, ~6x fewer pixels)
 
-PNG: the page's final story frame (a numbered storyboard for procedures) at 2x. MP4: steps the story frame by frame
-(deterministic, no dropped frames) and encodes with ffmpeg; without ffmpeg it records in the page and writes .webm.
-To check a video, look at a --sheet first; render the full MP4 once, at the end.
+PNG: the page's final story frame (a numbered storyboard for procedures) at 2x.
+Video (MP4, --sheet, --preview) is coming soon and switched off. Maintainers can still try it with DK_ENABLE_VIDEO=1.
 Uses the GPU when there is one (falls back to software GL; --soft forces it). three.js is cached after the first run.
 If Playwright or three.js is unavailable it prints "SKIP: ..." and exits 2: deliver the HTML page, which has its own
 Download button.
 """
-import argparse, base64, pathlib, shutil, subprocess, sys, tempfile, time
+import argparse, base64, os, pathlib, shutil, subprocess, sys, tempfile, time
 
 
 def main():
@@ -33,6 +29,9 @@ def main():
     import _browser
     out = pathlib.Path(a.out); video = out.suffix.lower() in (".mp4", ".webm")
     sheet = a.sheet
+    unreleased = os.environ.get("DK_ENABLE_VIDEO") == "1"   # video is in the kit but not shipped yet
+    if (video or sheet or a.preview) and not unreleased:
+        print("Video is coming soon and isn't available yet. Render a PNG (-o figure.png) or deliver the interactive page."); sys.exit(2)
     width = a.width or (960 if a.preview else 1920 if video else 1600)
     fps = a.fps or (12 if a.preview else 30)
     errors = []; t_start = time.time()
@@ -43,6 +42,8 @@ def main():
         pg = b.new_page(viewport={"width": width + 32, "height": 1400}, device_scale_factor=1, color_scheme="dark" if a.dark else "light")
         pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
         _browser.route_three(pg, _browser.three_path(a.three_local))
+        if unreleased:
+            pg.add_init_script("window.DK_ENABLE_VIDEO = true;")
         pg.goto(pathlib.Path(a.page).resolve().as_uri())
         if not pg.evaluate("typeof THREE !== 'undefined'"):
             print("SKIP: three.js did not load (no access to cdnjs?). Deliver the HTML page instead."); b.close(); sys.exit(2)
@@ -54,7 +55,7 @@ def main():
         print(f"ready in {time.time() - t_start:.1f}s", flush=True)
         mode = pg.evaluate("window.__dkFig.mode")
         if mode == "interactive":
-            print("note: page was built as interactive; rendering it anyway. Rebuild with --mode image/video for the framed layout.")
+            print("note: page was built as interactive; rendering it anyway. Rebuild with --mode image for the framed layout.")
         dur = pg.evaluate("window.__dkFig.duration")
         if sheet:
             if not dur:

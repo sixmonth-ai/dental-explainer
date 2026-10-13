@@ -718,7 +718,8 @@
   DK.figure = function (o) {
     o = Object.assign({ title: 'Untitled figure', subtitle: '', footer: 'Population-average anatomy. Not for diagnosis or treatment planning.' }, o);
     const qs = new URLSearchParams(location.search);
-    const mode = qs.get('mode') || window.DK_MODE || o.mode || 'interactive';   // 'interactive' | 'image' | 'video'
+    const askedMode = qs.get('mode') || window.DK_MODE || o.mode || 'interactive';   // 'interactive' | 'image' ('video' is coming soon)
+    const mode = askedMode === 'video' && !window.DK_ENABLE_VIDEO ? 'interactive' : askedMode;   // video stays in the kit, switched off until it ships
     const still = mode !== 'interactive';
     const aspect = ASPECTS[qs.get('aspect') || window.DK_ASPECT || o.aspect || '16:9'] || 16 / 9;
     if (!document.querySelector('link[data-dk-font]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONT_URL; l.dataset.dkFont = '1'; document.head.appendChild(l); }
@@ -1460,6 +1461,30 @@
     const m = DK.tube(pts, 1, DK.mat('gutta'), { taper: t => rAt(lerp(y0, y1, t)), radial: 14 });
     m.name = 'Root filling'; return m;
   };
+  /* ==== topic: arch (Primary teeth, third molars, arch layouts and numbering charts) ==== */
+  // (reserved)
+  /* ==== end topic: arch ==== */
+
+  /* ==== topic: caries (Caries and direct restorations) ==== */
+  // (reserved)
+  /* ==== end topic: caries ==== */
+
+  /* ==== topic: perio (Periodontal disease) ==== */
+  // (reserved)
+  /* ==== end topic: perio ==== */
+
+  /* ==== topic: prosth (Fixed prosthetics: bridges, veneers, inlays and onlays) ==== */
+  // (reserved)
+  /* ==== end topic: prosth ==== */
+
+  /* ==== topic: ortho (Orthodontics: brackets, archwires, aligners, tooth movement) ==== */
+  // (reserved)
+  /* ==== end topic: ortho ==== */
+
+  /* ==== topic: endo (Endodontic instruments and root canal treatment) ==== */
+  // (reserved)
+  /* ==== end topic: endo ==== */
+
   // Distance helper for readouts
   DK.mm = v => (Math.round(v * 10) / 10).toFixed(1) + ' mm';
 

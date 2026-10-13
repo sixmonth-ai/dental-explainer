@@ -9,8 +9,8 @@ Global `DK`, built on three.js r128 (global `THREE`). Units are **millimetres**.
 ```js
 const fig = DK.figure({ title, subtitle, view: { theta, phi }, footer });
 ```
-- `view.theta` (around y, 0 = camera on +z / buccal side), `view.phi` (from top; 1.57 = level). Leave `dist` out: the camera auto-fits the assembled state and follows the explode. **What it fits:** every regular part except those marked `fit: false`; `inPlace` parts never count. Give context blocks (bone, gingiva) `fit: false` when the subject is one tooth, so the camera frames the tooth. A figure made only of `inPlace` parts frames every visible mesh. `view.margin` (default 0.85) tightens (<0.85) or loosens (>0.85) that fit. Image and video frames fit 15% looser to leave room for the title and caption.
-- **Mode** comes from `build.py --mode` (`interactive` | `image` | `video`; also `?mode=` in the URL). The same script serves all three: interactive is a page with a control panel; image and video are a framed stage (`--aspect 16:9 | 1:1 | 4:5 | 9:16`) with the title on top, captions bottom-left and the footer inside the frame. `fig.mode` reads it.
+- `view.theta` (around y, 0 = camera on +z / buccal side), `view.phi` (from top; 1.57 = level). Leave `dist` out: the camera auto-fits the assembled state and follows the explode. **What it fits:** every regular part except those marked `fit: false`; `inPlace` parts never count. Give context blocks (bone, gingiva) `fit: false` when the subject is one tooth, so the camera frames the tooth. A figure made only of `inPlace` parts frames every visible mesh. `view.margin` (default 0.85) tightens (<0.85) or loosens (>0.85) that fit. Image frames fit 15% looser to leave room for the title.
+- **Mode** comes from `build.py --mode` (`interactive` | `image`; also `?mode=` in the URL). The same script serves both: interactive is a page with a control panel; image is a framed stage (`--aspect 16:9 | 1:1 | 4:5 | 9:16`) with the title on top and the footer inside the frame. `fig.mode` reads it. Video is coming soon: the kit still contains it but treats `video` as `interactive` unless `window.DK_ENABLE_VIDEO` is set, so never build or offer it.
 - `autoRotate: true` is opt-in and off by default.
 
 | call | does |
@@ -22,14 +22,14 @@ const fig = DK.figure({ title, subtitle, view: { theta, phi }, footer });
 | `fig.xrayToggle([objs], 'X-ray', false)` | A panel button that fades context tissue to see-through. `fig.xray([objs], on)` registers objects without a button (then use `xray` in story beats or views). `fig.xrayOn` reads the state. |
 | `fig.slider / fig.toggle / fig.button` | Custom panel controls: `(label, min, max, step, value, onInput)`, `(label, on, onChange)`, `(label, onClick)`. |
 | `fig.setReadout([{k, v, cls:'ok'|'warn'}])` | A quiet row of numbers under the stage (interactive only). Use it only when a number is the point. `v` may be an array of segments `[{v:'healthy 1.5 mm ✓', cls:'ok'}, {v:'perio 5.0 mm ⚠', cls:'warn'}]`. **Compute every value from the same constants that place the geometry.** |
-| `fig.story([shots])` | The motion, as a shot list. Each shot: `{dur, hold, theta, phi, zoom, focus, explode, section, offset, xray, ease, drift, labels, caption}`. Numbers ease with smootherstep over `dur` seconds (default 1.2; `ease: 'out' | 'in' | 'linear'` to change the curve), then the camera rests for `hold` (default 0.6) with a barely visible orbit drift and push-in (`drift: 0` pins it). `focus: [x, y, z]` (world mm) moves the orbit centre so a smaller `zoom` becomes a push-in on that part; `focus: 'auto'` returns to the fitted centre. Unset keys carry over; the first shot starts from the home view. `section:true` turns the cut on at `offset` in place — to **sweep** the cut in, turn it on at an offset outside the figure in a `dur: 0` shot, then move `offset` in the next. `xray` is 0..1. `labels` lists the part names to show (`'all'`, `[]`); they land as the move settles. `caption` is one line, video only, fading in on its beat. Interactive pages play the story once on load (any touch stops it); video loops it; image shows its last frame. |
+| `fig.story([shots])` | The motion, as a shot list. Each shot: `{dur, hold, theta, phi, zoom, focus, explode, section, offset, xray, ease, drift, labels, caption}`. Numbers ease with smootherstep over `dur` seconds (default 1.2; `ease: 'out' | 'in' | 'linear'` to change the curve), then the camera rests for `hold` (default 0.6) with a barely visible orbit drift and push-in (`drift: 0` pins it). `focus: [x, y, z]` (world mm) moves the orbit centre so a smaller `zoom` becomes a push-in on that part; `focus: 'auto'` returns to the fitted centre. Unset keys carry over; the first shot starts from the home view. `section:true` turns the cut on at `offset` in place — to **sweep** the cut in, turn it on at an offset outside the figure in a `dur: 0` shot, then move `offset` in the next. `xray` is 0..1. `labels` lists the part names to show (`'all'`, `[]`); they land as the move settles. `caption` is kept for the coming video mode and is not shown today. Interactive pages play the story once on load (any touch stops it); image shows its last frame. |
 | `fig.param(name, value, fn)` | A number the story can animate. `fn(v)` updates the scene (move a drill, deepen an osteotomy, lower the bone). Beats set it with `set: { name: v }`; it eases like the camera. Objects a param moves go in `fig.world` with `inPlace: true` parts (explode resets regular parts). Stepping back or jumping to a step resets **every** param to that step's end, so a step only needs to set what it changes. |
-| `fig.procedure([{label, caption, beats:[…]}], opts)` | Named clinical steps, each a few beats (a step without `beats` is one beat). `key: true` on a beat picks the storyboard frame. Interactive: a stepper (‹ n/N label › ▶) in the panel; forward plays the step, back eases to the previous step's end. The play button shows its state: ▶ when idle (plays from the current step, or from the start on the last step), a pressed ■ while anything plays (click to stop), with a progress line under the step name. Video: all steps, each beat captioned with its step's `caption`. Image: a numbered storyboard grid. `fig.step` and `fig.goStep(i)` read and set the step. |
+| `fig.procedure([{label, caption, beats:[…]}], opts)` | Named clinical steps, each a few beats (a step without `beats` is one beat). `key: true` on a beat picks the storyboard frame. Interactive: a stepper (‹ n/N label › ▶) in the panel; forward plays the step, back eases to the previous step's end. The play button shows its state: ▶ when idle (plays from the current step, or from the start on the last step), a pressed ■ while anything plays (click to stop), with a progress line under the step name. Image: a numbered storyboard grid. (`caption` is stored for the coming video mode.) `fig.step` and `fig.goStep(i)` read and set the step. |
 | `fig.goTo(state, dur)` | Ease from the current state to `state` (story keys). |
 | `fig.onFrame((dt, e) => …)` | Per-frame hook. `e` is the eased explode amount 0..1. Update the readout only when a value changes. |
 | `fig.section` | `{enabled, offset, plane, set(on, pos)}` after `enableSection`. Use `fig.section.plane` as `material.clippingPlanes = [plane]` for extra non-solid meshes that should be cut too. |
 | `fig.orbit` | `{theta, phi, dist, zoom, target, auto}`. Prefer `fig.view` / `fig.goTo` over setting it directly (direct sets jump instead of easing). |
-| `fig.exportPNG(scale)`, `fig.savePNG()`, `fig.recordVideo()`, `fig.seek(t)`, `fig.duration` | Export (used by the page's Download buttons and by `render.py`). `seek(t)` freezes the live loop and renders the story at time `t`, deterministically. |
+| `fig.exportPNG(scale)`, `fig.savePNG()`, `fig.seek(t)`, `fig.duration` | Export (used by the page's Download buttons and by `render.py`). `seek(t)` freezes the live loop and renders the story at time `t`, deterministically. |
 | `fig.setState({home, explode, theta, phi, dist, section, offset})` | Jump to a state instantly (used by `check.py`). With auto-fit, `dist` is a zoom factor (1 = fitted). |
 | `fig.steps` | `[{label, t}]`: each procedure step and the story time of its key frame. `fig.seek(t)` shows it (`check.py --step i`, `render.py --sheet`). |
 | `fig.start()` | Call last. |
@@ -85,6 +85,38 @@ Canal spec (in `spec.canals`): `{root: index, dx, dz (offset from the root centr
 | `DK.COLORS` | Palette hex values (enamelCap, dentinCap, pulpCap, corticalCap, gingivaCap, nerve, artery, vein, pdl, gutta, accent, accentDark …). The palette is deliberately restrained — muted ivories, greys and dusty tones from the brand's off-white / ink world — so a figure reads as one calm object. Keep custom colours in that family; loud reds, candy pinks or saturated oranges break the look. |
 | `fig.accent`, `fig.accentHex`, `fig.dark` | The brand accent for the current theme as a linear `THREE.Color` (for a marker material) and as CSS hex, plus whether the page is in dark mode. One accent per figure: the thing the viewer must find. A second, warm emphasis (`0xB4541A`) is allowed only when a figure truly needs two. |
 | `DK.mm(v)` | Formats a number as `"2.5 mm"`. |
+
+## Topic modules
+
+<!-- topic: arch -->
+### Primary teeth, third molars, arch layouts and numbering charts
+_(reserved)_
+<!-- end topic: arch -->
+
+<!-- topic: caries -->
+### Caries and direct restorations
+_(reserved)_
+<!-- end topic: caries -->
+
+<!-- topic: perio -->
+### Periodontal disease
+_(reserved)_
+<!-- end topic: perio -->
+
+<!-- topic: prosth -->
+### Fixed prosthetics: bridges, veneers, inlays and onlays
+_(reserved)_
+<!-- end topic: prosth -->
+
+<!-- topic: ortho -->
+### Orthodontics: brackets, archwires, aligners, tooth movement
+_(reserved)_
+<!-- end topic: ortho -->
+
+<!-- topic: endo -->
+### Endodontic instruments and root canal treatment
+_(reserved)_
+<!-- end topic: endo -->
 
 ## Pitfalls
 - Section groups must be **closed solids**. Tubes need `caps` unless they end flush at the bone face (implant example). Canals that should show red in a cut need their own group after dentin.

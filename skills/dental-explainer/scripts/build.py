@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Assemble a standalone dental figure page: three.js r128 (cdnjs) + dentkit.js inlined + the figure script.
 
-usage: python3 build.py figure.js -o figure.html [--title "Page title"] [--mode interactive|image|video] [--aspect 16:9|1:1|4:5|9:16] [--three-local three.min.js]
-  --mode sets how the page presents the figure (default interactive). image and video pages carry a Download button;
-  scripts/render.py turns them into a .png or .mp4 directly.
+usage: python3 build.py figure.js -o figure.html [--title "Page title"] [--mode interactive|image] [--aspect 16:9|1:1|4:5|9:16] [--three-local three.min.js]
+  --mode sets how the page presents the figure (default interactive). Image pages carry a Download PNG button;
+  scripts/render.py turns them into a .png directly. Video is coming soon and is not available yet.
   --three-local inlines a local three.js r128 file instead of loading it from cdnjs.
 """
 from __future__ import annotations
@@ -40,6 +40,8 @@ if __name__ == "__main__":
     ap.add_argument("--mode", choices=["interactive", "image", "video"], default="interactive")
     ap.add_argument("--aspect", choices=["16:9", "1:1", "4:5", "9:16", "4:3"], default="16:9")
     a = ap.parse_args()
+    if a.mode == "video":
+        raise SystemExit("Video is coming soon and isn't available yet. Build --mode interactive (plays the story on load) or --mode image.")
     src = pathlib.Path(a.figure)
     out = pathlib.Path(a.out) if a.out else src.with_suffix(".html")
     out.write_text(build(src.read_text(), a.title, a.three_local, a.mode, a.aspect))

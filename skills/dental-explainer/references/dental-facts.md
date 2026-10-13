@@ -290,6 +290,48 @@ Reductions depend on the **crown material** and differ between sources and manuf
 
 ---
 
+<!-- topic: arch -->
+## 15. Primary teeth, third molars, arch layouts and numbering charts
+_(reserved)_
+<!-- end topic: arch -->
+
+---
+
+<!-- topic: caries -->
+## 16. Caries and direct restorations
+_(reserved)_
+<!-- end topic: caries -->
+
+---
+
+<!-- topic: perio -->
+## 17. Periodontal disease
+_(reserved)_
+<!-- end topic: perio -->
+
+---
+
+<!-- topic: prosth -->
+## 18. Fixed prosthetics: bridges, veneers, inlays and onlays
+_(reserved)_
+<!-- end topic: prosth -->
+
+---
+
+<!-- topic: ortho -->
+## 19. Orthodontics: brackets, archwires, aligners, tooth movement
+_(reserved)_
+<!-- end topic: ortho -->
+
+---
+
+<!-- topic: endo -->
+## 20. Endodontic instruments and root canal treatment
+_(reserved)_
+<!-- end topic: endo -->
+
+---
+
 ## Sources
 - Dental notation (FDI, Universal, Palmer, mappings): https://en.wikipedia.org/wiki/Dental_notation
 - Wheeler's crown and root lengths (excerpt): https://medicalsutras.in/post/dimensions-of-teeth-methods-of-measurement

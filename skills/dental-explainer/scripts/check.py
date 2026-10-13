@@ -69,6 +69,8 @@ def main():
         print(f"renderer: {gl}", flush=True)
         for width, tag in [(1100, ""), (390, "-mobile")]:
             pg = b.new_page(viewport={"width": width, "height": 900}, color_scheme="dark" if a.dark else "light")
+            if "SwiftShader" in gl or "swiftshader" in gl.lower():
+                pg.set_default_timeout(180000)   # software GL (CI): shots of heavy figures take far longer than on a GPU
             pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
             pg.on("console", lambda m: errors.append(f"console.{m.type}: {m.text}") if m.type == "error" else None)
             _browser.route_three(pg, three)
@@ -94,6 +96,8 @@ def main():
                 shots.append(f); print("shot", f, flush=True)
             pg.close()
         # one contact sheet of every shot, so a single look covers the whole check
+        b.close()   # the sheet is plain HTML: shoot it in a fresh browser without WebGL (a software-GL browser that ran heavy figures can fail to capture)
+        b = p.chromium.launch()
         imgs = "".join(f'<figure><img src="data:image/png;base64,{base64.b64encode(s.read_bytes()).decode()}"><figcaption>{s.stem}</figcaption></figure>' for s in shots)
         pg = b.new_page(viewport={"width": 1800, "height": 900})
         pg.set_content(f"""<style>body{{margin:0;background:#fff;font:600 15px sans-serif;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}}

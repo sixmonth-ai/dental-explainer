@@ -41,6 +41,8 @@ def main():
         # the frame is width x width/aspect; the page adds ~60px for the action row
         pg = b.new_page(viewport={"width": width + 32, "height": 1400}, device_scale_factor=1, color_scheme="dark" if a.dark else "light")
         pg.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+        if "swiftshader" in gl.lower():
+            pg.set_default_timeout(180000)   # software GL (CI): heavy figures load far slower than on a GPU
         _browser.route_three(pg, _browser.three_path(a.three_local))
         if unreleased:
             pg.add_init_script("window.DK_ENABLE_VIDEO = true;")

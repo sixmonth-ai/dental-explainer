@@ -1,0 +1,42 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dental-explainer",
+  "version": "1.2.0",
+  "description": "Turns any dental concept into an accurate, interactive 3D figure: exploded views, cross-sections, implants, endo, perio, restorations. Built from real millimetre dimensions and a verified dental facts file.",
+  "author": { "name": "Sixmonth", "url": "https://sixmonth.ai" },
+  "homepage": "https://github.com/sixmonth-ai/dental-explainer",
+  "repository": "https://github.com/sixmonth-ai/dental-explainer",
+  "license": "MIT",
+  "keywords": ["dental", "dentistry", "3d", "education", "implants", "endodontics", "periodontics", "anatomy"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dental Explainer",
+        "shortDescription": "Accurate 3D dental figures",
+        "longDescription": "Dental Explainer turns a dental concept into an accurate 3D figure, delivered as an image, a short video or an interactive page. It covers exploded views of implants and restorations, tooth cross-sections, root and canal anatomy, numbering charts and procedure steps such as implant placement or a crown preparation.\n\nEvery model is built from real millimetre dimensions and checked against a verified dental facts file, so the anatomy, numbering (FDI and Universal) and implant rules are right. It is made for dentists, dental students and patient educators who need a figure for a lecture, a patient conversation or social media.\n\nAsk in plain words, for example \"Show an exploded view of an implant replacing 36\". The assistant asks which format you want unless you say.\n\nLimitations: figures are parametric and population-average, not built from a patient's scans or radiographs. Soft tissue is schematic, and implants are drawn generically without brand geometry. Interactive pages load three.js from cdnjs.cloudflare.com; the plugin sends no data anywhere.",
+        "developerName": "Sixmonth",
+        "category": "Education & Research",
+        "capabilities": [
+          "3D dental figures as an image, video or interactive page",
+          "Exploded views, cross-sections and procedure steps",
+          "FDI and Universal tooth numbering"
+        ],
+        "websiteURL": "https://sixmonth.ai",
+        "supportURL": "https://www.sixmonth.ai/contact/",
+        "privacyPolicyURL": "https://www.sixmonth.ai/privacy/",
+        "defaultPrompt": [
+          "Show an exploded view of an implant replacing 36",
+          "Why does MB2 get missed in upper first molars? Cut through the tooth",
+          "Root-filled premolar with fibre post, core and crown, for patients"
+        ],
+        "brandColor": "#0B0B0B",
+        "brandColorDark": "#F3F2EE",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "publication": {
+        "release_notes": "Faster figures, crown preparations, and a clearer play button in interactive pages."
+      }
+    }
+  }
+}

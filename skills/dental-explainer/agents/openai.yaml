@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dental Explainer"
+  short_description: "Accurate 3D dental figures"
+  default_prompt: "Show an exploded view of an implant replacing 36"

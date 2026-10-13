@@ -30,7 +30,7 @@
 
 ## Install
 
-`dental-explainer` follows the open [Agent Skills](https://agentskills.io) format. The skill lives in [`skills/dental-explainer/`](skills/dental-explainer), a folder with a `SKILL.md` at its root, and the repo doubles as a Claude plugin marketplace.
+`dental-explainer` follows the open [Agent Skills](https://agentskills.io) format. The skill lives in [`skills/dental-explainer/`](skills/dental-explainer), a folder with a `SKILL.md` at its root, and the repo doubles as a plugin marketplace for Claude, ChatGPT and Codex.
 
 **Claude (web & desktop app): no download needed**
 
@@ -43,8 +43,9 @@ It updates automatically when the repo changes. For screenshots and page assembl
 | Where | How |
 |---|---|
 | **Claude Code** | `/plugin marketplace add sixmonth-ai/dental-explainer`, then `/plugin install dental-explainer@sixmonth` |
-| **Codex, Cursor, OpenCode, Copilot, Gemini CLI** | `npx skills add sixmonth-ai/dental-explainer` |
-| **ChatGPT** (plans with Skills), or Claude by ZIP | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)** and upload it as is (don't unzip it). ChatGPT: **Skills → Create → Upload from your computer**. Claude: **Settings → Capabilities → Skills → Upload a skill**. |
+| **Codex, ChatGPT desktop app** | `codex plugin marketplace add sixmonth-ai/dental-explainer`, then `codex plugin add dental-explainer@sixmonth`. In the ChatGPT desktop app, restart it and install **Dental Explainer** from the **Sixmonth** source in the Plugins Directory. |
+| **Cursor, OpenCode, Copilot, Gemini CLI** | `npx skills add sixmonth-ai/dental-explainer` |
+| **ChatGPT on the web** (plans with Skills), or Claude by ZIP | Download **[`dental-explainer.zip`](https://github.com/sixmonth-ai/dental-explainer/releases/latest/download/dental-explainer.zip)** and upload it as is (don't unzip it). ChatGPT: **Skills → Create → Upload from your computer**. Claude: **Settings → Capabilities → Skills → Upload a skill**. |
 | **Manual** | `git clone https://github.com/sixmonth-ai/dental-explainer.git && cp -r dental-explainer/skills/dental-explainer ~/.claude/skills/` |
 
 **What it runs and fetches.** Figures load three.js r128 from cdnjs.cloudflare.com, and each figure's footer links to sixmonth.ai. The optional scripts (Python, headless Chromium) run locally, and only when the agent has code execution. The skill sends no data anywhere.

@@ -149,7 +149,8 @@ dental-explainer/
     ├── SKILL.md                 the workflow the agent follows
     ├── references/
     │   ├── dental-facts.md      verified values and sources: the correction layer
-    │   └── kit-api.md           drawing-kit reference
+    │   ├── kit-api.md           drawing-kit reference
+    │   └── topics/              one guide per topic: perio, endo, caries, prosthetics, ortho, primary teeth and arches
     ├── assets/dentkit.js        3D kit (loads three.js r128 from cdnjs)
     ├── examples/                finished figures across every topic, .js source and .html pages
     └── scripts/                 build.py (assemble a page) · render.py (PNG, GPU when available) · check.py (screenshot and error check)

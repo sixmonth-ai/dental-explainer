@@ -17,6 +17,8 @@ Files in this skill:
   - `molar-36-section.js`: tissue layers in section with a movable cut.
   - `left-side-dentition.js`: a row of teeth with FDI and Universal numbering and mirrored maxillary teeth.
   - `post-core-crown-45.js`: restorative stack (root filling, fibre post, core, ferrule, hollow crown).
+  - `caries-46.js`: **caries progression** in section, one ICDAS stage per step, driven by `DK.cariesLesion`.
+  - `class-ii-composite-25.js`: a **Class II composite** procedure: lesion, step and box (`DK.cavityPrep`), selective caries removal, matrix and wedge, composite increments (`DK.filling`).
   - `crown-prep-13.js`: a **tooth preparation** procedure: the crown reduced step by step with `DK.prepMorph`, a moving `DK.bur`, a ghost of the removed tooth, the margin, then the crown seated. Start here for any prep (crown, veneer, onlay).
 - `scripts/build.py`: wraps your figure script into a standalone page (`--mode interactive|image`).
 - `scripts/render.py`: turns an image page into a `.png` (needs Playwright + Chromium; uses the GPU when there is one).
@@ -130,7 +132,10 @@ _(reserved)_
 
 <!-- topic: caries -->
 ### Caries and direct restorations
-_(reserved)_
+Numbers and stages: dental-facts.md §16 (ICDAS/ICCMS, lesion shapes, ICCC 2016 selective removal, Black's classes, prep dimensions, amalgam facts, the mistakes list).
+- **Caries progression** ("what is a cavity", "how decay reaches the pulp", ICDAS stages): copy `examples/caries-46.js`. One `DK.cariesLesion` driven by a `stage` param, one step per stage, mesio-distal cut through the lesion axis, hero shot on the lesion's path to the pulp. Occlusal lesions sit at the central pit (`site:'occlusal'`); proximal ones under the contact (`site:'mesial'`, `at` ≈ 0.45 × crown length). Say "stages follow ICDAS" in the subtitle. A white spot is chalky and the surface stays intact until stage 2; never draw early caries as a black hole.
+- **A filling** (Class I or II, composite or amalgam, sealant): copy `examples/class-ii-composite-25.js`. `DK.cavityPrep` (the void, animated with `set`) and `DK.filling` share one `PREP` object so the restoration seats exactly; the lesion is set to a dentin stage and `removed: 1` leaves the affected dentin as "firm dentin left" (selective removal, ICCC 2016). A Class II needs the neighbour in contact, a `DK.matrixBand` and a `DK.wedge`; composite goes in ≤ 2 mm increments (`fill.slice`). Amalgam: `DK.filling(..., 'amalgam')`, one increment, say it is not bonded. Sealant: `DK.sealant(tooth)` on a sound or ICDAS 1–2 fissure.
+- Watch for: the lesion must stay inside the crown (`size` ≤ 0.15 × MD); label anchors via `lesion.point()`; the prep void goes after the pulp in the section groups and is hidden once the last increment is flush; burs park out of view between steps.
 <!-- end topic: caries -->
 
 <!-- topic: perio -->

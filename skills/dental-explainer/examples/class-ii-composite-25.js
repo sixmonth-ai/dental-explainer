@@ -2,7 +2,7 @@
 // crown up (model convention), with the first premolar (24) mesial to it so the proximal lesion sits below the contact.
 // Seen in a mesio-distal cut: the lesion, the occlusal step and proximal box, selective caries removal (firm dentin left),
 // the matrix band and wedge, three composite increments, the finished restoration.
-// DK.cavityPrep (the void) and DK.filling (the composite) share the same PREP numbers, so the filling seats exactly.
+// DK.cavityPrep (the hole) and DK.filling (the composite) share the same PREP numbers, so the filling seats exactly.
 // Frame: +x = mesial, +z = buccal, CEJ at y = 0. All sizes in mm (dental-facts.md §16).
 const FDI = 25;
 const fig = DK.figure({
@@ -13,7 +13,7 @@ const fig = DK.figure({
 
 // --- teeth and context (bone and gingiva are context: fit: false)
 const tooth = DK.tooth(FDI), s = tooth.spec, L = tooth.layers;
-const t24 = DK.tooth(24), s24 = t24.spec; t24.group.position.x = s.md / 2 + s24.md / 2 - 0.15;   // in contact with 25
+const t24 = DK.tooth(24), s24 = t24.spec; t24.group.position.x = s.md / 2 + s24.md / 2 - 0.15; DK.inFront(t24.group);   // in contact with 25; may stand in front of the box
 const bone = DK.bone({ width: 26, height: 17, depth: 11, crest: 1.5 }); bone.position.set(3.4, -3.3, 0);
 const gum = DK.gingiva({ width: 26, height: 3.0, depth: 11.6, crest: 1.2, around: [{ x: 0, z: 0, md: s.mdC, bl: s.blC }, { x: t24.group.position.x, z: 0, md: s24.mdC, bl: s24.blC }] }); gum.position.set(3.4, -1.9, 0);
 fig.part(bone, { name: 'Bone', label: false, fit: false, info: 'Alveolar bone (shown crown up).' });
@@ -29,7 +29,7 @@ fig.part(M.affected, { inPlace: true, name: 'Lesion', sub: 'under the contact', 
 fig.part(M.affected, { inPlace: true, name: 'Firm dentin left', sub: 'affected, remineralisable', anchor: () => lesion.point(A.enamel + A.dentin * 0.72, 0.1, 0), dim: false, info: 'Selective removal: only soft, infected dentin is removed. Firm, affected dentin over the pulp is left to remineralise (ICCC 2016).' });
 fig.part(L.pulp, { inPlace: true, name: 'Pulp', anchor: [0, 3, 0], info: 'Removing all stained dentin here would risk exposing the pulp.', when: (e, sec) => sec.enabled });
 
-// --- preparation and filling share PREP; the void stands 0.12 mm proud so the opening reads from outside
+// --- preparation and filling share PREP; the prep is drawn as a hole (inner walls, light cap in section)
 const PREP = { class: 2, side: 'mesial', depth: 0.2, box: { gingivalY: 2.7, width: 3.4, axial: 0.35 } };   // axial wall just inside the DEJ: the firm dentin beyond it stays
 const prep = DK.cavityPrep(tooth, PREP); tooth.group.add(prep);
 const fill = DK.filling(tooth, PREP, 'composite'); tooth.group.add(fill);
@@ -44,7 +44,7 @@ fig.part(wedge, { inPlace: true, name: 'Wedge', anchor: [0, 0.4, 3.5], info: 'Se
 
 // --- tools (fig.world, parked out of view)
 const fissureBur = DK.bur({ shape: 'flat', diameter: 1.0, head: 4.5 }), roundBur = DK.bur({ shape: 'round', diameter: 2.3, head: 2.3, length: 14 });   // ISO 023 round bur, slow speed
-[fissureBur, roundBur].forEach(b => fig.world.add(b));
+[fissureBur, roundBur].forEach(b => fig.world.add(DK.inFront(b)));
 fig.part(fissureBur, { inPlace: true, name: 'Fissure bur', anchor: [0, 6, 0], info: 'Flat-ended diamond: outline, depth and the box walls at high speed with water.' });
 fig.part(roundBur, { inPlace: true, name: 'Round bur', sub: 'slow speed', anchor: [0, 3, 0], info: 'Large round bur at slow speed (or a hand excavator) peels soft dentin without over-cutting.' });
 
@@ -70,9 +70,9 @@ fig.enableSection([0, 0, 1], [
   { objects: [M.affected], color: DK.COLORS.cariesFirm, kind: 'dentin' },
   { objects: [L.pulp, t24.layers.pulp], color: DK.COLORS.pulpCap },
   { objects: [M.infected], color: DK.COLORS.cariesSoft, kind: 'plain' },
-  { objects: [M.cavity], color: DK.COLORS.cavity, kind: 'plain' },
-  { objects: [prep], color: DK.COLORS.cavity, kind: 'plain' },
-  { objects: [fill], color: 0xe9e3d4, kind: 'plain' }
+  { objects: [M.cavity], color: DK.holeCap(fig), kind: 'plain' },
+  { objects: [prep], color: DK.holeCap(fig), kind: 'plain' },
+  { objects: [fill], color: 0xe6dac0, kind: 'plain' }   // warm ivory, ungrained: reads as a material, not tooth
 ]);
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-4, 4], offset: 0 } });
 
@@ -106,6 +106,6 @@ fig.procedure([
     { dur: 1.2, hold: 1.0, set: { fill: 1 }, labels: ['Composite', 'Matrix band'], key: true }] },
   { label: 'Finished', caption: 'Band off, contact restored, firm dentin sealed under the composite.', beats: [
     { dur: 1.0, hold: 0.1, set: { band: 0 }, labels: [] },
-    { dur: 2.2, hold: 2.2, theta: 0.3, phi: 1.3, zoom: 0.7, focus: [2, 4, 0], labels: ['Composite', 'Firm dentin left', 'Pulp'], key: true }] }
+    { dur: 2.2, hold: 2.2, theta: 0.3, phi: 1.3, zoom: 0.7, focus: [2, 4, 0], labels: ['Composite', 'Pulp'], key: true }] }
 ]);
 fig.start();

@@ -1462,13 +1462,13 @@
   // Lesions and direct restorations. Everything is probed off the real tooth meshes (ray casts in the tooth frame), so
   // lesions sit inside the enamel and dentin layers, follow the surface and the DEJ, and preparations open exactly on the
   // crown surface. All solids are closed (section-ready). Stages follow ICDAS / ICCMS (dental-facts.md §16).
-  Object.assign(DK.COLORS, { chalk: 0xf8f7f2, cariesSoft: 0x6a574a, cariesFirm: 0xc0a378, reactionary: 0xc7b28a, cavity: 0x554c45, amalgam: 0xb7babb, amalgamCap: 0x9fa3a5, gic: 0xe4ddc8, sealant: 0xefe9dc, wood: 0xd7bf90 });
+  Object.assign(DK.COLORS, { chalk: 0xf8f7f2, cariesSoft: 0x6a574a, cariesFirm: 0xc0a378, reactionary: 0xc7b28a, cavity: 0xeeeae1, cavityWall: 0xc4b596, amalgam: 0xb7babb, amalgamCap: 0x9fa3a5, gic: 0xe4ddc8, sealant: 0xefe9dc, wood: 0xd7bf90 });
   Object.assign(MAT_PRESETS, {
     chalk: { color: 'chalk', roughness: 0.95 },                                              // white-spot lesion body (demineralised, opaque enamel)
     cariesSoft: { color: 'cariesSoft', roughness: 0.85 },                                    // infected (soft) dentin
     cariesFirm: { color: 'cariesFirm', roughness: 0.7, bump: 'streaks', bumpScale: 0.02 },   // affected (firm, remineralisable) dentin
     reactionary: { color: 'reactionary', roughness: 0.65, bump: 'streaks', bumpScale: 0.02 },
-    cavity: { color: 'cavity', roughness: 0.9 },                                             // the void of a cavity or a preparation
+    cavity: { color: 'cavityWall', cap: 0xeeeae1, roughness: 0.75, bump: 'streaks', bumpScale: 0.02 },   // the hole of a cavity or a prep: its walls (back faces) and an 'empty' cap
     amalgam: { color: 'amalgam', roughness: 0.42, metalness: 0.8, cap: 0x9fa3a5 },
     gic: { color: 'gic', roughness: 0.55 },                                                  // glass-ionomer liner / base
     sealant: { color: 'sealant', roughness: 0.3, clearcoat: 0.4 },
@@ -1508,6 +1508,13 @@
     return (ud[key] = (y, z) => bilerp(g, NY, NZ, (y - y0) / dy, (z - z0) / dz));
   }
   // Copy a freshly built grid (same rows × cols) into a mesh's live geometry, so section stencils (which share it) follow.
+  // A hole without CSG: the solid of the cut space shows only its inner walls (back faces), drawn after the tooth and
+  // without a depth test, so the recess overwrites the enamel surface above it; in section its cap is painted in a light
+  // 'empty' tone. Objects that can stand in front of a hole (tools, bands, fillings, neighbours) get renderOrder 2.
+  function asHole(mesh) { mesh.material.side = T.BackSide; mesh.material.depthTest = false; mesh.material.needsUpdate = true; mesh.renderOrder = 1; return mesh; }
+  DK.asHole = asHole; DK.inFront = obj => { obj.traverse(m => { if (m.isMesh) m.renderOrder = 2; }); return obj; };
+  // Cut-face colour of a hole: exactly the stage tone of the theme (the same convention as the endo access cavities).
+  DK.holeCap = fig => fig.dark ? 0x1D1C19 : 0xE9E4D9;
   function morphInto(mesh, g) { const p = mesh.geometry.attributes.position; p.array.set(g.attributes.position.array); p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); g.dispose(); }
 
   /* Caries lesion in the enamel and dentin of a tooth, driven by a continuous `stage` (0 sound → 1 white spot → 2 enamel
@@ -1541,7 +1548,7 @@
     const mk = (name, mat, rows) => { const m = new T.Mesh(gridGeometry(rows - 1, nTh, () => [0, 0, 0], [0, 0, 0], [0, 0, 0]), mat); m.name = name; m.userData.rows = rows; grp.add(m); return m; };
     const meshes = {
       enamel: mk('Enamel lesion', DK.mat('chalk'), 12), affected: mk('Affected dentin', DK.mat('cariesFirm'), 10), infected: mk('Infected dentin', DK.mat('cariesSoft'), 10),
-      reactionary: mk('Reactionary dentin', DK.mat('reactionary'), 9), cavity: mk('Cavity', DK.mat('cavity'), 8)
+      reactionary: mk('Reactionary dentin', DK.mat('reactionary'), 9), cavity: asHole(mk('Cavity', DK.mat('cavity', { color: 0x8c7a69 }), 8))   // stained walls
     };
     // a closed spindle: ringFns[i](k) → point of ring i; caps at the first and last ring centres
     const build = (mesh, rings, bottom, top) => morphInto(mesh, gridGeometry(rings.length - 1, nTh, (i, j) => rings[i](j), top, bottom));
@@ -1569,10 +1576,10 @@
         for (let j = 0; j <= 6; j++) { const u = j / 6, r = rB * Math.pow(1 - u, 0.8); rings.push(k => pt(dej(r, k) + 0.02 + u * Ld, r, k)); }
         build(mesh, rings, pt(dej(0, 0) + 0.02, 0, 0), pt(dej(0, 0) + 0.02 + Ld, 0, 0)); mesh.visible = f > 0.01; };
       cone(meshes.affected, rD, fD); cone(meshes.infected, rD * 0.9, fInf);
-      // cavity: a bowl from the surface (0.1 mm proud, so it reads as an opening from outside) into the lesion
-      { const rings = []; for (let j = 0; j < 3; j++) { const r = rC * Math.sin(Math.PI / 2 * j / 3); rings.push(k => pt(surf(r, k, -0.1), r, k)); }
-        for (let j = 0; j <= 4; j++) { const u = j / 4, r = rC * Math.sqrt(1 - u * u * 0.96); rings.push(k => pt(surf(r, k, -0.1) + u * cav, r, k)); }
-        build(meshes.cavity, rings, pt(surf(0, 0, -0.1), 0, 0), pt(surf(0, 0, -0.1) + cav, 0, 0)); meshes.cavity.visible = cav > 0.02; }
+      // cavity: a bowl from just under the surface into the lesion, drawn as a hole (inner walls only)
+      { const rings = []; for (let j = 0; j < 3; j++) { const r = rC * Math.sin(Math.PI / 2 * j / 3); rings.push(k => pt(surf(r, k, 0.02), r, k)); }
+        for (let j = 0; j <= 4; j++) { const u = j / 4, r = rC * Math.sqrt(1 - u * u * 0.96); rings.push(k => pt(surf(r, k, 0.02) + u * cav, r, k)); }
+        build(meshes.cavity, rings, pt(surf(0, 0, 0.02), 0, 0), pt(surf(0, 0, 0.02) + cav, 0, 0)); meshes.cavity.visible = cav > 0.02; }
       // reactionary (tertiary) dentin: a lens on the pulp wall under the lesion, bulging into the pulp space
       { const rings = []; for (let j = 0; j < 4; j++) { const r = rL * j / 3; rings.push(k => pt(tP(r, k) - 0.03, r, k)); }
         for (let j = 1; j <= 4; j++) { const r = rL * (1 - j / 4), b = h * (1 - (r / rL) ** 2); rings.push(k => pt(tP(r, k) + b, r, k)); }
@@ -1588,11 +1595,11 @@
 
   /* Cavity preparation as a closed solid of the space cut: a Class I occlusal outline (a rounded box along the central
      groove, flat pulpal floor just below the DEJ) and, for Class II, a proximal box dropped from the marginal ridge to a
-     gingival floor, its axial wall just inside the DEJ. Drawn in the `cavity` material it reads as the hole (it stands
-     `over` mm proud of the surface so the opening shows from outside; put it in a section group after the pulp). The same
-     call with over: 0 and a restorative material is the filling that seats in it exactly (DK.filling). */
+     gingival floor, its axial wall just inside the DEJ. In the default `cavity` material it is drawn as a hole (inner walls
+     only, see asHole; light 'empty' cap in a section group after the pulp). The same call with a restorative material is
+     the filling that seats in it exactly (DK.filling). */
   DK.cavityPrep = function (tooth, o) {
-    o = Object.assign({ class: 1, side: 'mesial', center: null, length: null, isthmus: null, floorY: null, depth: 0.3, taper: 0, box: null, over: 0.12, material: 'cavity' }, o);
+    o = Object.assign({ class: 1, side: 'mesial', center: null, length: null, isthmus: null, floorY: null, depth: 0.3, taper: 0, box: null, over: -0.02, material: 'cavity' }, o);
     const s = tooth.spec, sg = o.side === 'mesial' ? 1 : -1, cls = o.class, ysurf = topGrid(tooth);
     const dentin = probeMesh(tooth.layers.dentin.isMesh ? tooth.layers.dentin : tooth.layers.enamel);
     const dejAt = (x, z) => { const t = castDist(dentin, new T.Vector3(x + 0.07, s.crownL + 6, z + 0.05), new T.Vector3(0, -1, 0));   /* off the apex ring (a 0.05 mm hole) */ return Number.isNaN(t) ? ysurf(x, z) - 1.6 : s.crownL + 6 - t; };
@@ -1600,17 +1607,17 @@
     const len = o.length ?? (cls === 2 ? s.md * 0.5 : s.md * 0.48), isth = o.isthmus ?? Math.max(1.4, s.bl * 0.22);
     const floorY = o.floorY ?? dejAt(cx, cz) - o.depth;
     const dims = { floorY, isthmus: isth, length: len, center: [cx, cz] };
-    const mat = DK.mat(o.material, o.material === 'cavity' ? { cap: DK.COLORS.cavity } : {});
-    const grp = new T.Group(); grp.name = o.material === 'cavity' ? 'Preparation' : 'Filling'; grp.tooth = tooth; grp.opts = o; grp.dims = dims;
+    const hole = o.material === 'cavity', mat = DK.mat(o.material, hole ? { cap: DK.COLORS.cavity } : {});
+    const grp = new T.Group(); grp.name = hole ? 'Preparation' : 'Filling'; grp.tooth = tooth; grp.opts = o; grp.dims = dims;
     const NS = 9, NB = 10, cols = 64, outline = roundedRect(1, 1, 0.42);
-    const step = new T.Mesh(gridGeometry(NS - 1, cols, () => [0, 0, 0], [0, 0, 0], [0, 0, 0]), mat); step.name = 'Occlusal step'; grp.add(step); grp.step = step;
+    const step = new T.Mesh(gridGeometry(NS - 1, cols, () => [0, 0, 0], [0, 0, 0], [0, 0, 0]), mat); step.name = 'Occlusal step'; grp.add(step); grp.step = step; if (hole) asHole(step); else step.renderOrder = 2;
     let box = null, bx = null;
     if (cls === 2) {
       const xs = sideGrid(tooth, sg), dejX = (y, z) => { const t = castDist(dentin, new T.Vector3(sg * (s.md / 2 + 4), y, z), new T.Vector3(-sg, 0, 0)); return Number.isNaN(t) ? xs(y, z) - sg * 1.2 : sg * (s.md / 2 + 4 - t); };
       const b = Object.assign({ gingivalY: s.crownL * 0.28, width: Math.max(2.4, s.bl * 0.36), widthOcclusal: null, axial: 0.6 }, o.box || {});
       const yG = b.gingivalY, xA = dejX(yG, 0) - sg * b.axial, bwG = b.width, bwO = b.widthOcclusal ?? bwG * 0.85;
       bx = { yG, xA, bwG, bwO, xs }; Object.assign(dims, { gingivalY: yG, axialX: xA, boxWidth: bwG });
-      box = new T.Mesh(gridGeometry(NB - 1, cols, () => [0, 0, 0], [0, 0, 0], [0, 0, 0]), mat); box.name = 'Proximal box'; grp.add(box); grp.box = box;
+      box = new T.Mesh(gridGeometry(NB - 1, cols, () => [0, 0, 0], [0, 0, 0], [0, 0, 0]), mat); box.name = 'Proximal box'; grp.add(box); grp.box = box; if (hole) asHole(box); else box.renderOrder = 2;
     }
     const over = o.over, topAt = (x, z) => ysurf(clamp(x, -s.md / 2 + 0.4, s.md / 2 - 0.4), clamp(z, -s.bl / 2 + 0.4, s.bl / 2 - 0.4)) + over;
     function set(kStep, kBox) {
@@ -1650,7 +1657,7 @@
   // A direct filling that seats exactly in DK.cavityPrep(tooth, prepOpts): same geometry, flush with the surface, in
   // 'composite' | 'amalgam' | 'gic'. fill.slice(from, to) shows an increment (y range); fill.slice() the whole thing.
   DK.filling = function (tooth, prepOpts, material) {
-    const f = DK.cavityPrep(tooth, Object.assign({}, prepOpts, { over: 0.0, material: material || 'composite' }));
+    const f = DK.cavityPrep(tooth, Object.assign({}, prepOpts, { over: 0.03, material: material || 'composite' }));   // a hair proud: no z-fighting with the enamel it replaces
     f.name = material === 'amalgam' ? 'Amalgam' : material === 'gic' ? 'Liner' : 'Composite'; return f;
   };
   // Fissure sealant: a thin resin lens flowed along a groove (path in normalised crown coordinates, −1..1), filling the
@@ -1678,14 +1685,14 @@
     for (let i = 0; i < n; i++) { const a = -o.sweep / 2 + o.sweep * i / (n - 1), cx = sg * Math.cos(a), cz = Math.sin(a); let d = castDist(pm, new T.Vector3(cx * R, yc, cz * R), new T.Vector3(-cx, 0, -cz)); if (Number.isNaN(d)) d = R - s.bl / 2 * 0.95; const rho = R - d + o.gap; prof.push([cx * rho, cz * rho, cx, cz]); }
     const t = o.thickness / 2, g = gridGeometry(n - 1, 4, (i, j) => { const [px, pz, nx, nz] = prof[i], inn = j === 0 || j === 3 ? -t : t, y = o.bottom + (j >= 2 ? o.height : 0); return [px + inn * nx, y, pz + inn * nz]; },
       [prof[n - 1][0], o.bottom + o.height / 2, prof[n - 1][1]], [prof[0][0], o.bottom + o.height / 2, prof[0][1]]);
-    const m = new T.Mesh(g, DK.mat('steel', { side: T.DoubleSide, cap: 0x9ea4aa })); m.name = 'Matrix band'; return m;
+    const m = new T.Mesh(g, DK.mat('steel', { side: T.DoubleSide, cap: 0x9ea4aa })); m.name = 'Matrix band'; m.renderOrder = 2; return m;
   };
   // Interproximal wedge (triangular prism, base gingival, apex occlusal), axis along z (inserted from the buccal), tip at −z.
   DK.wedge = function (o) {
     o = Object.assign({ length: 9, height: 2.2, width: 1.6, taper: 0.45 }, o);
     const tri = [[0, o.height], [-o.width / 2, 0], [o.width / 2, 0]];
     const g = gridGeometry(1, 3, (i, j) => { const sc = i ? o.taper : 1, [x, y] = tri[j]; return [x * sc, y * sc - o.height * 0.5, i ? -o.length / 2 : o.length / 2]; }, [0, -o.height * 0.2, -o.length / 2], [0, 0, o.length / 2]);
-    const m = new T.Mesh(g, DK.mat('wood', { side: T.DoubleSide })); m.name = 'Wedge'; return m;
+    const m = new T.Mesh(g, DK.mat('wood', { side: T.DoubleSide })); m.name = 'Wedge'; m.renderOrder = 2; return m;
   };
   /* ==== end topic: caries ==== */
 

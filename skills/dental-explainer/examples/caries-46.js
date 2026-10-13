@@ -48,7 +48,7 @@ fig.enableSection([0, 0, 1], [
   { objects: [L.pulp], color: DK.COLORS.pulpCap },
   { objects: [M.reactionary], color: DK.COLORS.reactionary, kind: 'dentin' },
   { objects: [M.infected], color: DK.COLORS.cariesSoft, kind: 'plain' },
-  { objects: [M.cavity], color: DK.COLORS.cavity, kind: 'plain' }
+  { objects: [M.cavity], color: DK.holeCap(fig), kind: 'plain' }
 ]);
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-3.5, 3.5], offset: 0 } });
 

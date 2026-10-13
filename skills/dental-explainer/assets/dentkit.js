@@ -556,8 +556,10 @@
       vec2 q = vec2(dot(vW, uU), dot(vW, uV));
       vec3 l = (uFrame * vec4(vW, 1.0)).xyz;
       vec3 col = uColor;
-      if (uKind == 1 || uKind == 2) { // dentinal tubules / enamel rods radiate from the pulp, tilting up toward the cusps
-        float r = length(l.xz) + 1e-4; vec2 dir = l.xz / r; float yy = l.y + smoothstep(-1.0, 4.0, l.y) * 0.5 * r;
+      // dentinal tubules / enamel rods radiate from the pulp, tilting up toward the cusps; dir is softened at the axis
+      // (l.xz / r flips sign there and drew a seam on cuts through it)
+      if (uKind == 1 || uKind == 2) {
+        float r = length(l.xz) + 1e-4; vec2 dir = l.xz / (r + 0.8); float yy = l.y + smoothstep(-1.0, 4.0, l.y) * 0.5 * r;
         float a = nz(dir * 0.42 + vec2(yy * 0.33, yy * 0.19)).r, b = nz(dir * 1.7 + vec2(yy * 0.55, -yy * 0.31) + r * 0.02).b;
         float g = (a - 0.5) * 0.9 + (b - 0.5) * 0.5;
         col *= 1.0 + g * (uKind == 1 ? 0.17 : 0.09) + (nz(q * 0.05).g - 0.5) * (uKind == 1 ? 0.09 : 0.04);

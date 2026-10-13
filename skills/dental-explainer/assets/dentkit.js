@@ -1471,7 +1471,227 @@
   /* ==== end topic: prosth ==== */
 
   /* ==== topic: ortho (Orthodontics: brackets, archwires, aligners, tooth movement) ==== */
-  // (reserved)
+  // Fixed appliances, aligners and tooth-movement biology. Everything is built in the TOOTH frame (CEJ at y = 0, +x mesial,
+  // +z labial, gingival = −y) so a part placed on a tooth follows that tooth's transform (mirroring, arch rotation).
+  const IN = 25.4;
+  // Edgewise slot sizes (inch → mm): 0.022 × 0.028 in and 0.018 × 0.025 in (dental-facts.md §9 and §19)
+  DK.SLOTS = { '0.022': { w: 0.022 * IN, d: 0.028 * IN, name: '0.022 × 0.028 in' }, '0.018': { w: 0.018 * IN, d: 0.025 * IN, name: '0.018 × 0.025 in' } };
+  // Archwire size → {h: occluso-gingival, d: labio-lingual, round, name}. '0.014' (round) or '0.019x0.025' (rectangular, inches), or {h, d} in mm.
+  DK.wireSize = function (size) {
+    if (typeof size === 'object') return Object.assign({ round: size.h === size.d, name: `${size.h} × ${size.d} mm` }, size);
+    const m = String(size).toLowerCase().replace(/["in\s]/g, '').split(/[x×]/).map(Number);
+    if (m.length === 1) return { h: m[0] * IN, d: m[0] * IN, round: true, name: `${m[0].toFixed(3)} in` };
+    return { h: m[0] * IN, d: m[1] * IN, round: false, name: `${m[0].toFixed(3)} × ${m[1].toFixed(3)} in` };
+  };
+  const v3 = a => new T.Vector3(a[0], a[1], a[2]);
+  // Facial (side = +1) or lingual (side = −1) crown surface of a preset: at(x, y) → {p: [x, y, z], n: [nx, ny, nz]} (tooth frame).
+  // Used to seat brackets, tubes, attachments and bands exactly on the crown.
+  function crownSurface(spec, side) {
+    side = side || 1; const ring = crownRingFn(spec);
+    const yTop = ring(1, side * Math.PI / 2)[1] - 0.2;
+    return {
+      yTop,
+      at(x, y) {
+        y = clamp(y, 0.1, yTop); let t = 0.5, th = side > 0 ? Math.PI / 2 : 3 * Math.PI / 2;
+        for (let k = 0; k < 3; k++) {
+          let lo = 0, hi = 1; for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (ring(m, th)[1] < y) lo = m; else hi = m; } t = (lo + hi) / 2;
+          const xMax = Math.abs(ring(t, 0)[0]) * 0.96, xc = clamp(x, -xMax, xMax);
+          let a = side > 0 ? 0 : Math.PI, b = side > 0 ? Math.PI : 2 * Math.PI;   // facial: x falls with th; lingual: x rises
+          for (let i = 0; i < 22; i++) { const m = (a + b) / 2, xm = ring(t, m)[0]; if (side > 0 ? xm > xc : xm < xc) a = m; else b = m; } th = (a + b) / 2;
+        }
+        const p = ring(t, th), d = 2e-3, pt = ring(Math.min(1, t + d), th), pth = ring(t, th + d);
+        const u = v3(pt).sub(v3(p)), w = v3(pth).sub(v3(p)), n = new T.Vector3().crossVectors(u, w).normalize();
+        if (n.x * p[0] + n.z * p[2] < 0) n.negate();
+        return { p, n: [n.x, n.y, n.z], t, th };
+      }
+    };
+  }
+  DK.crownSurface = crownSurface;
+  // Closed slab between an inner and an outer grid: fn(i, j) → [inner[3], outer[3]], i: 0..nu, j: 0..nv. Each face has its own
+  // vertices (sharp rims). wrapU: column nu repeats column 0 (a band around a crown).
+  function slabGeometry(nu, nv, fn, wrapU) {
+    const pos = [], uv = [], idx = [], G = [];
+    for (let i = 0; i <= nu; i++) { G[i] = []; for (let j = 0; j <= nv; j++) G[i][j] = fn(i, j); }
+    const add = (p, i, j) => { pos.push(p[0], p[1], p[2]); uv.push(i / nu, j / nv); return pos.length / 3 - 1; };
+    const P = k => new T.Vector3(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]);
+    const quad = (a, b, c, d, ref) => { const n = new T.Vector3().crossVectors(P(b).sub(P(a)), P(c).sub(P(a))); if (n.dot(ref) >= 0) idx.push(a, b, c, a, c, d); else idx.push(a, c, b, a, d, c); };
+    const out = p => v3(p[1]).sub(v3(p[0]));
+    [1, 0].forEach(k => { const id = []; for (let i = 0; i <= nu; i++) { id[i] = []; for (let j = 0; j <= nv; j++) id[i][j] = add(G[i][j][k], i, j); }
+      for (let i = 0; i < nu; i++) for (let j = 0; j < nv; j++) quad(id[i][j], id[i + 1][j], id[i + 1][j + 1], id[i][j + 1], out(G[i][j]).multiplyScalar(k ? 1 : -1)); });
+    const rim = (cells, ref) => cells.forEach(([i0, j0, i1, j1, ri, rj]) => { const a = add(G[i0][j0][0], i0, j0), b = add(G[i0][j0][1], i0, j0), c = add(G[i1][j1][1], i1, j1), d = add(G[i1][j1][0], i1, j1); quad(a, b, c, d, v3(G[i0][j0][0]).sub(v3(G[ri][rj][0]))); });
+    rim(Array.from({ length: nu }, (_, i) => [i, 0, i + 1, 0, i, 1])); rim(Array.from({ length: nu }, (_, i) => [i, nv, i + 1, nv, i, nv - 1]));
+    if (!wrapU) { rim(Array.from({ length: nv }, (_, j) => [0, j, 0, j + 1, 1, j])); rim(Array.from({ length: nv }, (_, j) => [nu, j, nu, j + 1, nu - 1, j])); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
+  }
+  DK.slabGeometry = slabGeometry;
+  // Sweep a 2-D profile (s → [a, b], a across the path's "up", b along the path's normal) along a THREE curve. Closed solid
+  // (flat end caps) unless o.closed (a ring). Wires, ligatures, chains, a gingival ridge along an arch.
+  function sweepGeometry(curve, profile, o) {
+    o = o || {}; const segs = o.segments || 96, cols = o.radial || 24, up = v3(o.up || [0, 1, 0]), closed = !!o.closed, P = [], U = [], N = [];
+    for (let i = 0; i <= segs; i++) { const t = closed ? (i % segs) / segs : i / segs, p = curve.getPointAt(t), tg = curve.getTangentAt(t).normalize(); const u = up.clone().sub(tg.clone().multiplyScalar(up.dot(tg))).normalize(); P.push(p); U.push(u); N.push(new T.Vector3().crossVectors(tg, u).normalize()); }
+    const g = gridGeometry(segs, cols, (i, j) => { const [a, b] = profile(j / cols); return [P[i].x + U[i].x * a + N[i].x * b, P[i].y + U[i].y * a + N[i].y * b, P[i].z + U[i].z * a + N[i].z * b]; },
+      closed ? null : [P[segs].x, P[segs].y, P[segs].z], closed ? null : [P[0].x, P[0].y, P[0].z]);
+    // orient outward (the profile's sense depends on the frame): test one surface triangle against the path point
+    const pa = g.attributes.position, ia = g.index.array, A = new T.Vector3().fromBufferAttribute(pa, ia[0]), B = new T.Vector3().fromBufferAttribute(pa, ia[1]), C = new T.Vector3().fromBufferAttribute(pa, ia[2]);
+    if (new T.Vector3().crossVectors(B.clone().sub(A), C.clone().sub(A)).dot(A.clone().sub(P[0])) < 0) { for (let k = 0; k < ia.length; k += 3) { const t = ia[k + 1]; ia[k + 1] = ia[k + 2]; ia[k + 2] = t; } g.index.needsUpdate = true; g.computeVertexNormals(); }
+    return g;
+  }
+  DK.sweepGeometry = sweepGeometry; DK.roundedRect = roundedRect;   // roundedRect(hw, hd, r): s → [a, b], a closed outline for sweeps
+  const box = (w, h, d, x, y, z, mat) => { const m = new T.Mesh(new T.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m; };
+  const bondPad = (surf, x0, y0, w, h, thick, mat) => { // bonding base: a patch of the crown surface, `thick` mm proud along +z (labial)
+    const g = slabGeometry(8, 8, (i, j) => { const q = surf.at(x0 + (i / 8 - 0.5) * w, y0 + (j / 8 - 0.5) * h); return [[q.p[0], q.p[1], q.p[2] - 0.04], [q.p[0], q.p[1], q.p[2] + thick]]; });
+    const m = new T.Mesh(g, mat); m.name = 'Base'; return m;
+  };
+  // Twin (Siamese) edgewise bracket seated on the labial surface. Origin of the returned group = the SLOT CENTRE (tooth frame);
+  // the pad hugs the crown. o.height: slot centre from the incisal edge / cusp tip (mm); default = mid-crown (Andrews' FA point).
+  // o.slot '0.022' | '0.018'; o.width (MD), o.tall (OG), o.x (MD offset), o.material 'steel' | 'ceramic'.
+  // group.wirePoint(wireDepthMm) → the wire's centre line point in the TOOTH frame (wire bottomed in the slot).
+  DK.bracket = function (specOrFdi, o) {
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    o = Object.assign({ slot: '0.022', height: null, x: 0, width: null, tall: 3.0, pad: 0.3, material: 'steel', gap: 0.5 }, o);
+    const S = typeof o.slot === 'string' ? DK.SLOTS[o.slot] : o.slot, surf = crownSurface(s), h = o.height ?? s.crownL / 2, y0 = s.crownL - h;
+    const W = o.width ?? clamp(s.md * 0.4, 2.6, 3.6), H = o.tall, mat = o.material === 'ceramic' ? DK.mat('ceramic', { cap: 0xe8e4dc }) : DK.mat('steel', { cap: 0x9ea4aa });
+    const c = surf.at(o.x, y0), x0 = c.p[0];
+    const pad = bondPad(surf, x0, y0, W + 0.3, H + 0.3, o.pad, mat);
+    let zb = -1e9; pad.geometry.attributes.position.array.forEach((v, k) => { if (k % 3 === 2) zb = Math.max(zb, v); });
+    const zf = zb + 0.55, zF = zf + S.d, wW = (W - o.gap) / 2, neckH = H / 2 - 0.6 - S.w / 2, capH = H / 2 - S.w / 2;
+    const grp = new T.Group(); grp.name = 'Bracket'; grp.add(pad);
+    grp.add(box(W, H - 1.2, zf - zb + 0.12, x0, y0, (zb - 0.12 + zf) / 2, mat));   // base body under the slot floor
+    [-1, 1].forEach(sx => [-1, 1].forEach(sy => {
+      const xw = x0 + sx * (o.gap / 2 + wW / 2);
+      grp.add(box(wW, neckH, S.d, xw, y0 + sy * (S.w / 2 + neckH / 2), zf + S.d / 2, mat));           // tie-wing neck (slot wall)
+      grp.add(box(wW, capH, 0.45, xw, y0 + sy * (S.w / 2 + capH / 2), zF - 0.225, mat));               // tie-wing cap (undercut for the ligature)
+    }));
+    const centre = [x0, y0, zf + S.d / 2];
+    grp.children.forEach(m => m.geometry.translate(-centre[0], -centre[1], -centre[2]));
+    grp.position.set(...centre);
+    grp.userData = { spec: s, slot: S, width: W, tall: H, floor: zf - centre[2], face: zF - centre[2], gap: o.gap, normal: c.n, height: h };
+    grp.wirePoint = d => [centre[0], centre[1], zf + (d ?? S.d) / 2];
+    return grp;
+  };
+  // Elastomeric O-ring around the four tie wings, in the BRACKET's frame (same position as the bracket in the tooth frame: add
+  // it to the same parent). o.color (muted grey by default), o.r (cross-section radius).
+  DK.ligature = function (bracket, o) {
+    o = Object.assign({ r: 0.22, color: 0xc9c5bc }, o); const u = bracket.userData, W = u.width, H = u.tall;
+    const zTop = (u.floor - 0.55 + 0.12 + (u.face - 0.45)) / 2, zSide = u.face - 0.08 + o.r, xa = W / 2 - 0.35, ya = H / 2 - 0.3, xs = W / 2 + 0.12, yc = H / 2 - 0.55;
+    const pts = [[-xa, ya, zTop], [xa, ya, zTop], [xs, yc, zSide], [xs, -yc, zSide], [xa, -ya, zTop], [-xa, -ya, zTop], [-xs, -yc, zSide], [-xs, yc, zSide]].map(p => v3(p));
+    const curve = new T.CatmullRomCurve3(pts, true, 'centripetal', 0.5);
+    const m = new T.Mesh(sweepGeometry(curve, s => [Math.cos(s * 2 * Math.PI) * o.r, Math.sin(s * 2 * Math.PI) * o.r], { segments: 96, radial: 12, closed: true, up: [0, 0, 1] }), DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.45 }));
+    m.name = 'Ligature'; m.position.copy(bracket.position); m.rotation.copy(bracket.rotation); m.scale.copy(bracket.scale); return m;
+  };
+  // Elastomeric power chain: a ring on each bracket joined by short links, built in WORLD coordinates from the brackets'
+  // current world transforms (place the brackets first). Returns one group to add to the scene.
+  DK.powerChain = function (brackets, o) {
+    o = Object.assign({ r: 0.22, color: 0xc9c5bc }, o); const grp = new T.Group(); grp.name = 'Power chain';
+    const mat = DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.45 }); const sides = [];
+    brackets.forEach(b => { b.updateWorldMatrix(true, false); const u = b.userData, lig = DK.ligature(b, o); lig.position.set(0, 0, 0); lig.rotation.set(0, 0, 0); lig.scale.set(1, 1, 1); lig.applyMatrix4(b.matrixWorld); grp.add(lig);
+      sides.push([new T.Vector3(-(u.width / 2 + 0.12), 0, u.face - 0.08 + o.r).applyMatrix4(b.matrixWorld), new T.Vector3(u.width / 2 + 0.12, 0, u.face - 0.08 + o.r).applyMatrix4(b.matrixWorld)]); });
+    for (let i = 0; i + 1 < sides.length; i++) { // link: from this ring's far side to the next ring's near side (whichever ends are closest)
+      const [a0, a1] = sides[i], [b0, b1] = sides[i + 1]; let best = null; [[a0, b0], [a0, b1], [a1, b0], [a1, b1]].forEach(([p, q]) => { const d = p.distanceTo(q); if (!best || d < best.d) best = { p, q, d }; });
+      grp.add(DK.tube([[best.p.x, best.p.y, best.p.z], [best.q.x, best.q.y, best.q.z]], o.r * 0.8, mat, { segments: 4, radial: 10 }));
+    }
+    return grp;
+  };
+  // Archwire through the points (wire centre line, any frame): CatmullRom through them, round or rectangular section.
+  // o.size '0.014' | '0.019x0.025' | {h, d}; o.material 'steel' | 'niti' | 'tma'; o.overhang mm beyond the end points.
+  DK.archwire = function (points, o) {
+    o = Object.assign({ size: '0.019x0.025', material: 'steel', overhang: 1.5, up: [0, 1, 0] }, o);
+    const sz = DK.wireSize(o.size), pts = points.map(p => v3(p));
+    if (o.overhang > 0 && pts.length > 1) { const ext = (a, b) => a.clone().add(a.clone().sub(b).setLength(o.overhang)); pts.unshift(ext(pts[0], pts[1])); pts.push(ext(pts[pts.length - 1], pts[pts.length - 2])); }
+    const curve = new T.CatmullRomCurve3(pts, false, 'centripetal', 0.5), r = sz.round ? sz.h / 2 : Math.min(0.06, sz.h / 3), prof = roundedRect(sz.h / 2, sz.d / 2, r);
+    const col = o.material === 'niti' ? DK.COLORS.nickelTi : o.material === 'tma' ? 0xa8a39a : DK.COLORS.steel;
+    const m = new T.Mesh(sweepGeometry(curve, s => { const [a, b] = prof(s); return [a, b]; }, { segments: Math.max(64, pts.length * 16), radial: sz.round ? 16 : 20, up: o.up }), DK.mat('steel', { color: col, cap: 0x9ea4aa }));
+    m.name = 'Archwire'; m.userData.size = sz; m.userData.curve = curve; return m;
+  };
+  // Molar tube (bondable, or on a band when o.band = band thickness): a rectangular tube on the buccal surface, slot through
+  // it mesio-distally; optional gingival hook. Same frame and wirePoint() as DK.bracket. o.length (MD), o.height from the cusp tip.
+  DK.molarTube = function (specOrFdi, o) {
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    o = Object.assign({ slot: '0.022', height: null, x: 0, length: 4.0, pad: 0.3, band: 0, hook: true, material: 'steel' }, o);
+    const S = typeof o.slot === 'string' ? DK.SLOTS[o.slot] : o.slot, surf = crownSurface(s), h = o.height ?? s.crownL * 0.45, y0 = s.crownL - h, L = o.length;
+    const mat = DK.mat('steel', { cap: 0x9ea4aa }), c = surf.at(o.x, y0), x0 = c.p[0], grp = new T.Group(); grp.name = 'Molar tube';
+    let zb;
+    if (o.band) zb = c.p[2] + o.band + 0.02;
+    else { const pad = bondPad(surf, x0, y0, L + 0.8, S.w + 2.4, o.pad, mat); grp.add(pad); zb = -1e9; pad.geometry.attributes.position.array.forEach((v, k) => { if (k % 3 === 2) zb = Math.max(zb, v); }); }
+    const wall = 0.35, Ty = S.w + 2 * wall, zf = zb + wall, zF = zf + S.d, zTop = zF + 0.3;
+    grp.add(box(L, Ty, zf - zb + 0.1, x0, y0, (zb - 0.1 + zf) / 2, mat));                                   // floor
+    grp.add(box(L, Ty, 0.3, x0, y0, zF + 0.15, mat));                                                       // roof
+    [-1, 1].forEach(sy => grp.add(box(L, wall, S.d, x0, y0 + sy * (S.w / 2 + wall / 2), zf + S.d / 2, mat)));  // gingival / occlusal walls
+    if (o.hook) { const xd = x0 - L / 2 + 0.4, yg = y0 - Ty / 2, zm = (zb + zTop) / 2; grp.add(DK.tube([[xd, yg + 0.2, zm], [xd, yg - 0.9, zm + 0.1], [xd, yg - 1.5, zm + 0.7]], 0.28, mat, { segments: 12, radial: 10 })); }   // hook curves gingivally (−y) then out
+    const centre = [x0, y0, zf + S.d / 2];
+    grp.children.forEach(m => { if (m.geometry) m.geometry.translate(-centre[0], -centre[1], -centre[2]); m.children.forEach(cc => cc.position.sub(v3(centre))); });
+    grp.position.set(...centre);
+    grp.userData = { spec: s, slot: S, length: L, floor: zf - centre[2], face: zF - centre[2], normal: c.n, height: h };
+    grp.wirePoint = d => [centre[0], centre[1], zf + (d ?? S.d) / 2];
+    return grp;
+  };
+  // Orthodontic band: a thin steel ring hugging the crown between y = o.bottom and o.top (tooth frame, mm above the CEJ).
+  DK.band = function (specOrFdi, o) {
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    o = Object.assign({ thickness: 0.15, bottom: 0.8, top: null }, o); const top = o.top ?? s.crownL - 1.8, ring = crownRingFn(s);
+    const tOf = y => { let lo = 0, hi = 1; for (let i = 0; i < 22; i++) { const m = (lo + hi) / 2; if (ring(m, Math.PI / 2)[1] < y) lo = m; else hi = m; } return (lo + hi) / 2; };
+    const t0 = tOf(o.bottom), t1 = tOf(top), nu = 96, nv = 10;
+    const g = slabGeometry(nu, nv, (i, j) => { const p = ring(lerp(t0, t1, j / nv), i / nu * 2 * Math.PI), r = Math.hypot(p[0], p[2]) || 1, ux = p[0] / r, uz = p[2] / r;
+      return [[p[0] + ux * 0.03, p[1], p[2] + uz * 0.03], [p[0] + ux * (0.03 + o.thickness), p[1], p[2] + uz * (0.03 + o.thickness)]]; }, true);
+    const m = new T.Mesh(g, DK.mat('steel', { cap: 0x9ea4aa })); m.name = 'Band'; m.userData.spec = s; return m;
+  };
+  // Composite aligner attachment on the facial surface: w (MD) × h (OG) × d (thickness) mm at (x, y) in the tooth frame.
+  // o.bevel 'gingival' (ledge faces gingivally: extrusion) | 'occlusal' | 'mesial' | 'distal' | null (flat).
+  DK.attachment = function (specOrFdi, o) {
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    o = Object.assign({ x: 0, y: null, w: 3, h: 2, d: 1, bevel: null, side: 1 }, o); const y0 = o.y ?? s.crownL / 2, surf = crownSurface(s, o.side);
+    const g = slabGeometry(6, 6, (i, j) => { const u = i / 6 - 0.5, v = j / 6 - 0.5, q = surf.at(o.x + u * o.w, y0 + v * o.h);
+      let k = 1; if (o.bevel === 'gingival') k = 0.85 - 0.75 * (v + 0.5); else if (o.bevel === 'occlusal') k = 0.1 + 0.75 * (v + 0.5); else if (o.bevel === 'mesial') k = 0.1 + 0.75 * (u + 0.5); else if (o.bevel === 'distal') k = 0.85 - 0.75 * (u + 0.5);
+      const dd = o.d * k; return [[q.p[0] - q.n[0] * 0.04, q.p[1] - q.n[1] * 0.04, q.p[2] - q.n[2] * 0.04], [q.p[0] + q.n[0] * dd, q.p[1] + q.n[1] * dd, q.p[2] + q.n[2] * dd]]; });
+    const m = new T.Mesh(g, DK.mat('composite', { color: 0xe4ddcc, cap: 0xe2dac8, roughness: 0.3 })); m.name = 'Attachment'; m.userData.spec = { x: o.x, y: y0, w: o.w, h: o.h, d: o.d, bevel: o.bevel, side: o.side }; return m;
+  };
+  // Clear aligner over one crown: a translucent shell `thickness` mm thick standing `gap` mm off the enamel, trimmed at the
+  // CEJ. o.bumps: [{x, y, w, h, d, side}] (the specs of DK.attachment meshes: `att.userData.spec`) bulge the shell over the attachments.
+  // Thickness defaults to 0.5 mm (a 0.75 mm sheet thins to ~0.4–0.55 mm when thermoformed, dental-facts.md §19).
+  DK.aligner = function (specOrFdi, o) {
+    const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
+    o = Object.assign({ thickness: 0.5, gap: 0.05, bumps: [], opacity: 0.42 }, o);
+    const bump = (p, extra) => { let dz = 0; o.bumps.forEach(b => { if ((b.side || 1) * p[2] <= 0) return; const fx = smooth(b.w / 2 + 0.35, b.w / 2 - 0.05, Math.abs(p[0] - b.x)), fy = smooth(b.h / 2 + 0.35, b.h / 2 - 0.05, Math.abs(p[1] - b.y)); dz = Math.max(dz, (b.d + extra) * fx * fy); });
+      if (!dz) return p; const r = Math.hypot(p[0], p[2]) || 1; return [p[0] + p[0] / r * dz, p[1], p[2] + p[2] / r * dz]; };
+    const surface = inset => { const ring = crownRingFn(s, inset); return gridGeometry(CROWN_ROWS, CROWN_COLS, (i, j) => bump(ring(i / CROWN_ROWS, j / CROWN_COLS * Math.PI * 2), -inset.side), null, null); };
+    const outer = surface({ side: -(o.gap + o.thickness), top: -(o.gap + o.thickness), reliefScale: 1, topScale: 1, cervical: 1 });
+    const inner = surface({ side: -o.gap, top: -o.gap, reliefScale: 1, topScale: 1, cervical: 1 });
+    const mat = new T.MeshPhysicalMaterial({ color: DK.color(0xf3f5f7), roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.1, transparent: true, opacity: o.opacity, depthWrite: false, envMapIntensity: 1.2 });
+    mat.userData.capColor = 0xdfe3e6;
+    const m = new T.Mesh(shellGeometry(outer, inner), mat); m.name = 'Aligner'; m.renderOrder = 10; m.userData.spec = { thickness: o.thickness, gap: o.gap }; return m;
+  };
+  /* --- tooth movement biology --- */
+  // Centre of resistance of a single-rooted tooth: about 40% (33–42%) of the root length below the alveolar crest.
+  // crestY: bone crest in the tooth frame (negative). Returns y (tooth frame).
+  DK.centreOfResistance = function (spec, crestY, fraction) {
+    const r = spec.roots[0], len = r.len + crestY; return crestY - (fraction ?? 0.4) * len;
+  };
+  // Move a tooth group inside its socket: `tip` radians about the x axis through (0, pivotY, 0) (negative = crown lingually,
+  // apex labially: uncontrolled tipping) plus a `shift` mm along z (negative = lingually: bodily movement).
+  DK.moveTooth = function (group, o) {
+    const th = o.tip || 0, p = o.pivotY || 0, dz = o.shift || 0;
+    group.rotation.set(th, 0, 0); group.position.set(group.position.x, p - p * Math.cos(th), -p * Math.sin(th) + dz); return group;
+  };
+  // Flat ribbon along a polyline (overlay marker: zones, outlines): width mm, `normal` = the plane's normal (e.g. [1,0,0] for a
+  // marker lying on a cut face with removeToward [1,0,0]). MeshBasicMaterial, exact colour, double-sided. o.alpha 0..1.
+  DK.ribbon = function (points, width, normal, o) {
+    o = o || {}; const n = v3(normal).normalize(), P = points.map(p => v3(p)), pos = [], idx = [];
+    P.forEach((p, i) => { const tg = (i < P.length - 1 ? P[i + 1].clone().sub(p) : p.clone().sub(P[i - 1])).normalize(), d = new T.Vector3().crossVectors(n, tg).normalize().multiplyScalar(width / 2);
+      pos.push(p.x - d.x, p.y - d.y, p.z - d.z, p.x + d.x, p.y + d.y, p.z + d.z); if (i) { const k = 2 * i; idx.push(k - 2, k - 1, k, k - 1, k + 1, k); } });
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new T.Mesh(g, o.material || new T.MeshBasicMaterial({ color: o.color instanceof T.Color ? o.color : DK.color(o.color ?? DK.COLORS.accent), toneMapped: false, side: T.DoubleSide, transparent: true, opacity: o.alpha ?? 1, depthWrite: false }));
+    m.name = o.name || 'Marker'; return m;
+  };
+  // Flat arrow from `from` to `to` (a force): shaft `width` mm, head `head` mm long. Same material rules as DK.ribbon.
+  DK.arrow = function (o) {
+    const n = v3(o.normal || [1, 0, 0]).normalize(), a = v3(o.from), b = v3(o.to), dir = b.clone().sub(a), L = dir.length(); dir.normalize();
+    const w = o.width || 0.5, hl = Math.min(o.head || 1.2, L * 0.6), hw = w * 2.2, side = new T.Vector3().crossVectors(n, dir).normalize(), base = a.clone().add(dir.clone().multiplyScalar(L - hl));
+    const pt = (p, s) => [p.x + side.x * s, p.y + side.y * s, p.z + side.z * s];
+    const pos = [...pt(a, -w / 2), ...pt(a, w / 2), ...pt(base, w / 2), ...pt(base, -w / 2), ...pt(base, -hw / 2), ...pt(base, hw / 2), b.x, b.y, b.z];
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6]); g.computeVertexNormals();
+    const m = new T.Mesh(g, o.material || new T.MeshBasicMaterial({ color: o.color instanceof T.Color ? o.color : DK.color(o.color ?? 0x3a3a36), toneMapped: false, side: T.DoubleSide, transparent: true, opacity: o.alpha ?? 1, depthWrite: false }));
+    m.name = o.name || 'Force'; return m;
+  };
   /* ==== end topic: ortho ==== */
 
   /* ==== topic: endo (Endodontic instruments and root canal treatment) ==== */

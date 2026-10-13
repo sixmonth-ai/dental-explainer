@@ -320,7 +320,78 @@ _(reserved)_
 
 <!-- topic: ortho -->
 ## 19. Orthodontics: brackets, archwires, aligners, tooth movement
-_(reserved)_
+Extends §9. Appliance sizes are **nominal**; measured slots run oversized (5–24 %, Cash et al. 2004) [V]. Brand prescriptions (MBT, Roth, Damon…) differ: say "MBT-style" or "typical", never one chart as universal.
+
+### Edgewise slots and brackets
+- **Slot sizes** [V]: the original edgewise slot was **0.022 × 0.028 in** (height × depth = 0.559 × 0.711 mm); **0.018 × 0.025 in** (0.457 × 0.635 mm) came later. The kit's `DK.SLOTS` carries both. (§9 tags the depths 0.025 / 0.028 in as [U]; the BMC Oral Health 2023 review confirms them, so §9 can drop that tag.)
+- **Twin (Siamese) bracket** [U, from patents and catalogues; no measured dimension study found]: four tie wings around the slot, roughly 2.5–3.5 mm mesio-distally and ~3 mm occluso-gingivally, bonded on a mesh base pad; "mini" twins are ~30 % shorter occluso-gingivally. The kit defaults to width ≈ 0.4 × crown MD (2.6–3.6 mm), 3.0 mm tall, ~1.3 mm profile.
+- **Placement** [V]: Andrews' straight-wire reference is the **FA point** (facial axis point): the centre of the clinical crown, both occluso-gingivally and mesio-distally, on the facial axis of the clinical crown. Molars use the buccal groove as the mesio-distal landmark. Charts give the slot-centre height from the incisal edge / cusp tip instead; the MBT chart for average maxillary crowns [V, smile-arc article quoting the MBT table]: **central 5.0, lateral 4.5, canine 5.0, first premolar 4.5 mm**. Second premolars and the mandibular arch are 0.5–1.0 mm less; molar tubes sit about 3–3.5 mm from the cusp tips [U]. Charts assume ideally proportioned crowns; short crowns take a lower row of the chart [V].
+- **Molar tubes** [V, catalogues]: bondable buccal tubes with the same slot sizes, 3.6–4.7 mm long on first molars (3.5–5.2 mm across brands), often with a gingival hook; a band (stainless-steel strip, 0.10–0.15 mm thick [V, band stock listing; U as the typical finished band]) carries a welded tube when bonding is unreliable.
+- **Elastomeric ligatures** [V, one catalogue]: polyurethane O-rings, about 2.8 mm outside / 1.2 mm inside diameter, ~0.8 mm thick, stretched over the four tie wings; replaced at each visit. **Power chain** = ligature modules joined in a strip (closed / short / long spacing) to close spaces [V]. Steel ligatures (~0.010 in) and self-ligating clips are alternatives [U].
+
+### Archwires
+- **Sizes** (inch → mm) [V, conversion; measured wires are within a few %]: 0.012 = 0.30, 0.014 = 0.36, 0.016 = 0.41, 0.018 = 0.46 mm round; 0.016 × 0.022 = 0.41 × 0.56, 0.017 × 0.025 = 0.43 × 0.64, **0.019 × 0.025 = 0.48 × 0.64**, 0.021 × 0.025 = 0.53 × 0.64 mm rectangular. In the slot the **first number is the occluso-gingival height**, the second the labio-lingual depth: a 0.019 × 0.025 wire lies flat in a 0.022 × 0.028 slot with ~0.08 mm of vertical play, so the slot's torque is expressed only with a near-full-size rectangular wire [V, torque-play study].
+- **Materials** [V, Angle Orthod 2014 torque study; U for the summary]: NiTi (superelastic / thermal, low continuous force: alignment), β-titanium / TMA (intermediate stiffness, formable: working and finishing), stainless steel (stiff: working wires, sliding mechanics, finishing), braided steel (very flexible finishing).
+- **Typical sequence in a 0.022 slot** [V, one clinician's published protocol; sequences vary]: aligning **0.014 NiTi → 0.018 NiTi**, working **0.019 × 0.025 NiTi → 0.019 × 0.025 steel** (or TMA), finishing 0.019 × 0.025 braided steel. Each stage lasts weeks to months.
+
+### Tooth movement: forces and biology
+- **Optimal force by movement** (Proffit, *Contemporary Orthodontics*; grams) [V, as quoted by two secondary sources]: **tipping 35–60**, **bodily movement (translation) 70–120**, root uprighting 50–100, rotation 35–60, and **intrusion 10–20** (one secondary source assigns 10–20 g to extrusion instead; Proffit's teaching is that intrusion takes the lightest force [U for the exact table]). These are guides: a systematic review found no evidence for one optimal magnitude (Ren et al. 2003) [V], and 50–250 cN gave comparable rates in a later review [V].
+- **Schwarz's optimal pressure** [V]: a continuous force producing a PDL pressure near capillary blood pressure, about **20–26 g/cm²** of root surface; heavier forces occlude the vessels.
+- **Centre of resistance** of a single-rooted tooth with normal bone: about **33–42 % of the root length apical to the alveolar crest** (≈ 0.4 of the embedded root; Papageorgiou 2005 review) [V]; often taught as "one-third to one-half of the root from the crest" [U]. Lecture notes measuring from the CEJ give one-quarter to one-third [V, not comparable]. It moves apically with bone loss and coronally with root resorption [V]. Multi-rooted teeth: in the furcation region [U].
+- **Tipping vs bodily movement** [U, standard teaching]: a single force at the bracket rotates the tooth about a point near (just apical to) the centre of resistance: the crown goes one way, the apex the other, with PDL compression at the cervical pressure side and the opposite apical side (two diagonal zones). Bodily movement needs a force **and** a counter-moment (moment-to-force ratio about 10:1, from a rectangular wire in the slot), so the whole root moves and the pressure zone runs the length of the root.
+- **PDL response** [V, Consolaro 2011; standard reviews]: on the **pressure side** blood flow falls and osteoclasts resorb the socket wall; on the **tension side** stretched fibres and osteoblasts deposit new bone (apposition). **Light force → frontal (direct) resorption** at the socket wall; **heavy force crushes the PDL into cell-free "hyalinised" tissue** and bone must be removed from the marrow side (**undermining / indirect resorption**), which stalls movement and raises root-resorption risk. Hyalinised areas are surrounded by osteoclasts at ~5 days and partly removed by ~9 days in rodents; in patients the delayed events take about 2–3 weeks per activation [V]. PDL width 0.15–0.38 mm (§6); draw it exaggerated to be seen.
+- **Phases** [V, lecture and review sources]: initial movement within the PDL space (0.4–0.9 mm in the first week), a **lag** of 2–3 weeks (longer with heavy force) while hyalinised tissue is cleared, then steady post-lag movement.
+- **Rate** [V, meta-analysis of canine retraction, 50 RCTs]: about **1 mm in the first month**, ~0.8 mm/month over three months (0.7–1.9 mm/month across studies); "~1 mm a month" is the usual summary.
+- **Bone remodels, it is not pushed aside** [U, standard teaching]: the socket follows the root by resorption ahead of it and apposition behind it; the surrounding bone keeps its volume. Teeth relapse until ligament and bone reorganise, hence retention.
+
+### Clear aligners
+- **Material and thickness** [V]: thermoformed single-layer **PET-G** or **polyurethane (TPU)** and multilayer TPU sheets, nominally **0.75 mm** (0.5–1.0 mm sheets exist; 0.75 mm sheets exert markedly more force than 0.5 mm). After thermoforming a shell is only **44–95 % of the sheet**: about **0.40–0.55 mm** over crowns (incisor ~0.51, canine ~0.39–0.52, molar ~0.44–0.49 mm) with a 0.3–0.5 mm gap to the tooth in micro-CT [V]. The kit draws 0.5 mm.
+- **Staging and wear** [V]: each aligner is built about **0.25 mm** (or 2° rotation, 1° torque) ahead of the teeth and worn **~22 h a day** for **7–14 days**; a 7-day change gave clinically similar accuracy to 14 days in half the time in one RCT [V].
+- **Attachments** [V]: bonded composite shapes (rectangles about **3–3.5 × 1.5–2 × 1 mm**, ellipsoids 3 × 2 × 1 mm, bevelled variants) give the plastic a surface to push on. Rotation needs attachments (bevelled rectangles did better than plain ones in a small pilot), extrusion a **gingivally bevelled** rectangle, bodily movement and torque a vertical or horizontal rectangle; without attachments an aligner mostly tips crowns [V, clinical guidance; U for the mechanics wording]. Proprietary "optimized" shapes are not clearly better than conventional rectangles [V].
+
+### Common AI mistakes (orthodontics)
+1. "Braces push teeth through the bone." Teeth move because the PDL triggers **bone remodelling**: resorption on the pressure side, apposition on the tension side. Bone is not displaced or compressed.
+2. "More force moves teeth faster." Heavy force hyalinises the PDL and needs undermining resorption: movement stalls and roots resorb. Light continuous force (tens of grams) is the aim.
+3. Treating a single force at the bracket as bodily movement. One force **tips** the tooth about a point near its centre of resistance; translation needs a counter-moment (a rectangular wire in the slot).
+4. Placing the centre of resistance at the CEJ, the crown or the apex. It is in the root, roughly 40 % of the embedded root length below the crest.
+5. Quoting "0.022 slot" in millimetres, or swapping slot and wire dimensions. Slots and wires are in **inches**; 0.022 in = 0.56 mm. The first wire number is the occluso-gingival height.
+6. One bracket height for all teeth, or brackets "at the gum line". Charts differ by tooth (MBT upper: 5.0 / 4.5 / 5.0 / 4.5 mm) and by prescription; the reference is the centre of the clinical crown.
+7. Starting treatment with a stiff rectangular steel wire. Alignment begins with thin round NiTi; rectangular steel comes later.
+8. "Aligners need no attachments" or "aligners can do anything braces do." Most rotations, extrusions and bodily movements need attachments, and some movements remain harder with aligners.
+9. An aligner "1 mm thick" or "paper thin". Sheets are ~0.75 mm and thin to ~0.4–0.55 mm when formed.
+10. Showing the PDL at true scale and calling it "compressed". At 0.2 mm it is invisible in a figure; exaggerate it and say so in the subtitle.
+
+### Sources (§19)
+- Slot history and dimensions, measured accuracy (BMC Oral Health 2023): https://bmcoralhealth.biomedcentral.com/counter/pdf/10.1186/s12903-023-03841-y.pdf
+- Cash, Good, Curtis & McDonald 2004, slot size evaluation (Angle Orthod 74:450–3): https://angle-orthodontist.kglmeridian.com/view/journals/angl/74/4/article-p450.xml
+- Bracket slot 0.022 in = 0.559 mm, Mini Uni-Twin (Solventum): https://www.solventum.com/en-us/home/v/v100113178
+- Twin bracket proportions (patent prose): https://patents.google.com/patent/US5618174
+- FA point (Andrews) and bracket placement: https://www.ortospecialized.es/wp-content/uploads/2024/03/CCO-Part-2.pdf
+- MBT bracket heights for average crowns (smile-arc placement article quoting the MBT table): https://orthopracticeus.com/a-new-table-to-guide-bracket-placement-based-on-the-concept-of-smile-arc-protection/
+- MBT chart use (premolars and molars 0.5–1 mm lower; chart assumes ideal crown proportions): https://www.oaepublish.com/articles/2573-0002.2017.12
+- Molar tube lengths (Victory Series, Solventum): https://www.solventum.com/en-gb/home/v/v000240118 ; Morelli tubes: https://www.net32.com/ec/morelli-022-stainless-steel-bondable-edgewise-buccal-d-195158
+- Band stock 0.10 / 0.15 mm (Morelli, via listing): https://medikabazaar.com/products/dentomech-band-material-orthodontic-accessory
+- Elastomeric ligature dimensions (UnoDent): https://www.ddgroup.com/orthodontics/elastomerics/uoe011--elastomeric-ligatures-regular-purple/
+- Power chain spacing options: https://www.trycare.co.uk/dental-products/orthodontics/elastomerics/power-chain/ueur001
+- Archwire sequence (IAO practice tip): https://www.iaortho.org/septembers-tip-there-are-too-many-orthodontic-arch-wires-which-ones-are-right-for-my-practice/
+- Wire materials and torque play, 0.018 vs 0.022 slots (Angle Orthod): https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4176837/
+- Measured wire dimensions (Progress in Orthodontics tables): https://progressinorthodontics.springeropen.com/articles/10.1186/s40510-014-0053-x/tables/4
+- Proffit force table (as cited): https://www.proligner.com/post/biomechanics-in-orthodontics-101 ; intrusion 10–20 g and root movement 50–100 g attributed to Proffit: https://pmc.ncbi.nlm.nih.gov/articles/PMC4588778
+- Ren, Maltha & Kuijpers-Jagtman 2003, optimum force systematic review: https://pubmed.ncbi.nlm.nih.gov/12607860/
+- Bodily movement 70–120 g and the 50–250 cN finding: https://www.researchgate.net/publication/336993809_Optimal_force_magnitude_for_bodily_orthodontic_tooth_movement_with_fixed_appliances_A_systematic_review
+- Schwarz capillary pressure (20–26 g/cm²): https://uomus.edu.iq/img/lectures21/MUCLecture_2024_2941573.pdf ; https://jnda.com.np/article/1d88ppq42gg.pdf
+- Centre of resistance 33–42 % of root length from the alveolar crest (Papageorgiou 2005 review): https://ibl.kb.nl/article/0000000140018/8/1/7 ; shifts with bone loss: https://www.uomus.edu.iq/img/lectures21/MUCLecture_2025_3150312.pdf
+- Burstone & Pryputniewicz 1980, centres of rotation (AJO 77:396–409), via: https://en.wikipedia.org/wiki/Center_of_resistance
+- Hyalinisation, frontal vs undermining resorption, timeline (Consolaro et al. 2011, Dental Press J Orthod): https://scielo.br/j/dpjo/a/JXmtnNQGs8FYQTzHf5Fw4wF/?lang=en
+- Phases of tooth movement and lag (lecture notes; Angle Orthod 2007 review): https://uomus.edu.iq/img/lectures21/MUCLecture_2024_2941573.pdf ; https://angle-orthodontist.kglmeridian.com/downloadpdf/view/journals/angl/77/3/article-p410.pdf
+- Pressure and tension side biology (Univ. of Bern review): https://boris.unibe.ch/184071/1/1-s2.0-S2212443823000413-main.pdf
+- Canine retraction rate, meta-analysis of 50 RCTs: https://www.nationalelfservice.net/dentistry/orthodontics/canine-retraction-duration-using-fixed-appliances/
+- Aligner thickness and gap after thermoforming, micro-CT (APOS Trends Orthod 2026): https://apospublications.com/micro-computed-tomography-evaluation-of-aligner-thickness-and-gap-width-after-thermoforming-process-a-comparative-study-of-three-different-materials/
+- Thermoforming systematic review (44–95 % of sheet thickness): https://scholar.ui.ac.id/en/publications/the-effect-of-thermoforming-on-aligner-thickness-a-systematic-rev/
+- Aligner materials (PET-G, TPU, multilayer) and 0.5 vs 0.75 mm forces: https://pmc.ncbi.nlm.nih.gov/articles/PMC10812913/ ; https://pmc.ncbi.nlm.nih.gov/articles/PMC7345642
+- Wear protocol 22 h, 0.25 mm per aligner, 7–14 days (Australasian Orthod J 2023): https://reference-global.com/download/article/10.2478/aoj-2023-0002.pdf ; 7- vs 14-day RCT (Angle Orthod 2021): https://angle-orthodontist.kglmeridian.com/view/journals/angl/91/2/article-p157.xml
+- Attachment dimensions and shapes (3.5 × 1.5 × 1 mm rectangles, 3 × 2 × 1 mm ellipsoids): https://scholarscompass.vcu.edu/etd/6904 ; optimized vs conventional: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11078502/
+- Attachment guidance per movement (rotation, extrusion, bodily): https://www.cdocs.com/resources/articles/maximizing-clear-aligner-efficiency-with-attachments/ ; bevelled vs plain rectangles (OHSU 2026 pilot): https://digitalcollections.ohsu.edu/record/44853/files/Gibbons.Spencer.2026.pdf
 <!-- end topic: ortho -->
 
 ---

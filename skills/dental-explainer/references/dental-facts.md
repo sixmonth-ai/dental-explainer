@@ -299,7 +299,94 @@ _(reserved)_
 
 <!-- topic: caries -->
 ## 16. Caries and direct restorations
-_(reserved)_
+
+### Detection and staging: ICDAS II / ICCMS [V]
+Visual codes for a clean, dry surface (Gugnani et al. 2011; ICDAS/ICCMS, Ismail et al. 2015):
+
+| ICDAS | What is seen | ICCMS stage | Radiograph (ICCMS) |
+|---|---|---|---|
+| 0 | Sound after 5 s of air drying | sound | — |
+| 1 | First visual change in enamel: opacity only after prolonged drying, or confined to a pit/fissure | **initial** | RA1 outer ½ enamel, RA2 inner ½ enamel ± to the DEJ |
+| 2 | Distinct change in enamel, seen wet ("white spot", may be brown) | initial | RA3 outer ⅓ of dentin |
+| 3 | Localised enamel breakdown (micro-cavitation), no visible dentin | **moderate** | RB4 middle ⅓ of dentin |
+| 4 | Underlying dark shadow from dentin, with or without enamel breakdown | moderate | RB4 |
+| 5 | Distinct cavity with visible dentin (< half the surface) | **extensive** | RC5 inner ⅓ of dentin |
+| 6 | Extensive distinct cavity with visible dentin (≥ half the surface); may reach the pulp | extensive | RC6 into the pulp |
+
+- ICCMS merges the codes: initial = 1–2, moderate = 3–4, extensive = 5–6. Management: initial → non-operative (fluoride, sealants, hygiene); moderate → minimally invasive, no or minimal dentin removal; extensive → restoration [V, Ismail 2015].
+- About 32 % of lesions radiographically in the outer third of dentin are cavitated, and about 72 % of those in the inner two thirds [V, Ismail 2015]. ICDAS does not map codes one-to-one onto histological depth; code 4 is usually deeper than 3 [V, Gugnani 2011].
+- `DK.cariesLesion` stage scale: 0 sound, 1 white spot (ICDAS 1–2), 2 enamel breakdown (3), 3 dentin cavity (4–5), 4 deep (6), 5 pulp exposure. Fractions interpolate.
+
+### Lesion shape and histology
+- **Smooth-surface (proximal, cervical) enamel lesion**: cone with a broad base at the surface and the **apex toward the DEJ** (follows the enamel rods). [V, lecture texts after Sturdevant; the 2007 Malaysian review]
+- **Pit-and-fissure enamel lesion**: starts on the fissure walls; in section a cone with the apex at the fissure and the **base toward the DEJ**, so it undermines more enamel and involves more dentin for the same opening. [V, same sources; U for exact proportions]
+- **Dentin lesion**: once the DEJ is reached the lesion **spreads laterally along the DEJ** (higher organic content) and pulpally along the tubules: a second cone with its **base at the DEJ** and apex toward the pulp, undermining the enamel. [V] Some authors argue the DEJ spread begins before the enamel cone arrives [U, Bjørndal, via a 2025 modelling paper].
+- **Enamel lesion zones** (from the advancing front outward): translucent zone (~1 % pore volume), dark zone (2–4 %), body of the lesion (5–25 %, the bulk of the mineral loss), and a **surface zone** (~1 %) that stays relatively intact until cavitation. [V for the four zones; U for the pore percentages, review-article values]. The kit draws the body as one chalky solid under an intact surface, not the four zones.
+- **Dentin lesion zones**: outer **infected dentin** (soft, bacteria-laden, collagen irreversibly denatured, cannot remineralise) and inner **affected dentin** (demineralised, collagen intact, remineralisable). Clinically the boundary is judged by hardness, not colour. [V, Kidd / ICCC 2016] Bond strength to affected dentin is ~33 % lower and to infected dentin ~78 % lower than to sound dentin, so the periphery of a cavity must be on sound tissue [V, review via search].
+- Slow lesions provoke **sclerotic (translucent) dentin** at the front and **reactionary (tertiary) dentin** on the pulp wall; fast lesions provoke little of either [V]. `DK.cariesLesion` adds a reactionary lens from stage ~2.5.
+- Remineralisation is possible only while the surface is intact (ICDAS 1–2, "non-cavitated"); **a cavitated lesion cannot heal**, it can only be arrested, sealed or restored [V, ICCC 2016; ADA 2018].
+
+### Minimal intervention: carious tissue removal (ICCC 2016 consensus) [V]
+Schwendicke et al., Adv Dent Res 2016;28(2):58–67, and the terminology paper (Innes et al. 2016, 28(2):49–57):
+- Carious tissue is removed only to make a durable, sealed restoration possible, never to "remove all bacteria". The cavity periphery (at the DEJ and the enamel margin) is prepared to **hard dentin** for a seal; over the pulp, soft or firm dentin is left.
+- **Shallow or moderately deep lesions** (not into the inner third/quarter of dentin): **selective removal to firm dentin** (a hand excavator meets resistance; "leathery" tissue may remain pulpally). Weak recommendation.
+- **Deep lesions** (inner third or quarter of dentin radiographically, risk of exposure): **selective removal to soft dentin** over the pulp in primary and permanent teeth; **stepwise removal** (re-entry after 6–12 months) is an option in permanent teeth. Strong recommendations.
+- **Non-selective removal to hard dentin** ("complete excavation") is **no longer advocated**.
+- Dentin hardness: soft (deforms, scoops easily), leathery (does not deform but lifts without much force), firm (resists an excavator; scratchy), hard (sound; a sharp instrument is needed). Hardness is the primary criterion; colour and moisture are secondary.
+- Liners: calcium hydroxide or GIC liners are **not necessary** to control a sealed lesion; a liner may help limit monomer penetration and protect the remaining thin dentin under a resin composite (weak recommendation). A systematic review found calcium hydroxide liners give no clinical benefit after selective/stepwise removal [V]. In the kit, a liner is `DK.filling(tooth, prep, 'gic').slice(floor, floor + 0.5)`; use it as an option, not a default.
+
+### Non-restorative management of non-cavitated lesions (ADA 2018) [V]
+Slayton et al., JADA 2018;149(10):837–849: for non-cavitated coronal lesions the panel prioritises **sealants** (occlusal), **5 % NaF varnish**, 1.23 % APF gel, 5,000 ppm fluoride toothpaste, **resin infiltration** (approximal) and **38 % silver diamine fluoride** to arrest lesions; it advises against 10 % CPP-ACP products. ADA/AAPD 2016 sealant guideline: sealants prevent and arrest occlusal pit-and-fissure lesions in children and adolescents (≈73 % fewer new lesions than fluoride varnish alone); they **can be placed over non-cavitated (ICDAS 1–2) lesions**; no material (resin vs glass ionomer) is preferred [V].
+
+### Cavity classification (G.V. Black) [V]
+| Class | Site |
+|---|---|
+| I | Pits and fissures: occlusal of premolars and molars, buccal/lingual pits of molars, lingual pits of upper incisors |
+| II | Proximal surfaces of premolars and molars (MO, DO, MOD) |
+| III | Proximal surfaces of incisors and canines, incisal edge intact |
+| IV | Proximal surfaces of incisors and canines involving the incisal angle |
+| V | Gingival third of the facial or lingual surface of any tooth |
+| VI | Cusp tips and incisal edges (a later addition, not in Black's original) |
+
+### Cavity preparation dimensions (teaching values) [V where noted]
+Columbia University operative manual (Class II amalgam, 2007) and lecture sources; Sturdevant values not reachable directly, so tagged [U] where only teaching:
+- **Pulpal floor**: ~0.5 mm into dentin for amalgam (≈1.5–2.0 mm from the cavosurface at the fossa; amalgam under 1.5 mm thick fractures) [V]. For adhesive composite the floor only needs to clear caries: ~0.2–0.5 mm into dentin, "just past the DEJ" [U]. Pulpal floor flat, internal line angles rounded [V].
+- **Isthmus**: as narrow as the caries allows; ~¼ of the intercuspal distance (Columbia: "just wider than the bur") [V, with sources ranging up to ⅓–½ for amalgam].
+- **Proximal box**: dropped from the thinned marginal ridge along the DEJ; **gingival floor clears the adjacent tooth by ~0.5 mm**; **axial wall 0.5–0.8 mm into dentin** (Columbia) [V]; box slightly wider at the gingival than the occlusal (walls diverge gingivally); buccal and lingual walls meet the surface at 90° [V]. Axio-pulpal line angle rounded. Amalgam walls converge occlusally for retention; composite walls need no convergence (bonded) [U].
+- `DK.cavityPrep` defaults: pulpal floor 0.3 mm below the DEJ at the fossa, isthmus max(1.4 mm, 0.22 × BL width), gingival floor at 0.28 × crown length, axial wall 0.6 mm inside the DEJ, box width 0.36 × BL width (≥ 2.4 mm), all overridable.
+- **Matrix**: a Class II needs a matrix band to rebuild the missing wall before packing; sectional matrix + wedge (+ separation ring) is the usual choice for composite [U, standard teaching].
+- **Composite**: placed and light-cured in **increments of ≤ 2 mm** (depth of cure; bulk-fill materials claim 4–5 mm but cure less reliably at 4 mm in hardness tests) [V, in-vitro studies via search]. Shrinkage is ~1–3 % by volume [U].
+- **Amalgam**: condensed in increments and carved; needs ≥ 1.5 mm thickness and mechanical retention (convergent walls, undercuts) because it does not bond [V/U].
+- **Sealant**: a low-viscosity resin (or glass ionomer) flowed into etched pits and fissures; a thin film that fills the fissure to its rims [V for use; thickness not specified in guidelines, the kit uses ~0.2 mm above the rim].
+- **Burs**: flat-ended fissure (e.g. 245/330 pear) or tapered diamond at high speed for the outline and box; a large round bur at slow speed or a spoon excavator for caries removal [U, standard teaching].
+
+### Amalgam safety (for the "mercury" question) [V]
+FDA (24 Sept 2020): most people are not harmed by the small amount of mercury vapour; non-mercury alternatives are recommended **when possible** for pregnant and nursing women, women planning pregnancy, children under 6, people with neurological disease, impaired kidney function or mercury allergy. **The FDA does not recommend removing or replacing intact amalgam fillings** unless medically necessary; removal briefly raises exposure. ADA/AAPD reaffirmed amalgam as durable, safe and effective. The Minamata Convention (2013) commits countries to phase down (not ban) amalgam.
+
+### Common AI mistakes (caries and fillings)
+- Drawing a cavity as a black hole punched in the surface. Early caries is a **white, chalky, intact surface**; the dentin lesion is much wider than the opening, spread along the DEJ, and the opening breaks in late. Brown/black is staining of a slow, arrested lesion, not the lesion itself.
+- Enamel cone the wrong way: smooth-surface lesions point **toward** the DEJ; fissure lesions widen **toward** the DEJ.
+- "Cavities heal with remineralisation." Only **non-cavitated** enamel lesions (ICDAS 1–2) can remineralise; once cavitated, a lesion can be arrested but the tissue does not grow back (enamel is acellular).
+- "The dentist removes all the decay." Current consensus is **selective** removal: soft or firm carious dentin is deliberately left over the pulp in deeper lesions; only the periphery is cut to hard dentin.
+- Drawing the pulpal floor deep into the pulp, or a box that touches the neighbour. Keep ~0.5 mm clearance and ≥ 1 mm of dentin over the pulp; cavity depth is set by the caries, not by a rule of 2 mm.
+- Composite placed in one bulk and "set hard" by waiting. Light-cured composite is placed in ≤ 2 mm increments, each cured.
+- "Amalgam fillings leak mercury and must be removed" and "silver fillings are banned." See FDA 2020 above; intact amalgam is left alone.
+- Class numbering mix-ups: Class II is proximal on **posterior** teeth; Class III/IV proximal on **anterior** teeth; Class V is cervical, any tooth.
+- Sealants only on sound teeth: sealants are also indicated over non-cavitated lesions (ADA/AAPD 2016).
+
+### Sources (section 16)
+- Gugnani N et al. ICDAS: a new concept. Int J Clin Pediatr Dent 2011;4(2):93–100: https://pmc.ncbi.nlm.nih.gov/articles/PMC5030492/
+- Ismail AI, Pitts NB, Tellez M. ICCMS: an example of a caries management pathway. BMC Oral Health 2015;15(Suppl 1):S9. doi:10.1186/1472-6831-15-S1-S9: https://pmc.ncbi.nlm.nih.gov/articles/PMC4580843/
+- Schwendicke F et al. Managing carious lesions: consensus recommendations on carious tissue removal. Adv Dent Res 2016;28(2):58–67. doi:10.1177/0022034516639271 (ICCC): https://oasisdiscussions.ca/wp-content/uploads/2016/04/Managing-Carious-Lesions-Consensus-Recommendations-on-Carious-Tissue-Removal-1.pdf
+- Innes NPT et al. Managing carious lesions: consensus recommendations on terminology. Adv Dent Res 2016;28(2):49–57. doi:10.1177/0022034516639276
+- Slayton RL et al. Evidence-based clinical practice guideline on nonrestorative treatments for carious lesions. JADA 2018;149(10):837–849: https://www.ada.org/resources/research/science-and-research-institute/evidence-based-dental-research/caries-management-clinical-practice-guidelines/evidence-based-clinical-practice-guideline-on-nonrestorative-treatments-for-caries-lesions
+- Wright JT et al. ADA/AAPD evidence-based clinical practice guideline for the use of pit-and-fissure sealants. JADA 2016;147(8):672–682: https://www.aapd.org/research/oral-health-policies--recommendations/pit_and_fissure_sealants/ ; ADA sealants topic page: https://www.ada.org/en/resources/research/science-and-research-institute/oral-health-topics/dental-sealants
+- Columbia University, Operative Dentistry: Class II cavity preparation (2007): https://ccnmtl.columbia.edu/projects/virtechs2006/pdfs/opclass2prep.pdf ; https://columbia.edu/itc/hs/dental/d7710/files/class2_amalgam.html
+- Enamel/dentin lesion histology and shapes (review and lecture sources): https://mail.e-mjm.org/2007/v62n3/Dental_Caries.pdf ; https://dentistry.mu.edu.iq/wp-content/uploads/2024/11/lec1.oper_.4.pdf ; https://pmc.ncbi.nlm.nih.gov/articles/PMC2759645 ; https://decisionsindentistry.com/article/clinical-treatment-of-deep-caries/
+- Calcium hydroxide liner systematic review (Dental Elf summary): https://www.nationalelfservice.net/dentistry/caries/calcium-hydroxide-lining-deep-caries-lesions/
+- Composite depth of cure, 2 mm increments: https://pmc.ncbi.nlm.nih.gov/articles/PMC7145244
+- G.V. Black classes: https://www.dentistryiq.com/dental-hygiene/student-hygiene/article/16352162/mustknow-classifications-of-dental-caries-for-the-national-dental-hygiene-boards ; https://semmelweis.hu/konzervalo-fogaszat/files/2021/03/Black-classification-pdf.pdf
+- FDA, recommendations for certain high-risk groups regarding dental amalgam (24 Sept 2020): https://www.fda.gov/news-events/press-announcements/fda-issues-recommendations-certain-high-risk-groups-regarding-mercury-containing-dental-amalgam ; AAPD response: https://aapd.org/about/about-aapd/news-room/latest-news/aapd-confirms-safety-and-effectiveness-of-amalgam-in-response-to-fda-report
 <!-- end topic: caries -->
 
 ---

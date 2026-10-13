@@ -4,7 +4,7 @@
 // (DK.alignerArch: rays cast from a spine through the crowns, 0.5 mm outside the enamel and the attachments, bridged across
 // the contacts, trimmed at the gingival margin). A labio-lingual cut through 21 shows the shell over the enamel and the
 // attachment inside its bump. Patient's right on the viewer's left. Arch frame: +x = patient's left, +z = anterior, y up. Sizes in mm.
-const THICK = 0.5, HOME = { theta: 0.68, phi: 1.98 };
+const THICK = 0.5, HOME = { theta: 0.58, phi: 1.98 };
 const fig = DK.figure({
   title: 'Clear aligner with attachments',
   subtitle: 'FDI 16–26 in the mouth. Shell ~0.5 mm; attachments are bonded composite.',
@@ -17,9 +17,9 @@ const ATT = {
   2: s => ({ x: 0, y: s.crownL * 0.42, w: 3, h: 2, d: 1, bevel: 'gingival', why: 'Gingivally bevelled rectangle: the aligner pushes on the ledge that faces the gum, so it can extrude the lateral.' }),
   1: s => ({ x: 0, y: s.crownL * 0.45, w: 3, h: 2, d: 1, bevel: null, why: 'Horizontal rectangle: lets the aligner apply torque and holds it seated on the incisor.' })
 };
-// --- the arch: full teeth with the roots shortened so they stay inside the thin ridge (only the cut through 21 shows a root)
+// --- crowns with internal layers only on 21 for the cutaway; its short root stays inside the ridge
 const arch = DK.arch({ jaw: 'maxilla', placement: 'jaw', teeth: [16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26],
-  build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 2.7) })); return DK.tooth(spec); } });
+  build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 2.7) })); return DK.tooth(spec, { omit: fdi === 21 ? [] : ['dentin', 'pulp', 'root'] }); } });
 fig.part(arch.group, { name: 'Upper arch', label: false, info: 'Maxillary teeth 16–26, in the mouth.' });
 arch.group.updateMatrixWorld(true);
 const teeth = [];
@@ -50,8 +50,8 @@ fig.part(shell, { inPlace: true, name: 'Shell', sub: `${THICK} mm over the ename
 fig.enableSection([1, 0, 0], [
   { objects: [ridge], color: DK.COLORS.gingivaCap },
   ...teeth.map(o => ({ objects: [o.t.layers.enamel], color: DK.COLORS.enamelCap })),
-  ...teeth.map(o => ({ objects: [o.t.layers.dentin, o.t.layers.root], color: DK.COLORS.dentinCap })),
-  ...teeth.map(o => ({ objects: [o.t.layers.pulp], color: DK.COLORS.pulpCap })),
+  ...teeth.filter(o => o.fdi === 21).map(o => ({ objects: [o.t.layers.dentin, o.t.layers.root], color: DK.COLORS.dentinCap })),
+  ...teeth.filter(o => o.fdi === 21).map(o => ({ objects: [o.t.layers.pulp], color: DK.COLORS.pulpCap })),
   { objects: teeth.filter(o => o.att).map(o => o.att), color: 0xe2dac8, kind: 'plain' },
   { objects: [shell], color: 0xd9dee2, kind: 'plain' }
 ]);

@@ -210,14 +210,14 @@
       // Width/length extrema remain the measured preset values; anatomy is shaped inward.
       if (c.anteriorShape) {
         const canine = c.anteriorShape === 'canine', u = Math.min(t / 0.72, 1), cap = clamp((t - 0.72) / 0.28, 0, 1);
-        const a = lerp(aC, aM, Math.sin(Math.min(1, u / 0.78) * Math.PI / 2));
+        const a = lerp(aC, aM, Math.sin(Math.min(1, u / (c.lowerAnterior ? 1 : 0.78)) * Math.PI / 2));
         const peak = 0.24, edge = Math.max(0.06, (c.incisalBL || 0.9) - sideIn * 0.45);
         const b = u < peak ? lerp(bC, bM, Math.sin(u / peak * Math.PI / 2))
           : lerp(bM, canine ? Math.max(edge, bM * 0.36) : edge, smooth(peak + 0.04, 1, u));
-        const k = canine ? Math.cos(cap * Math.PI / 2) : lerp(1, 0.90, smooth(0, 1, cap));
+        const k = canine ? (c.lowerAnterior ? 1 - cap : Math.cos(cap * Math.PI / 2)) : lerp(1, 0.90, smooth(0, 1, cap));
         const xn = se(Math.cos(th), lerp(n, 2, smooth(0.6, 1, t)));
         const zn = se(Math.sin(th), lerp(n, 2, smooth(0.6, 1, t)));
-        const shift = canine ? aM * 0.12 * smooth(0, 1, cap) : 0;
+        const shift = canine ? aM * 0.12 * (c.lowerAnterior ? cap : smooth(0, 1, cap)) : 0;
         const x = Math.max(0.03, a) * k * xn + shift;
         let z = Math.max(0.03, b) * (canine ? k : Math.cos(cap * Math.PI / 2)) * zn;
         // Convex labial ridge and a cervical cingulum enclosing a shallow lingual fossa.
@@ -225,12 +225,17 @@
         if (zn > 0) z *= 1 - (canine ? 0.16 : 0.08) * sculpt * xn * xn;
         else z *= 1 - 0.19 * smooth(peak + 0.04, peak + 0.14, u) * Math.exp(-Math.pow((u - 0.57) / 0.23, 2)) * sculpt * (1 - xn * xn);
         let y = H * (canine ? 0.78 * u + 0.22 * Math.sin(cap * Math.PI / 2) : 0.95 * u + 0.05 * Math.sin(cap * Math.PI / 2));
-        if (canine) {
+        if (canine && c.lowerAnterior) {
+          // Two cusp ridges (~108 degrees), joining the full contact width in the incisal third.
+          // Width increases continuously from cervix to contact; no cylindrical shoulder.
+          const rise = aM / Math.tan(54 * Math.PI / 180);
+          y = (H - rise) * u + rise * cap;
+        } else if (canine) {
           // Mesial cusp displacement makes the mesial ridge shorter than the distal ridge.
           y -= H * 0.035 * Math.max(0, -xn) * Math.sin(cap * Math.PI) ** 2;
         } else {
           // Incisal angles roll down into the proximal faces; distal is rounder.
-          y -= H * (0.025 * xn * xn + (xn < 0 ? 0.065 : 0.035) * Math.pow(Math.abs(xn), 6)) * smooth(0.48, 1, t);
+          y -= H * ((c.lowerAnterior ? 0.045 : 0.025) * xn * xn + (xn < 0 ? 0.065 : 0.035) * Math.pow(Math.abs(xn), 6)) * smooth(0.48, 1, t);
         }
         return [x, y, z];
       }
@@ -381,10 +386,10 @@
     roots: [{ x: 2.2, z: 2.4, len: 12, ra: 1.9, rb: 2.7, taper: 0.5, apex: [-1.4, 0.6], flare: [0.4, 0.3], start: -0.5 }, { x: -2.4, z: 2.5, len: 11.5, ra: 1.75, rb: 1.9, taper: 0.5, apex: [-0.6, 0.6], flare: [-0.5, 0.3], start: -0.5 },
       { x: 0, z: -2.5, len: 13, ra: 2.4, rb: 2.2, taper: 0.5, apex: [0, -1.6], flare: [0, -0.8], start: -0.5 }],
     trunk: 4, canals: [{ root: 0, dx: -0.2, dz: 0.9, r: 0.38, name: 'MB1' }, { root: 0, dx: 0.15, dz: -0.95, r: 0.3, name: 'MB2', short: 1.5 }, { root: 1, dx: 0, dz: 0, r: 0.35, name: 'DB' }, { root: 2, dx: 0, dz: 0, r: 0.5, name: 'P' }] };
-  P.mandCentral = { anteriorShape: 'incisor', name: 'Mandibular central incisor', crownL: 9, rootL: 12.5, md: 5, mdC: 3.5, bl: 6, blC: 5.3, incisal: true, incisalBL: 0.8, squareness: 2.3, contourAt: 0.9, blContourAt: 0.2,
+  P.mandCentral = { lowerAnterior: true, anteriorShape: 'incisor', name: 'Mandibular central incisor', crownL: 9, rootL: 12.5, md: 5, mdC: 3.5, bl: 6, blC: 5.3, incisal: true, incisalBL: 0.8, squareness: 2.3, contourAt: 0.9, blContourAt: 0.2,
     roots: [{ x: 0, z: 0, len: 12.5, ra: 1.75, rb: 2.6, taper: 0.62, apex: [-0.3, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.38, rbk: 0.7 }] };
   P.mandLateral = Object.assign({}, P.mandCentral, { name: 'Mandibular lateral incisor', crownL: 9.5, rootL: 14, md: 5.5, mdC: 4, bl: 6.5, blC: 5.8, roots: [{ x: 0, z: 0, len: 14, ra: 1.95, rb: 2.9, taper: 0.62, apex: [-0.5, 0] }] });
-  P.mandCanine = Object.assign({}, P.maxCanine, { name: 'Mandibular canine', crownL: 11, rootL: 16, md: 7, mdC: 5.5, bl: 7.5, blC: 7, roots: [{ x: 0, z: 0, len: 16, ra: 2.6, rb: 3.4, taper: 0.62, apex: [-0.4, 0] }] });
+  P.mandCanine = Object.assign({}, P.maxCanine, { lowerAnterior: true, name: 'Mandibular canine', crownL: 11, rootL: 16, md: 7, mdC: 5.5, bl: 7.5, blC: 7, roots: [{ x: 0, z: 0, len: 16, ra: 2.6, rb: 3.4, taper: 0.62, apex: [-0.4, 0] }] });
   P.mandPM1 = { name: 'Mandibular first premolar', crownL: 8.5, rootL: 14, md: 7, mdC: 5, bl: 7.5, blC: 6.5, squareness: 2.2, contourAt: 0.7,
     relief: DK.cuspRelief([{ x: 0, z: 0.35, h: 2.4, w: 0.42 }, { x: 0, z: -0.6, h: 0.7, w: 0.3 }], 0.2),
     roots: [{ x: 0, z: 0, len: 14, ra: 2.3, rb: 3.0, apex: [-0.6, 0] }], canals: [{ root: 0, dx: 0, dz: 0, r: 0.45 }] };
@@ -2618,7 +2623,7 @@
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
     o = Object.assign({ slot: '0.022', height: null, x: 0, width: null, tall: 3.0, pad: 0.3, material: 'steel', gap: 0.5 }, o);
     const S = typeof o.slot === 'string' ? DK.SLOTS[o.slot] : o.slot, surf = crownSurface(s), h = o.height ?? s.crownL / 2, y0 = s.crownL - h;
-    const W = o.width ?? clamp(s.md * 0.4, 2.6, 3.6), H = o.tall, mat = o.material === 'ceramic' ? DK.mat('ceramic', { cap: 0xe8e4dc }) : DK.mat('steel', { cap: 0x9ea4aa, roughness: 0.34, metalness: 0.82 });
+    const W = o.width ?? clamp(s.md * 0.4, 2.6, 3.6), H = o.tall, mat = o.material === 'ceramic' ? DK.mat('ceramic', { cap: 0xe8e4dc }) : DK.mat('steel', { cap: 0x9ea4aa, roughness: 0.52, metalness: 0.65 });
     const c = surf.at(o.x, y0), x0 = c.p[0], F = surfaceFrame(c);
     const zb = o.pad, zf = zb + 0.55, zF = zf + S.d, wW = (W - o.gap) / 2, neckH = H / 2 - 0.6 - S.w / 2, capH = H / 2 - S.w / 2;
     const grp = new T.Group(); grp.name = 'Bracket'; grp.add(bondPad(surf, F, x0, y0, W + 0.3, H + 0.3, o.pad, mat));
@@ -2676,7 +2681,7 @@
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
     o = Object.assign({ slot: '0.022', height: null, x: 0, length: 4.0, pad: 0.3, band: 0, hook: true, material: 'steel' }, o);
     const S = typeof o.slot === 'string' ? DK.SLOTS[o.slot] : o.slot, surf = crownSurface(s), h = o.height ?? s.crownL * 0.45, y0 = s.crownL - h, L = o.length;
-    const mat = DK.mat('steel', { cap: 0x9ea4aa, roughness: 0.34, metalness: 0.82 }), c = surf.at(o.x, y0), x0 = c.p[0], F = surfaceFrame(c), grp = new T.Group(); grp.name = 'Molar tube';
+    const mat = DK.mat('steel', { cap: 0x9ea4aa, roughness: 0.52, metalness: 0.65 }), c = surf.at(o.x, y0), x0 = c.p[0], F = surfaceFrame(c), grp = new T.Group(); grp.name = 'Molar tube';
     const zb = o.band ? o.band + 0.02 : o.pad;
     if (!o.band) grp.add(bondPad(surf, F, x0, y0, L + 0.8, S.w + 2.4, o.pad, mat));
     const wall = 0.35, Ty = S.w + 2 * wall, zf = zb + wall, zF = zf + S.d, zTop = zF + 0.3;
@@ -2734,7 +2739,21 @@
   DK.alignerArch = function (curve, meshes, o) {
     o = Object.assign({ thickness: 0.5, gap: 0.05, segments: 120, around: 36, sweep: 2.55, trimY: -0.9, down: [0, -1, 0], opacity: 0.16, maxDist: 16 }, o);
     const ray = new T.Raycaster(); ray.far = o.maxDist; const down = v3(o.down).normalize(), rows = [];
-    meshes.forEach(m => m.updateMatrixWorld(true));
+    meshes.forEach(m => m.updateWorldMatrix(true, false));
+    const bounds = meshes.map(m => {
+      m.geometry.computeBoundingSphere();
+      const sphere = m.geometry.boundingSphere.clone().applyMatrix4(m.matrixWorld);
+      if (m.name !== 'Attachment') {
+        const geometry = m.geometry.clone().applyMatrix4(m.matrixWorld);
+        const indices = Array.from(geometry.index.array);
+        geometry.boundingSphere = sphere.clone();
+        const probe = new T.Mesh(geometry, new T.MeshBasicMaterial({ side: T.DoubleSide }));
+        return { m, sphere, probe, indices };
+      }
+      m.geometry.computeBoundingBox();
+      return { m, sphere, box: m.geometry.boundingBox.clone().expandByScalar(0.3), inverse: m.matrixWorld.clone().invert() };
+    });
+    const localRay = new T.Ray(), pocketHit = new T.Vector3();
     // Rays start INSIDE crowns: allow the exiting outer enamel/attachment faces.
     // Restore the caller's materials even if a cast fails.
     const sides = new Map(); meshes.forEach(m => (Array.isArray(m.material) ? m.material : [m.material]).forEach(mat => { if (!sides.has(mat)) sides.set(mat, mat.side); mat.side = T.DoubleSide; }));
@@ -2743,15 +2762,43 @@
       const t = i / o.segments, P = curve.getPointAt(t), tg = curve.getTangentAt(t).normalize();
       const D = down.clone().sub(tg.clone().multiplyScalar(down.dot(tg))).normalize(), N = new T.Vector3().crossVectors(tg, D).normalize();
       const row = { P, dirs: [], d: [] };
+      const nearby = bounds.filter(b => Math.abs(b.sphere.center.clone().sub(P).dot(tg)) <= b.sphere.radius + 0.3);
+      // Every ray in a row lies in this plane. Reject triangles wholly on either side
+      // once per row, preserving the full-resolution surface and the original ray count.
+      const crowns = nearby.filter(b => b.probe).map(b => {
+        const g = b.probe.geometry, p = g.attributes.position, distances = new Float32Array(p.count);
+        for (let k = 0; k < p.count; k++) distances[k] = (p.getX(k) - P.x) * tg.x + (p.getY(k) - P.y) * tg.y + (p.getZ(k) - P.z) * tg.z;
+        const sliced = [];
+        for (let k = 0; k < b.indices.length; k += 3) {
+          const a = b.indices[k], c = b.indices[k + 1], d = b.indices[k + 2];
+          if (Math.min(distances[a], distances[c], distances[d]) > 1e-5 || Math.max(distances[a], distances[c], distances[d]) < -1e-5) continue;
+          sliced.push(a, c, d);
+        }
+        g.setIndex(sliced); return b.probe;
+      }), pockets = nearby.filter(b => b.box);
       for (let j = 0; j <= o.around; j++) {
         const ph = lerp(-o.sweep, o.sweep, j / o.around), dir = N.clone().multiplyScalar(Math.sin(ph)).add(D.clone().multiplyScalar(Math.cos(ph))).normalize();
-        ray.set(P, dir); const hits = ray.intersectObjects(meshes, false); let best = null;
+        ray.set(P, dir); const hits = ray.intersectObjects(crowns, false); let best = null;
         hits.forEach(h => { if (h.point.y * (-down.y) < o.trimY * (-down.y) || down.y === 0) { if (!best || h.distance > best.distance) best = h; } });
-        row.dirs.push(dir); row.d.push(best ? best.distance : null);
+        let distance = best ? best.distance : null;
+        pockets.forEach(b => {
+          localRay.copy(ray.ray).applyMatrix4(b.inverse);
+          // Ray starts inside the tooth, outside its facial attachment pocket. Use the far box face.
+          if (!localRay.intersectBox(b.box, pocketHit)) return;
+          const exitRay = new T.Ray(localRay.at(o.maxDist * 2, new T.Vector3()), localRay.direction.clone().negate());
+          if (!exitRay.intersectBox(b.box, pocketHit)) return;
+          pocketHit.applyMatrix4(b.m.matrixWorld);
+          const d = pocketHit.clone().sub(P).dot(dir);
+          if (d > 0 && d <= o.maxDist && pocketHit.y * (-down.y) < o.trimY * (-down.y)) distance = Math.max(distance ?? 0, d);
+        });
+        row.dirs.push(dir); row.d.push(distance);
       }
       rows.push(row);
     }
-    } finally { sides.forEach((side, mat) => { mat.side = side; }); }
+    } finally {
+      sides.forEach((side, mat) => { mat.side = side; });
+      bounds.forEach(b => { if (b.probe) { b.probe.geometry.dispose(); b.probe.material.dispose(); } });
+    }
     // bridge the contacts: a missing distance is interpolated along the arch from the nearest hits at the same angle
     for (let j = 0; j <= o.around; j++) {
       let i = 0; while (i <= o.segments) {
@@ -2795,7 +2842,7 @@
   // above crown-down teeth (maxilla, placement 'jaw') and below crown-up teeth (mandible). Returns a mesh in the arch's parent
   // frame (add it to the world, `fit: false`); section-ready (gingiva cap). Call after the arch is in the scene.
   DK.gingivaArch = function (arch, o) {
-    o = Object.assign({ height: 3.4, depth: 3.2, molarExtra: 1.2, round: 0.45, rise: 1.6, eminence: 0.22, segments: 240, radial: 64 }, o);
+    o = Object.assign({ height: 3.4, depth: 3.2, molarExtra: 1.2, round: 0.45, rise: 1.6, eminence: 0.22, segments: 360, radial: 64 }, o);
     arch.group.updateWorldMatrix(true, true);
     const teeth = arch.teeth, HW = o.height / 2;
     // Build in the natural arch frame, then apply its matrix. This handles both jaws,
@@ -2833,22 +2880,59 @@
       const data = { width, baseWidth: nearest.bb + 0.25, centre, margin, rootBulge, facial: Math.sign(nearest.facial), phase };
       profiles.set(t, data); return data;
     };
-    const g = orthoSweep(curve, (s, t, f) => {
-      const q = profileAt(t, f);
-      // The root-facing band is only slightly fuller than the knife-edged free margin.
+    const frames = Array.from({ length: o.segments + 1 }, (_, i) => {
+      const t = i / o.segments, P = curve.getPointAt(t), tangent = curve.getTangentAt(t).normalize();
+      const U = new T.Vector3(0, 1, 0), N = new T.Vector3().crossVectors(tangent, U).normalize();
+      return { P, U, N, tangent, q: profileAt(t, { P, N }) };
+    });
+    const profilesSmooth = frames.map((f, i) => {
+      const q = { ...f.q };
+      ['width', 'baseWidth', 'centre', 'margin', 'rootBulge'].forEach(key => {
+        let sum = 0, weight = 0;
+        for (let k = -6; k <= 6; k++) {
+          const w = Math.exp(-k * k / 12), j = clamp(i + k, 0, o.segments);
+          sum += frames[j].q[key] * w; weight += w;
+        }
+        q[key] = sum / weight;
+      });
+      return q;
+    });
+    const capRows = 12, rows = o.segments + 2 * capRows;
+    const g = gridGeometry(rows, o.radial, (i, j) => {
+      const k = clamp(i - capRows, 0, o.segments), t = k / o.segments;
+      const f = frames[k], q = profilesSmooth[k], angle = j / o.radial * Math.PI * 2;
       const body = Math.max(q.width, Math.min(o.depth + o.molarExtra * smooth(0.55, 0.9, Math.abs(t - 0.5) * 2), q.baseWidth));
-      let [a, b] = roundedRect(HW, body, Math.min(o.round, HW * 0.6))(s);
+      // Elliptical lower border blends continuously into the scalloped free margin.
+      let a = HW * Math.cos(angle), b = body * Math.sin(angle);
       const coronal = smooth(-HW, HW, a), lip = smooth(HW - 0.7, HW, a);
       b *= lerp(1, (q.width + 0.10) / body, lip);
       if (Math.sign(b) === q.facial) b += q.facial * q.rootBulge * Math.sin(coronal * Math.PI);
       a += q.margin * lip;
-      return [a, b + q.centre];
-    }, { segments: o.segments, radial: o.radial });
+      const end = i < capRows ? -1 : i > capRows + o.segments ? 1 : 0;
+      const phase = end < 0 ? (capRows - i) / capRows : end > 0 ? (i - capRows - o.segments) / capRows : 0;
+      const shrink = Math.cos(phase * Math.PI / 2), extension = end * 1.2 * Math.sin(phase * Math.PI / 2);
+      return f.P.clone().addScaledVector(f.U, a * shrink).addScaledVector(f.N, (b + q.centre) * shrink).addScaledVector(f.tangent, extension).toArray();
+    });
+    // +U toward +N winds inward along the path; reverse before the jaw transform.
+    const indices = g.index.array;
+    for (let i = 0; i < indices.length; i += 3) { const v = indices[i + 1]; indices[i + 1] = indices[i + 2]; indices[i + 2] = v; }
+    g.computeVertexNormals();
     g.applyMatrix4(arch.group.matrixWorld);
     if (arch.group.matrixWorld.determinant() < 0) {
       const idx = g.index.array; for (let i = 0; i < idx.length; i += 3) { const v = idx[i + 1]; idx[i + 1] = idx[i + 2]; idx[i + 2] = v; }
       g.computeVertexNormals();
     }
+    // Join normals at the UV seam after winding corrections; poles use the distal tangent.
+    const normals = g.attributes.normal, normalMatrix = new T.Matrix3().getNormalMatrix(arch.group.matrixWorld);
+    for (let i = 0; i <= rows; i++) {
+      const a = i * (o.radial + 1), b = a + o.radial;
+      const n = new T.Vector3().fromBufferAttribute(normals, a).add(new T.Vector3().fromBufferAttribute(normals, b)).normalize();
+      normals.setXYZ(a, n.x, n.y, n.z); normals.setXYZ(b, n.x, n.y, n.z);
+    }
+    [0, rows].forEach(i => {
+      const n = frames[i ? o.segments : 0].tangent.clone().multiplyScalar(i ? 1 : -1).applyMatrix3(normalMatrix).normalize();
+      for (let j = 0; j <= o.radial; j++) normals.setXYZ(i * (o.radial + 1) + j, n.x, n.y, n.z);
+    });
     const m = new T.Mesh(g, o.material || DK.mat('gingiva', { bumpScale: 0.009, roughness: 0.48, clearcoat: 0.18 }));
     m.name = 'Gingiva'; return m;
   };

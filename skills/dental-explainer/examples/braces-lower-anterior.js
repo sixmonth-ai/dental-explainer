@@ -23,7 +23,7 @@ arch.teeth.forEach(({ fdi, tooth: t, spec: sp, slot }) => {
   [br, lig].forEach(o => { o.updateMatrix(); o.applyMatrix4(t.group.matrixWorld); });
   teeth.push({ fdi, t, n, br, lig });
   fig.part(br, { name: 'Bracket', sub: `twin, ${DK.SLOTS[SLOT].name} slot`, label: fdi === 31, anchor: [br.userData.width / 2 - 0.2, br.userData.tall / 2 - 0.12, br.userData.face + 0.05], dim: false, explode: n.clone().multiplyScalar(6).toArray(), labelOffset: [110, -60], info: `Twin bracket bonded ${HEIGHT[p]} mm from the incisal edge (MBT-style lower chart). Lower incisors are the narrowest teeth, so their brackets are the smallest.` });
-  fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', label: fdi === 42, anchor: lig.userData.sidePoints[0], explode: n.clone().multiplyScalar(9).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring over the four tie wings; it holds the wire in the slot.' });
+  fig.part(lig, { name: 'Ligature', sub: 'elastomeric O-ring', dim: false, label: fdi === 42, anchor: lig.userData.sidePoints[0], explode: n.clone().multiplyScalar(9).toArray(), labelOffset: [-110, 40], info: 'Polyurethane O-ring over the four tie wings; it holds the wire in the slot.' });
 });
 const ridge = DK.gingivaArch(arch);
 fig.part(ridge, { name: 'Gingiva', label: false, fit: false, info: 'Attached gingiva and the alveolar ridge (schematic).' });

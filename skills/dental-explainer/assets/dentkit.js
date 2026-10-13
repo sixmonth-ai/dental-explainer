@@ -370,7 +370,8 @@
   P.mandM2 = Object.assign({}, P.mandM1, { name: 'Mandibular second molar', crownL: 7, rootL: 13, md: 10.5, mdC: 8, bl: 10, blC: 9, sideGrooves: [{ x: 0, z: 1, depth: 0.16 }, { x: 0, z: -1, depth: 0.1 }],
     relief: DK.cuspRelief([{ x: 0.45, z: 0.45, h: 1.4 }, { x: -0.45, z: 0.45, h: 1.3 }, { x: 0.45, z: -0.45, h: 1.7 }, { x: -0.45, z: -0.45, h: 1.6 }], 0.45, [[0.75, 0, -0.75, 0], [0, 0, 0, 0.9], [0, 0, 0, -0.9]]),
     roots: [{ x: 1.95, z: 0, len: 13, ra: 1.75, rb: 3.5, apex: [-1.6, 0], start: -0.5 }, { x: -2.0, z: 0, len: 12.5, ra: 1.75, rb: 3.3, apex: [-1.3, 0], start: -0.5 }] });
-  P.maxM2 = Object.assign({}, P.maxM1, { name: 'Maxillary second molar', crownL: 7, md: 9, mdC: 7, bl: 11, blC: 10 });
+  P.maxM2 = Object.assign({}, P.maxM1, { name: 'Maxillary second molar', crownL: 7, rootL: 12, md: 9, mdC: 7, bl: 11, blC: 10,   // roots ~1 mm shorter than M1 (Wheeler's: B 11, L 12)
+    roots: P.maxM1.roots.map((r, i) => Object.assign({}, r, { len: [11, 10.5, 12][i], x: r.x * 0.85, z: r.z * 0.9 })) });
   DK.PRESETS = P;
   const POS = { 1: 'Central', 2: 'Lateral', 3: 'Canine', 4: 'PM1', 5: 'PM2', 6: 'M1', 7: 'M2', 8: 'M2' };
   // FDI two-digit → preset (permanent teeth only). Third molars approximated by second molars (flagged).

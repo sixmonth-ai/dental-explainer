@@ -3,3 +3,4 @@ shots/
 *.zip
 dist/
 test-output/
+.claude/worktrees/

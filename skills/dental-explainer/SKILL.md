@@ -150,7 +150,10 @@ _(reserved)_
 
 <!-- topic: endo -->
 ### Endodontic instruments and root canal treatment
-_(reserved)_
+Facts: §8 (working length, ISO files) and §20 (colour cycle, access outlines, shaping goals, irrigants, obturation, AI mistakes).
+- **A root canal treatment** ("animate a root canal", "show RCT on a molar"): copy `examples/root-canal-36.js`. It is a 7-step procedure in a mesio-distal cut through the treated canal: diagnosis (X-ray state, `DK.periapicalLesion`) → access (`DK.accessCavity`, pulp swapped for a dark void copy) → working length (K-file 15 with a stop, `DK.canalAccessPath` gives the length, readout) → shaping (`DK.canalShape.set`) → irrigation (`DK.irrigationNeedle`, canal tints with `DK.capColor`) → obturation (`DK.gpCone` slides in, then `DK.rootFilling`) → restoration and healing (lesion shrinks). Change the tooth, the canal, `REF` (the cusp tip the stop rests on) and the cut offset (= that canal's z); the readout recomputes. Fewer steps for a patient: keep diagnosis, access, shaping, filling, restoration.
+- **Instruments** ("show ISO files", "taper .02 vs .06", "what the colours mean"): copy `examples/endo-files.js`: files tip-down on a baseline, the D16 line, D0/D16 from `DK.fileDiameter`, a taper slider.
+- Watch for: every instrument stops at working length (0.5–1 mm short of the apex), never at the root tip; the stop sits on a cusp tip; all canals of the tooth are shaped and filled even if only one is on the cut (say which in the subtitle); the shape tapers continuously and is narrowest at the apex; name the file as size/taper ("25/.06") and keep clinical sizes "common", not universal; mention the coronal seal / cuspal coverage; a necrotic tooth still hurts through the ligament.
 <!-- end topic: endo -->
 
 ## Accuracy checklist (every figure)

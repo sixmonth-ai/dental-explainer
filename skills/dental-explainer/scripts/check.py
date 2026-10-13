@@ -30,7 +30,11 @@ def shoot(pg, st, offset):
     if "seek" in st or "step" in st:
         t = st["seek"] if "seek" in st else pg.evaluate(f"{f}.steps[{int(st['step'])}].t")
         pg.evaluate(f"{f}.seek({t})")
-        pg.wait_for_timeout(120)
+        if st.get("click"):
+            pg.evaluate(f"{f}.thaw()")
+        for label in st.get("click", []):   # a view button at a procedure moment, e.g. {"step":2,"click":["Orifices"]}
+            pg.get_by_role("button", name=label, exact=True).first.click()
+        pg.wait_for_timeout(1300 if st.get("click") else 120)
         return
     if st.get("section") and "offset" not in st:
         st = dict(st, offset=offset)

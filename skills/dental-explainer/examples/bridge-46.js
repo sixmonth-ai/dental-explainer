@@ -44,7 +44,7 @@ fig.part(bridge, { name: 'Bridge', label: false, explode: [0, 12, 0], info: 'One
 const ret45 = bridge.units.find(u => u.x === X45).mesh;
 fig.part(ret45, { inPlace: true, name: 'Retainer', sub: 'crown on 45', anchor: [0, 5.5, t45s.bl / 2 - 0.2], info: 'The part of the bridge cemented to an abutment: here a full-coverage crown.' });
 fig.part(bridge.pontics[0], { inPlace: true, name: 'Pontic', sub: 'replaces 46', anchor: [0, 5, t46s.bl / 2 - 0.4], dim: false, accent: true, info: 'The artificial tooth. Modified ridge lap: touches the ridge on the buccal slope only, convex and clear of it lingually so floss passes under it.' });
-fig.part(conn, { inPlace: true, name: 'Connector', sub: `${CS.h} × ${CS.w} mm ≈ ${CS.area} mm²`, anchor: [CX, CY, CS.w / 2 + 0.05], info: 'Joins pontic to retainer. Zirconia needs about 12 mm² here (posterior 3-unit); lithium disilicate about 16 mm². Height matters more than width.' });
+fig.part(conn, { inPlace: true, name: 'Connector', sub: `${CS.h} × ${CS.w} mm ≈ ${CS.area} mm²`, anchor: [CX, CY, CS.w / 2 + 0.05], dim: false, info: 'Joins pontic to retainer. Zirconia needs about 12 mm² here (posterior 3-unit); lithium disilicate about 16 mm². Height matters more than width.' });
 
 fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },

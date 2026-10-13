@@ -32,7 +32,7 @@ const EMPTY = DK.voidColor(fig), CANAL_INK = 0x5f5750, FLUID = 0xb7c0c2, chamber
 const access = DK.accessCavity(s, { k: 0, color: EMPTY });
 const accessRim = DK.accessCavity(s, { k: 0, material: 'ink', grow: 1.05, lift: 0.01 });
 const chamberVoid = new THREE.Mesh(chamberGeo, DK.mat('pdl', { color: EMPTY, cap: EMPTY, roughness: 0.95 })); chamberVoid.position.copy(chamberPos);
-const chamberRim = new THREE.Mesh(DK.inflateGeometry(chamberGeo, 0.12), DK.mat('pdl', { color: DK.RIM, cap: DK.RIM })); chamberRim.position.copy(chamberPos);
+const chamberRim = new THREE.Mesh(DK.inflateGeometry(chamberGeo, 0.12), DK.mat('pdl', { color: DK.RIM, cap: DK.RIM })); chamberRim.position.copy(chamberPos); chamberRim.userData.cutOnly = true;   // a rim exists only on the cut face
 const canals = ['MB', 'ML', 'D'].map(n => DK.canalShape(s, n, Object.assign({ color: CANAL_INK }, SHAPE)));
 const fillings = ['MB', 'ML', 'D'].map(n => DK.rootFilling(s, n, SHAPE));
 const resto = DK.accessCavity(s, { material: 'composite', lift: 0.16 });

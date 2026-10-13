@@ -599,6 +599,7 @@
       cg.objects.forEach(obj => obj.traverse(m => {
         if (!m.isMesh || m.userData.isStencil) return;
         const src = m.material; m.material = src.clone(); m.material.onBeforeCompile = src.onBeforeCompile; m.material.customProgramCacheKey = src.customProgramCacheKey; // r128 clone() drops shader hooks
+        if (obj.userData.cutOnly || m.userData.cutOnly) m.material.visible = false;   // exists only on the cut face (an ink rim): never drawn in 3D, so X-ray or section-off views don't show a dark solid
         m.material.clippingPlanes = [plane]; m.material.clipShadows = true;
         const mk = (side, op) => { const mm = new T.MeshBasicMaterial({ side, clippingPlanes: [plane], depthWrite: false, depthTest: false, colorWrite: false, stencilWrite: true, stencilFunc: T.AlwaysStencilFunc, stencilFail: op, stencilZFail: op, stencilZPass: op }); const s = new T.Mesh(m.geometry, mm); s.userData.isStencil = true; s.renderOrder = base; s.layers.enable(1); return s; };
         m.add(mk(T.BackSide, T.IncrementWrapStencilOp), mk(T.FrontSide, T.DecrementWrapStencilOp));
@@ -1317,6 +1318,8 @@
         else if (o.introExplode && !reduce) setTimeout(() => fig.explode(o.introExplode), 700);
         requestAnimationFrame(frame); window.__dkReady = true; return fig;
       },
+      // test hook: restart the live loop after seek() (so a button pressed at a procedure moment renders)
+      thaw() { frozen = false; },
       // test hook: jump state instantly (used by verification screenshots)
       setState(s) {
         player = null; introOff = true; frozen = false; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
@@ -2963,7 +2966,7 @@
     for (let j = 0; j < N; j++) idx.push(at(wallRing(W), j), at(wallRing(W), j + 1), bottomCentre);   // opposite to the top fan, so the floor faces outward (a flipped floor punches holes in the stencil cap)
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
     const mat = o.material === 'composite' ? DK.mat('composite', { cap: 0xf1e4c6 }) : o.material === 'ink' ? DK.mat('pdl', { color: DK.RIM, cap: DK.RIM, roughness: 0.9 }) : DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.95 });
-    const m = new T.Mesh(g, mat); m.name = o.material === 'composite' ? 'Coronal restoration' : 'Access cavity';
+    const m = new T.Mesh(g, mat); m.name = o.material === 'composite' ? 'Coronal restoration' : 'Access cavity'; if (o.material === 'ink') m.userData.cutOnly = true;
     const P = g.attributes.position;
     m.set = k => {
       k = clamp(k, 0, 1); m.userData.k = k; m.visible = k > 0.02;

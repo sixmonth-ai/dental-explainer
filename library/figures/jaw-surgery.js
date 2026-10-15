@@ -153,7 +153,7 @@ function applyPose() {
 }
 fig.param('back', 0, v => { st.back = v; st.gape = 0.075 * Math.sin(Math.PI * DK.util.clamp(v, 0, 1)); applyPose(); });
 fig.param('cuts', 0, v => { cutMat.opacity = v; cutLines.visible = v > 0.01; });
-fig.param('plates', 0, v => { plates.visible = v > 0.01; plates.position.x = -18 * (1 - v) * 0; plates.children.forEach(c => { c.material.transparent = v < 0.99; c.material.opacity = v; }); });
+fig.param('plates', 0, v => { plates.visible = v > 0.01; plates.children.forEach(c => { c.material.transparent = v < 0.99; c.material.opacity = v; }); });
 fig.onFrame(() => syncClip());
 applyPose();
 
@@ -166,7 +166,7 @@ fig.part(t11.tooth.group, { inPlace: true, name: 'Upper front teeth', anchor: [0
 const vR = cutLines.userData['v-1'];
 fig.part(cutLines, { inPlace: true, name: 'Cut lines', sub: 'behind the teeth', accent: true, anchor: vR[Math.floor(vR.length * 0.45)], labelOffset: [-110, 60], dim: false, when: () => cutMat.opacity > 0.5,
   info: 'Schematic cut lines of a sagittal split: along the front edge of the ramus, down the outer cortex behind the second molar, and (inside, not seen here) across the inner ramus above where the nerve enters. The bone is then split lengthwise.' });
-fig.part(proxH.children[proxH.children.length - 1] ? proxH : proxH, { inPlace: true, name: 'Jaw joint', sub: 'stays seated', anchor: [C.x, C.y + m.head.si / 2, C.z], labelOffset: [70, -60], dim: false,
+fig.part(proxH, { inPlace: true, name: 'Jaw joint', sub: 'stays seated', anchor: [C.x, C.y + m.head.si / 2, C.z], labelOffset: [70, -60], dim: false,
   info: 'The back part with the condyle (proximal segment) stays where it is, so the jaw joint keeps its normal position.' });
 fig.part(distH, { inPlace: true, name: 'Tooth-bearing part', sub: 'slides back', anchor: [-20, -18, -8], labelOffset: [-40, 70], dim: false,
   info: 'The front part carrying the teeth and the nerve (distal segment) slides back until the lower teeth fit behind the upper ones.' });

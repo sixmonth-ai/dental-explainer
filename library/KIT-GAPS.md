@@ -39,3 +39,4 @@ which would also help the skill on topics with no example.
 - The 11 preset's pulp chamber cuts as a rectangular block with no horns (root-resorption, open-apex, class-iv); incisor-11 replaced it with a hand-built fan. Fix the anterior pulp in `DK.tooth` (it has `pulpHorns: 3` but ignores it).
 - Not in dental-facts.md: apexification MTA plug 3 to 5 mm; resorption hover claims (external more common, pink spot); endo-perio treatment order (Simon, Glick and Frank 1972).
 - Not in dental-facts.md (wave 4): Miller mobility grades (0.2 / 1 mm); crestal sinus lift residual bone about 6 mm and gain 3 to 4 mm; ridge widening 4 to 6 mm and 6 months healing; mini implant widths; stitch removal 1 to 2 weeks. All "about", from standard teaching; add sources.
+- Not in dental-facts.md (wave 4e): coronectomy root trim about 3 mm (Pogrel 2004); TAD size and placement (Papadopoulos 2007, Poggio 2006).

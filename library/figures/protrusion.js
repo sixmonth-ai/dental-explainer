@@ -10,7 +10,7 @@ const fig = DK.figure({
   view: { theta: Math.PI / 2 - 0.45, phi: 1.5, margin: 0.86 }
 });
 
-const m = DK.mandible({ teeth: true, upper: 'bone' });
+const m = DK.mandible({ teeth: true, upper: 'bone', maxilla: { crop: 37 } });
 const mx = m.maxilla, discs = m.discs, tmjL = mx.joints.left, tmjR = mx.joints.right;
 m.group.updateMatrixWorld(true);
 fig.part(m.group, { name: 'Jaw', label: false, info: 'Average adult mandible with its teeth, under the upper jaw and both temporomandibular joints.' });
@@ -94,6 +94,7 @@ fig.param('prot', 0, v => {
   prot = v; pose = m.pose({ protrusion: v, disclude: discAt(v) }); slider.value = v;
   drawGuide(v); tracePaths(v); ghosts.forEach(g => { g.visible = v > 0.6; });
 });
+fig.param('teeth', 1, v => { m.teeth.group.visible = m.upper.holder.visible = v > 0.5; });
 fig.param('context', 0.85, v => DK.fadeMaterial(mx.maxilla.material, v));
 [tmjR, tmjL].forEach(t => { t.userData.line.material.transparent = true; });
 fig.param('fossa', 0.3, v => { [mx.temporal.left, mx.temporal.right].forEach(b => DK.fadeMaterial(b.material, v)); });
@@ -110,9 +111,9 @@ const guidePart = fig.part(guidePath, { inPlace: true, name: 'Incisal guidance',
   info: 'Anterior (incisal) guidance: the lower incisal edges slide down the palatal surfaces of the upper incisors to edge to edge. The steeper the overbite, the more the jaw has to drop.' });
 fig.part(guideHead, { inPlace: true, name: 'Edge to edge', anchor: () => { const t = tipAt(prot, discAt(prot)); return [CUTX + 3, t.y, t.z + 0.6]; }, labelOffset: [-90, 50], dim: false, when: (e, sec) => prot >= PE - 0.05 && !sec.enabled,
   info: 'Edge to edge: the lower incisal edges meet the upper ones. Here the incisors carry the contact and every back tooth is apart.' });
-const gapPart = fig.part(m.teeth.teeth.find(q => q.fdi === 46).tooth.group, { inPlace: true, name: 'Back teeth apart', sub: '', anchor: [0, 8.2, 0], labelOffset: [60, 70], dim: false, when: () => prot > 0.6,
+const gapPart = fig.part(m.teeth.teeth.find(q => q.fdi === 46).tooth.group, { inPlace: true, name: 'Back teeth apart', sub: '', anchor: [0, 7.6, -4.6], labelOffset: [60, 70], dim: false, when: () => prot > 0.6,
   info: 'Because the incisors guide the jaw down as it comes forward, the premolars and molars separate (posterior disclusion), so they are not loaded sideways.' });
-fig.part(m.condyles.left, { inPlace: true, name: 'Condyle', sub: 'forward and down', anchor: headTop('left'), labelOffset: [80, -70], dim: false,
+const condPart = fig.part(m.condyles.left, { inPlace: true, name: 'Condyle', sub: 'in its fossa', anchor: headTop('left'), labelOffset: [80, -70], dim: false,
   info: 'Both condyles slide forward and down the back slope of their articular eminences, carrying their discs with them.' });
 fig.part(mx.temporal.left, { inPlace: true, name: 'Articular eminence', anchor: tmjL.userData.anchors.crest, labelOffset: [-80, -80], dim: false,
   info: 'The convex slope in front of the fossa. Its steepness sets how far the condyles drop on protrusion (sagittal condylar guidance, about 30 to 40 degrees, varies by person and method).' });
@@ -123,6 +124,7 @@ let shown = '';
 fig.onFrame(() => {
   const key = prot.toFixed(1); if (key === shown) return; shown = key;
   const gap = M36.y - pose.apply(M36).y, I = pose.incisal, C = pose.condyles.left;
+  condPart.sub = prot > 0.3 ? 'forward and down' : 'in its fossa'; condPart.el.innerHTML = condPart.name + '<small>' + condPart.sub + '</small>';
   gapPart.sub = `about ${gap.toFixed(1)} mm`; gapPart.el.innerHTML = gapPart.name + '<small>' + gapPart.sub + '</small>';
   fig.setReadout(prot < 0.05 ? [{ k: 'Jaw', v: 'closed, teeth together' }] : [
     { k: 'Lower incisors', v: `${I.forward.toFixed(1)} mm forward, ${I.drop.toFixed(1)} mm down` + (prot >= PE - 0.05 ? ' (edge to edge)' : '') },
@@ -133,26 +135,27 @@ fig.standardControls({ explode: false, section: { label: 'Incisor cut', on: fals
 
 // ---------- procedure ----------
 const INC = [CUTX, 7, 0];
-const JOINT = { theta: Math.PI / 2, phi: 1.5, zoom: 0.2, fov: 28, focus: [L.x, L.y - 1, L.z + 5] };
-const HERO = { theta: Math.PI / 2 - 0.2, phi: 1.55, zoom: 0.66, focus: [20, 8, -38], fov: 32 };
-const QUIET = { context: 0.85, fossa: 0.1, arches: 0.25, line: 1 };
+const MOLX = (() => { const t = m.teeth.teeth.find(q => q.fdi === 36); const b = new THREE.Box3().setFromObject(t.tooth.layers.enamel); return (b.min.x + b.max.x) / 2; })();
+const JOINT = { theta: Math.PI / 2, phi: 1.5, zoom: 0.24, fov: 28, focus: [L.x, L.y - 1.5, L.z + 3] };
+const HERO = { theta: Math.PI / 2 - 0.2, phi: 1.55, zoom: window.DK_MODE === 'image' ? 0.6 : 0.8, focus: [20, 10, -43], fov: 32 };
+const QUIET = { context: 0.85, fossa: 0.1, arches: 0.25, line: 1, teeth: 1 };
 fig.procedure([
   { label: 'Teeth together', caption: 'Teeth together: the upper incisors overlap the lower ones and the condyles sit in their fossae.', beats: [
     Object.assign({ dur: 0, hold: 1.4, section: false, set: Object.assign({ prot: 0 }, QUIET), labels: ['Upper incisor', 'Lower incisor', 'Condyle'], key: true }, HERO)] },
   { label: 'Incisors guide', caption: 'The lower incisors slide forward and down the palatal surfaces of the upper incisors to edge to edge.', beats: [
     { dur: 0, hold: 0, section: true, offset: CUTX + 30 },
-    { dur: 2.4, hold: 0.3, theta: Math.PI / 2, phi: 1.55, zoom: 0.3, fov: 26, focus: INC, offset: CUTX, labels: ['Upper incisor', 'Lower incisor'] },
+    { dur: 2.4, hold: 0.3, theta: Math.PI / 2, phi: 1.55, zoom: 0.38, fov: 26, focus: INC, offset: CUTX, labels: ['Upper incisor', 'Lower incisor'] },
     { dur: 3.0, hold: 1.8, set: { prot: PE }, labels: ['Incisal guidance', 'Upper incisor', 'Lower incisor'], key: true }] },
   { label: 'Back teeth part', caption: 'Guided down by the incisors, the back teeth lift apart.', beats: [
-    { dur: 0, hold: 0, section: false },
-    { dur: 2.2, hold: 0.3, theta: Math.PI / 2 - 0.15, phi: 1.57, zoom: 0.3, fov: 30, focus: [27, 8, -24], set: { prot: 0 }, labels: [] },
+    { dur: 2.2, hold: 0.3, theta: Math.PI / 2 + 0.25, phi: 1.6, zoom: 0.36, fov: 28, focus: [-24, 8, -24], set: { prot: 0 }, labels: [] },
     { dur: 2.4, hold: 1.8, set: { prot: PE }, labels: ['Back teeth apart'], key: true }] },
   { label: 'Condyles slide', caption: 'Both condyles slide forward and down their eminences, each with its disc.', beats: [
-    Object.assign({ dur: 2.4, hold: 0.3, set: { prot: 0, context: 0.04, fossa: 0.0, arches: 0.0, line: 1 }, labels: ['Disc', 'Articular eminence'] }, JOINT),
+    { dur: 0, hold: 0, section: false },
+    Object.assign({ dur: 2.4, hold: 0.3, set: { prot: 0, context: 0.04, fossa: 0.0, arches: 0.0, line: 1, teeth: 0 }, labels: ['Disc', 'Articular eminence'] }, JOINT),
     { dur: 2.4, hold: 1.8, set: { prot: PE }, labels: ['Condyle', 'Disc', 'Articular eminence'], key: true }] },
   { label: 'Edge to edge', caption: 'At edge to edge: incisors touching, back teeth apart, condyles down the eminences.', beats: [
     Object.assign({ dur: 2.6, hold: 2.6, set: QUIET, labels: ['Edge to edge', 'Back teeth apart', 'Condyle'], key: true }, HERO)] }
 ]);
-fig.view('Incisors', { theta: Math.PI / 2, phi: 1.55, zoom: 0.3, fov: 26, focus: INC, section: true, offset: CUTX, labels: ['Incisal guidance', 'Upper incisor', 'Lower incisor'] });
-fig.view('Joint', Object.assign({ section: false, set: { context: 0.04, fossa: 0.0, arches: 0.0, line: 1 }, labels: ['Condyle', 'Disc', 'Articular eminence'] }, JOINT));
+fig.view('Incisors', { theta: Math.PI / 2, phi: 1.55, zoom: 0.38, fov: 26, focus: INC, section: true, offset: CUTX, set: QUIET, labels: ['Incisal guidance', 'Upper incisor', 'Lower incisor'] });
+fig.view('Joint', Object.assign({ section: false, set: { context: 0.04, fossa: 0.0, arches: 0.0, line: 1, teeth: 0 }, labels: ['Condyle', 'Disc', 'Articular eminence'] }, JOINT));
 fig.start();

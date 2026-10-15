@@ -105,7 +105,7 @@ function edentulous(cfg) {
     }
     // maxilla: ridge band widening up to the crop, vaulted hard palate inside the arch, rounded tuberosities
     const wo = oT + 0.22 * below, wi = iT + 0.1 * below;
-    const ridge = rnd(rnd(Math.max(d - wo, -wi - d), y - yT, 2.2), n.past, 4);
+    const ridge = rnd(rnd(Math.max(d - wo, -wi - d), y - yT, 2.2), n.past, 0.6);   // cropped flat behind the tuberosity, like the lower jaw
     const inward = Math.max(0, -n.d), r = inward / (inward + Math.sqrt(x * x + 9)), deep = 0.55 + 0.45 * smooth(-4, -26, z);
     const vault = yT - cfg.vault * Math.pow(r, 0.75) * deep;
     const plate = rnd(Math.max(Math.abs(y - (vault - 1.3)) - 1.3, n.d + 1.0), sp.end[1] - 5.5 - z, 1.5);
@@ -129,7 +129,7 @@ function edentulous(cfg) {
     return Math.max(m, cfg.upper ? -1e3 : n.past + 0.35);   // lower: ends just short of the bone's crop face
   };
   const notch = (n, side) => side * (1.6 * Math.exp(-n.s * n.s / 8) + 0.9 * Math.exp(-Math.pow(n.s - 22, 2) / 14)) + (1 - side) * (cfg.upper ? 0 : 1.8 * Math.exp(-n.s * n.s / 8));   // frenum notches: shallow, wide, rounded
-  const postZ = sp.end[1] - 6.6;   // upper: posterior border across the palate, through the hamular notches
+  const postZ = sp.end[1] - 7.0;   // upper: posterior border across the palate, through the hamular notches
   const base = (x, y, z) => {
     const n = near(x, z), yT = rowAt(n.s)[0], m = mucosa(x, y, z);
     if (m > 9) return m - 6;
@@ -137,17 +137,16 @@ function edentulous(cfg) {
     const saddle = rnd(Math.abs(n.d) - hw, y - g.y, 0.9);
     const env = smin(m - cfg.base, saddle, 2.0);
     const side = smooth(-1.5, 1.5, n.d), sul = yT - lerp(cfg.sulL, cfg.sulB, side);
-    let border = (sul + 2.2 + notch(n, side)) - y;   // ends where the mucosa wall is still steep, so the cut meets the shell square-on
+    // the border runs on a slanted surface (deeper near the ridge, shallower out on a flat shelf), so it always meets the shell at an angle
+    let border = (sul + 2.2 + notch(n, side)) - y + 0.8 * Math.max(0, Math.abs(n.d) - 8);
     if (cfg.upper && n.d < -1.5) border = -20;   // the upper base covers the whole palate: no lingual border (the switch lies inside the base, under the ridge crest)
     let b = rnd(env, border, 0.8);   // edge radii stay under half the base thickness: a rolled border, never a feathered sliver
-    // where the ridge flattens into a shelf (lower molars, tuberosities) a level border would graze the shell and fray: there the
-    // flange ends at a set distance out from the ridge line instead, cut square to the shell
-    b = rnd(b, cfg.upper ? n.d - 10.2 : Math.max(n.d - 10.2, -n.d - 9.6), 0.8);
-    if (cfg.upper) b = rnd(b, lerp(n.past - 1.5, postZ - z, smooth(-3, -9, n.d)), 1.0);   // back edge: square across the flanges behind the tuberosities, straight across the palate else b = rnd(b, n.past + 3.5, 0.75);
+    // back edge: square across the flanges behind the tuberosities and straight across the palate (upper); over the retromolar pads (lower)
+    if (cfg.upper) b = rnd(b, lerp(n.past + 3.0, postZ - z, smooth(-3, -9, n.d)), 1.0); else b = rnd(b, n.past + 3.5, 1.0);
     // the fitting surface is the mucosa itself (0.04 mm relief); the upper one carries the posterior palatal seal bead into the soft tissue
     let fit = 0.04 - m;
     fit = Math.max(fit, 0.3 - bone(x, y, z));   // never inside the bone (where the mucosa layer was cropped)
-    if (cfg.upper && n.d < -1) fit = Math.max(fit, vaultAt(x, z, n) + 0.5 - y);   // nor on the nasal side of the palate
+    if (cfg.upper && n.d < -1) fit = Math.max(fit, vaultAt(x, z, n) - 1.4 - y);   // nor on the nasal side of the palate (the limit runs inside the bony plate)
     return rnd(b, fit, 0.5);   // the border meets the fitting surface in a rounded roll, not a knife edge
   };
   return { near, gum, bone, mucosa, base, spine: sp, rowAt, vaultAt, postZ };
@@ -203,10 +202,10 @@ const LOW = edentulous({ arch: lowArch, last: 37, extend: 13, upper: false, th: 
 const upArch = DK.arch({ jaw: 'maxilla', build: resinTooth });
 const UP = edentulous({ arch: upArch, last: 27, extend: 10, upper: true, th: 2.3, sulB: 8, sulL: 8, base: 2.0, height: 9.5, vault: 8.5, ridgeShift: -1.2,
   rows: [[0, -5.2, 3.0, 3.2], [16, -5.2, 3.6, 3.6], [30, -5.4, 4.6, 4.0], [46, -5.4, 5.4, 4.4], [62, -5.2, 6.2, 4.8]] });
-const lowBox = [[-38, -26, -72], [38, 3.2, 15]], upBox = [[-40, -17.6, -72], [40, 3.2, 15]];
+const lowBox = [[-46, -26, -72], [46, 3.2, 15]], upBox = [[-46, -17.6, -72], [46, 3.2, 15]];
 const lowJaw = buildJaw(LOW, lowBox, 'Lower'), upJaw = buildJaw(UP, upBox, 'Upper');
-const lowBase = buildBase(LOW, [[-38, -14, -72], [38, 2.6, 15]], 'Lower denture base');
-const upBase = buildBase(UP, [[-40, -16, -72], [40, 2.6, 15]], 'Upper denture base');
+const lowBase = buildBase(LOW, [[-46, -15, -72], [46, 2.6, 15]], 'Lower denture base');
+const upBase = buildBase(UP, [[-46, -17, -72], [46, 2.6, 15]], 'Upper denture base');
 
 const HOLD = { y: DK.toothPreset(31).crownL - 2.5 + DK.toothPreset(11).crownL, z: 2.6, rx: -0.05 };
 const holder = () => { const g = new THREE.Group(); g.position.set(0, HOLD.y, HOLD.z); g.rotation.x = HOLD.rx; return g; };

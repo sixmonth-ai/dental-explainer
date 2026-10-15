@@ -123,14 +123,14 @@ const FRONT = { theta: 0, phi: 1.57, zoom: 1, focus: 'auto', section: true, offs
 fig.view('Normal bite', Object.assign({ set: { narrow: 0 }, labels: ['Upper jaw ', 'Upper molar ', 'Lower molar'] }, FRONT), 1.6);
 fig.view('Crossbite', Object.assign({ set: { narrow: 1 }, labels: ['Upper jaw', 'Upper molar', 'Lower molar'] }, FRONT), 1.6);
 
-const yMid = yU / 2, R = [-(xU + xL) / 2, yMid, zMol];
+const yMid = yU / 2, R = [-xL + 1, yMid, zMol];
 fig.story([
   { dur: 0, hold: 1.4, theta: 0.62, phi: 1.28, zoom: 1, section: false, labels: [], caption: 'A slice through both jaws at the first molars.' },
-  { dur: 2.2, hold: 0.1, theta: 0, phi: 1.57, labels: [] },
   { dur: 0, hold: 0, section: true, offset: zMol + DEPTH },
-  { dur: 2.0, hold: 1.8, offset: zMol + 2.2, labels: ['Upper jaw ', 'Upper molar ', 'Lower molar'], caption: 'Normally the upper back teeth close just outside the lower ones.' },
+  { dur: 2.0, hold: 0.6, offset: zMol + 2.2, labels: [] },
+  { dur: 2.2, hold: 1.8, theta: 0, phi: 1.57, labels: ['Upper jaw ', 'Upper molar ', 'Lower molar'], caption: 'Normally the upper back teeth close just outside the lower ones.' },
   { dur: 3.2, hold: 1.6, set: { narrow: 1 }, labels: ['Upper jaw'], caption: 'When the upper jaw is narrow, its back teeth close inside the lower ones.' },
-  { dur: 2.2, hold: 2.2, zoom: 0.5, focus: R, labels: ['Upper molar', 'Lower molar'], caption: 'The upper molar now bites inside the lower molar.' },
+  { dur: 2.2, hold: 2.2, zoom: 0.7, focus: R, labels: ['Upper molar', 'Lower molar'], caption: 'The upper molar now bites inside the lower molar.' },
   { dur: 2.2, hold: 2.4, zoom: 1, focus: 'auto', labels: ['Upper jaw', 'Upper molar', 'Lower molar'] }
 ]);
 fig.start();

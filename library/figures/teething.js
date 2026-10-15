@@ -1,97 +1,112 @@
-// Library: the 20 primary teeth breaking through the gum pads in the usual order (AAPD chronology), both arches, mouth open, seen from the front and the side. Frame: DK.arch frame (midline x = 0, patient's right at -x, anterior +z); lower CEJs at y = 0, the upper arch crown-down above it.
+// Library: the 20 primary teeth breaking through the gums in the usual order (AAPD chronology), both arches laid out as a chart
+// seen from above and slightly in front (lower arch near, upper arch beyond it, crown-up, so neither hides the other).
 // poster: step 2
+// Frame: DK.arch frame (midline x = 0, patient's right at -x); lower arch toward +z, the upper arch in chart placement toward -z.
 // Teaching point: the lower central incisors usually come through first (about 5 to 8 months), then the upper centrals,
 // the laterals, the first molars, the canines and last the second molars. Ages are the AAPD ranges in dental-facts.md §5.
-// Unerupted teeth sit under the gum with their roots partly formed (develop 0.4); the gum pad is a smooth swept ridge.
+// Teeth are crowns only: at birth the crowns are forming and the roots have not started; roots are never shown after step 1.
+const IMG = (window.DK_MODE || new URLSearchParams(location.search).get('mode')) === 'image';
 const fig = DK.figure({
-  fov: 32,
+  fov: 30,
   title: 'Teething: which teeth come first',
-  subtitle: 'Baby teeth, FDI 51 to 85. Ages are typical ranges (AAPD).',
-  view: { theta: 0.25, phi: 1.38, margin: 0.95 }
+  subtitle: 'Baby teeth, FDI 51 to 85. Patient’s right on the left. Typical ages (AAPD).',
+  view: { theta: 0, phi: 0.62, margin: IMG ? 0.8 : 0.95 }
 });
 
-const OPEN = 17;                                            // upper CEJ level: a baby's mouth, open
-const opts = { dentition: 'primary', toothOpts: () => ({ develop: 0.4 }) };
-const lower = DK.arch(Object.assign({ jaw: 'mandible' }, opts));
-const upper = DK.arch(Object.assign({ jaw: 'maxilla', placement: 'jaw' }, opts));
-upper.group.position.set(0, OPEN, 1.2);
+const GAP = 10;
+const lower = DK.arch({ jaw: 'mandible', dentition: 'primary', crownsOnly: true });
+const upper = DK.arch({ jaw: 'maxilla', dentition: 'primary', placement: 'chart', crownsOnly: true });
+lower.group.position.z = lower.depth + GAP / 2;
+upper.group.position.z = -(upper.depth + GAP / 2);
 const both = new THREE.Group(); both.add(lower.group, upper.group);
 fig.part(both, { name: 'Baby teeth', label: false, info: '20 primary teeth: 10 in each jaw.' });
 both.updateMatrixWorld(true);
 
-// --- gum pads: a rounded ridge swept along each arch through the tooth centres, its crest just over the necks
+// --- gums: a low rounded ridge swept along each arch through the tooth centres; the crowns wait inside it
+const RH = 3.6, RTOP = 0.4;                                   // ridge height (mm) and crest just over the necks
 const gumMat = DK.mat('gingiva', {});
-const pad = (arch, sign) => {
-  const pts = arch.teeth.slice().sort((a, b) => a.slot.c[0] - b.slot.c[0]).map(t => { const v = new THREE.Vector3(); t.tooth.group.getWorldPosition(v); return v; });
-  const first = pts[0], last = pts[pts.length - 1], H = 15, Wd = sign > 0 ? 9.5 : 10.5;
-  const ext = (a, b) => a.clone().add(a.clone().sub(b).setY(0).normalize().multiplyScalar(8));
-  const rr = DK.roundedRect(H / 2, Wd / 2, Wd * 0.45);
-  const path = [ext(first, pts[1]), ...pts, ext(last, pts[pts.length - 2])].map(v => new THREE.Vector3(v.x, v.y - sign * (H / 2 - 0.6), v.z));
-  const g = DK.sweepGeometry(new THREE.CatmullRomCurve3(path, false, 'centripetal'), (sp, t) => { const [a, b] = rr(sp), e = Math.min(1, Math.sqrt(Math.min(t, 1 - t) / 0.03) * 0.85 + 0.15); return [a * (0.6 + 0.4 * e) + sign * (H / 2) * 0.4 * (1 - e), b * e]; }, { segments: 200, up: [0, 1, 0] });
-  return new THREE.Mesh(g, gumMat);
+const ridge = arch => {
+  const ts = arch.teeth.slice().sort((a, b) => a.slot.c[0] - b.slot.c[0]);
+  const pts = ts.map(t => { const v = new THREE.Vector3(); t.tooth.group.getWorldPosition(v); v.y = RTOP - RH / 2; return v; });
+  const ext = (a, b) => a.clone().add(a.clone().sub(b).setY(0).normalize().multiplyScalar(4));
+  const path = [ext(pts[0], pts[1]), ...pts, ext(pts[pts.length - 1], pts[pts.length - 2])];
+  const W = Math.max(...ts.map(t => t.spec.bl)) + 4.2, rr = DK.roundedRect(RH / 2, W / 2, RH / 2 - 0.05);
+  // ends close down to a rounded tip, so the ridge does not stop in a flat cut
+  const prof = (s, u) => { const [a, b] = rr(s), e = Math.min(1, Math.sqrt(Math.min(u, 1 - u) / 0.04)); return [a * (0.35 + 0.65 * e) + (RH / 2) * 0.65 * (1 - e) * 0.6, b * (0.3 + 0.7 * e)]; };
+  return new THREE.Mesh(DK.sweepGeometry(new THREE.CatmullRomCurve3(path, false, 'centripetal'), prof, { segments: 220, up: [0, 1, 0] }), gumMat);
 };
-const padL = pad(lower, 1), padU = pad(upper, -1);
-fig.world.add(padL, padU);
-fig.part(padL, { inPlace: true, name: 'Gum pads', label: false, info: 'Before teeth come in, the jaws are covered by firm gum pads; the crowns are already formed underneath.' });
-fig.part(padU, { inPlace: true, name: 'Upper gum pad', label: false, info: 'The upper gum pad.' });
+const gumL = ridge(lower), gumU = ridge(upper);
+fig.world.add(gumL, gumU);
+fig.part(gumL, { inPlace: true, name: 'Lower gums', label: false, fit: false, info: 'Before teeth come in, the gums are firm pads; the crowns are already forming underneath.' });
+fig.part(gumU, { inPlace: true, name: 'Upper gums', label: false, fit: false, info: 'The upper gum pad.' });
 
-// --- eruption: each tooth starts sunk below the gum surface and rises along its own axis
+// --- teeth: sink each crown inside the ridge, tint the ones erupting now in the accent
 const all = [...lower.teeth, ...upper.teeth];
-const AGES = {   // AAPD eruption ranges in months (dental-facts.md §5): [maxillary, mandibular]
-  1: ['6 to 10', '5 to 8'], 2: ['8 to 12', '7 to 10'], 3: ['16 to 20', '16 to 20'], 4: ['11 to 18', '11 to 18'], 5: ['20 to 30', '20 to 30'] };
-all.forEach(t => { t.home = t.tooth.group.position.y; t.sink = t.spec.crownL + 2.4; });
-const NAMES = { 1: 'central incisor', 2: 'lateral incisor', 3: 'canine', 4: 'first molar', 5: 'second molar' };
+const AGES = { 1: ['6 to 10', '5 to 8'], 2: ['8 to 12', '7 to 10'], 3: ['16 to 20', '16 to 20'], 4: ['11 to 18', '11 to 18'], 5: ['20 to 30', '20 to 30'] };   // months, [upper, lower]
+const FLOOR = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(RTOP - RH));   // nothing of a waiting crown shows below the gum
+const ENAMEL = DK.color(DK.COLORS.enamel || 0xf2efe8);
 all.forEach(t => {
-  const p = t.fdi % 10, max = t.spec.maxillary;
+  t.home = t.tooth.group.position.y; t.sink = t.spec.crownL + 0.4;
+  t.mats = []; t.tooth.group.traverse(m => { if (m.isMesh && m.material) { m.material = m.material.clone(); m.material.clippingPlanes = [FLOOR]; t.mats.push({ m: m.material, c: m.material.color.clone() }); } });
+  const p = t.fdi % 10;
   fig.part(t.tooth.group, { inPlace: true, name: String(t.fdi), label: false,
-    info: `${DK.toothName(t.fdi)} (FDI ${t.fdi}, Universal ${DK.toothNumber(t.fdi, 'universal')}): usually comes in at ${AGES[p][max ? 0 : 1]} months.` });
+    info: `${DK.toothName(t.fdi)} (FDI ${t.fdi}, Universal ${DK.toothNumber(t.fdi, 'universal')}): usually comes in at ${AGES[p][t.spec.maxillary ? 0 : 1]} months.` });
 });
-// labels: one marker per pair, just outside the crowns (world points)
-const marker = (fdis, name, sub, accent, off) => {
-  const ts = fdis.map(f => all.find(x => x.fdi === f)), v = new THREE.Vector3(), c = new THREE.Vector3();
-  ts.forEach(t => { t.tooth.group.getWorldPosition(v); c.add(v); }); c.multiplyScalar(1 / ts.length);
-  const max = ts[0].spec.maxillary, h = ts[0].spec.crownL * 0.6;
-  const o = new THREE.Object3D(); o.position.set(c.x, c.y + (max ? -h : h), c.z + ts[0].spec.bl / 2); fig.world.add(o);
-  return fig.part(o, { inPlace: true, name, sub, accent, anchor: [0, 0, 0], dim: false, labelOffset: off || [0, 0], info: '' });
+const GROUPS = [[71, 81], [51, 61], [72, 82, 52, 62], [54, 64, 74, 84], [53, 63, 73, 83], [55, 65, 75, 85]];
+const byFdi = f => all.find(x => x.fdi === f);
+
+// labels: markers just above the crowns (world points; placed before the params sink the teeth)
+const marker = (fdis, name, sub, off) => {
+  const v = new THREE.Vector3(), c = new THREE.Vector3(); let h = 0;
+  fdis.forEach(f => { const t = byFdi(f); t.tooth.group.getWorldPosition(v); c.add(v); h = Math.max(h, t.spec.crownL); });
+  c.multiplyScalar(1 / fdis.length);
+  const o = new THREE.Object3D(); o.position.set(c.x, c.y + h + 0.6, c.z); fig.world.add(o);
+  return fig.part(o, { inPlace: true, name, sub, anchor: [0, 0, 0], dim: false, labelOffset: off || [0, -40], info: '' });
 };
-marker([71, 81], 'Lower front teeth', `first, about ${AGES[1][1]} months`, true, [0, 70]);
-marker([51, 61], 'Upper front teeth', `${AGES[1][0]} months`, false, [0, -70]);
-marker([72, 82], 'Lower laterals', `${AGES[2][1]} months`, false, [60, 60]);
-marker([52, 62], 'Upper laterals', `${AGES[2][0]} months`, false, [60, -60]);
-marker([74], 'First molars', `${AGES[4][1]} months`, false, [60, 50]);
-marker([73], 'Canines', `${AGES[3][1]} months, after the first molars`, false, [60, 60]);
-marker([75], 'Second molars', `${AGES[5][1]} months: all 20 in`, false, [60, 50]);
+marker([71, 81], 'Lower front teeth', `first, about ${AGES[1][1]} months`, [0, 60]);
+marker([51, 61], 'Upper front teeth', `${AGES[1][0]} months`, [0, -50]);
+marker([82], 'Laterals', `${AGES[2][1]} months lower, ${AGES[2][0]} upper`, [-60, 60]);
+marker([84], 'First molars', `${AGES[4][1]} months`, [-70, 50]);
+marker([83], 'Canines', `${AGES[3][1]} months, after the first molars`, [-80, 55]);
+marker([85], 'Second molars', `${AGES[5][1]} months: all 20 in`, [-70, 50]);
 
-// one param per group of teeth (u = upper, l = lower), 0 = under the gum, 1 = through
-const groups = { l1: [71, 81], u1: [51, 61], l2: [72, 82], u2: [52, 62], m1: [54, 64, 74, 84], c: [53, 63, 73, 83], m2: [55, 65, 75, 85] };
-Object.keys(groups).forEach(k => fig.param(k, 0, v => groups[k].forEach(f => { const t = all.find(x => x.fdi === f); t.tooth.group.position.y = t.home - t.sink * (1 - v); })));
-
-fig.xray([padL, padU], false);
+const xr = { v: 0 };
+// one param per group: 0 = inside the gum (hidden), 1 = through; 'now' = which group is tinted (1-based, 0 = none)
+GROUPS.forEach((g, i) => fig.param('g' + i, 0, v => g.forEach(f => { const t = byFdi(f); t.tooth.group.position.y = t.home - t.sink * (1 - v); t.tooth.group.visible = v > 0.001 || fig.xrayOn || xr.v > 0.01; })));
+fig.param('now', 0, v => {
+  const k = Math.round(v), A = fig.accent;
+  all.forEach(t => t.mats.forEach(({ m, c }) => m.color.copy(c)));
+  if (k > 0) GROUPS[k - 1].forEach(f => byFdi(f).mats.forEach(({ m, c }) => m.color.copy(c).lerp(A, 0.85)));
+});
+fig.param('waiting', 0, v => { xr.v = v; GROUPS.forEach((g, i) => g.forEach(f => { const t = byFdi(f); if (t.tooth.group.position.y < t.home - t.sink + 0.01) t.tooth.group.visible = v > 0.01; })); });
+fig.xray([gumL, gumU], false);
 fig.standardControls({ explode: false });
 
-// procedure: gum pads (X-ray: the crowns are waiting) → lower centrals → upper centrals → laterals → first molars → canines → second molars
-const FRONT = { theta: 0.12, phi: 1.42 }, SIDE = { theta: 0.95, phi: 1.36 };
-const C = [0, OPEN / 2, 8];
+// procedure: gums with the crowns waiting (X-ray) → lower centrals → upper centrals → laterals → first molars → canines → second molars
+const zL = lower.group.position.z, zU = upper.group.position.z;
+const FRONT = [0, 2, (zL + zU) / 2 + 4];
 fig.procedure([
-  { label: 'Gum pads', caption: 'At birth the crowns are already formed, waiting under the gums.', beats: [
-    { fov: 34, dur: 0, hold: 1.2, theta: 0.4, phi: 1.3, zoom: 1.0, xray: 0, labels: [] },
-    { dur: 2.0, hold: 1.8, xray: 0.75, labels: [], key: true },
-    { dur: 1.4, hold: 0.4, xray: 0 }] },
+  { label: 'Gums', caption: 'At birth the crowns are forming, waiting under the gums.', beats: [
+    { fov: 34, dur: 0, hold: 1.0, theta: 0.35, phi: 0.8, zoom: 1.05, xray: 0, set: { waiting: 0, now: 0 }, labels: [] },
+    { fov: 30, dur: 2.0, hold: 1.8, theta: 0, phi: 0.62, zoom: 1.0, xray: 0.7, set: { waiting: 1 }, labels: [], key: true },
+    { dur: 1.2, hold: 0.3, xray: 0, set: { waiting: 0 } }] },
   { label: 'Lower front teeth', caption: 'The lower central incisors usually come through first.', beats: [
-    { fov: 30, dur: 1.4, hold: 0.2, ...FRONT, zoom: 0.8, focus: C, labels: [] },
-    { dur: 2.4, hold: 2.2, set: { l1: 1 }, labels: ['Lower front teeth'], key: true }] },
+    { dur: 1.4, hold: 0.1, zoom: 0.9, focus: [0, 2, zL - 8], labels: [] },
+    { dur: 2.4, hold: 2.2, set: { g0: 1, now: 1 }, labels: ['Lower front teeth'], key: true }] },
   { label: 'Upper front teeth', caption: 'Then the upper central incisors.', beats: [
-    { dur: 2.2, hold: 2.0, set: { u1: 1 }, labels: ['Upper front teeth'], key: true }] },
+    { dur: 1.4, hold: 0.1, zoom: 0.92, focus: FRONT, set: { now: 0 }, labels: [] },
+    { dur: 2.2, hold: 2.0, set: { g1: 1, now: 2 }, labels: ['Upper front teeth'], key: true }] },
   { label: 'Laterals', caption: 'The lateral incisors follow, upper and lower.', beats: [
-    { dur: 1.2, hold: 0.1, zoom: 0.9 },
-    { dur: 2.2, hold: 2.0, set: { l2: 1, u2: 1 }, labels: ['Lower laterals', 'Upper laterals'], key: true }] },
+    { dur: 0.6, hold: 0, set: { now: 0 } },
+    { dur: 2.2, hold: 2.0, set: { g2: 1, now: 3 }, labels: ['Laterals'], key: true }] },
   { label: 'First molars', caption: 'The first molars come in before the canines.', beats: [
-    { dur: 1.8, hold: 0.1, ...SIDE, zoom: 0.85, focus: [10, OPEN / 2, 0], labels: [] },
-    { dur: 2.2, hold: 2.0, set: { m1: 1 }, labels: ['First molars'], key: true }] },
+    { dur: 1.6, hold: 0.1, zoom: 1.0, focus: 'auto', set: { now: 0 }, labels: [] },
+    { dur: 2.2, hold: 2.0, set: { g3: 1, now: 4 }, labels: ['First molars'], key: true }] },
   { label: 'Canines', caption: 'Then the canines fill the gap in front of them.', beats: [
-    { dur: 2.2, hold: 2.0, set: { c: 1 }, labels: ['Canines'], key: true }] },
+    { dur: 0.6, hold: 0, set: { now: 0 } },
+    { dur: 2.2, hold: 2.0, set: { g4: 1, now: 5 }, labels: ['Canines'], key: true }] },
   { label: 'Second molars', caption: 'The second molars come last: all 20 baby teeth by about two and a half years.', beats: [
-    { dur: 2.2, hold: 1.2, set: { m2: 1 }, labels: ['Second molars'] },
-    { dur: 2.4, hold: 2.4, theta: 0.5, phi: 1.36, zoom: 1.0, focus: 'auto', labels: ['Lower front teeth', 'Second molars'], key: true }] }
+    { dur: 0.6, hold: 0, set: { now: 0 } },
+    { dur: 2.2, hold: 2.4, set: { g5: 1, now: 6 }, labels: ['Second molars', 'Lower front teeth'], key: true }] }
 ]);
 fig.start();

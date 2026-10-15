@@ -16,7 +16,7 @@ const ATT = {
   4: { w: 2, h: 3, d: 1, bevel: 'distal', name: 'Bevelled attachment', why: 'A bevelled rectangle: thick on one side, ramped on the other, so the aligner pushes on one face only. Bevelled shapes rotated teeth better than plain ones in a small study.' }
 };
 const arch = DK.arch({ jaw: 'maxilla', placement: 'jaw', teeth: [16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26],
-  build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 2.0) })); return DK.tooth(spec); } });
+  build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 1.4) })); return DK.tooth(spec); } });
 fig.part(arch.group, { name: 'Upper teeth', label: false, info: 'Maxillary teeth 16–26, in the mouth.' });
 arch.group.updateMatrixWorld(true);
 const teeth = arch.teeth.map(({ fdi, tooth: t, spec: sp }) => {

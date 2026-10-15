@@ -7,6 +7,7 @@
 const TEETH = [13, 12, 11, 21, 22, 23];
 const DEPTH = { 1: [0.3, 0.5, 0.7], 2: [0.1, 0.3, 0.5], 3: [0.4, 0.6, 0.8] };
 const WORN = 0.45;                                   // fraction of the edge reduction already lost to wear before treatment
+const ZF = window.innerWidth < window.innerHeight ? 1.5 : 1;   // a portrait phone stage is narrow: pull back so the whole smile fits
 const HOME = { theta: 0, phi: 1.66 };   // focus and zoom are set per shot below
 
 const fig = DK.figure({
@@ -35,7 +36,7 @@ fig.part(ridge, { name: 'Gum', label: false, fit: false, info: 'The gum line sta
 
 const U = fdi => units.find(u => u.fdi === fdi);
 arch.group.updateMatrixWorld(true);
-const FOCUS = (() => { const c = new THREE.Vector3(); arch.teeth.forEach(t => c.add(t.tooth.group.getWorldPosition(new THREE.Vector3()))); c.multiplyScalar(1 / arch.teeth.length); return [c.x, -5.0, c.z + 3.5]; })();   // middle of the six crowns
+const FOCUS = (() => { const c = new THREE.Vector3(); arch.teeth.forEach(t => c.add(t.tooth.group.getWorldPosition(new THREE.Vector3()))); c.multiplyScalar(1 / arch.teeth.length); return [c.x, -5.0, c.z - 4]; })();   // middle of the six crowns
 const u11 = U(11), u21 = U(21), u12 = U(12);
 const mid = s => [0, s.crownL * 0.5, s.bl / 2 - 0.2];           // labial face, middle third (tooth frame: crown at +y, mirrored into the mouth)
 fig.part(u11.prep, { inPlace: true, name: 'Darker, worn teeth', anchor: mid(u11.spec), labelOffset: [-120, -60], dim: false, when: () => st.prep < 0.1 && st.ven < 0.1, info: 'Teeth that have darkened and lost a little length at the edges. Whitening cannot change shape; veneers change both.' });
@@ -51,24 +52,24 @@ fig.param('ghost', 0, k => { st.ghost = k; ghostMat.opacity = 0.16 * k; units.fo
 fig.param('ven', 0, k => { st.ven = k; units.forEach((u, i) => { const kk = DK.util.clamp(k * 1.5 - i * 0.1, 0, 1); u.veneer.visible = kk > 0.001; u.veneer.position.z = (1 - kk) * 7; }); });
 
 fig.standardControls({ explode: false });
-fig.view('Front', Object.assign({ zoom: 0.8, focus: FOCUS, fov: 32 }, HOME));
-fig.view('Side', { theta: 0.95, phi: 1.62, zoom: 0.8, focus: FOCUS, fov: 30 });
+fig.view('Front', Object.assign({ zoom: 0.8 * ZF, focus: FOCUS, fov: 32 }, HOME));
+fig.view('Side', { theta: 0.95, phi: 1.62, zoom: 0.8 * ZF, focus: FOCUS, fov: 30 });
 
 fig.procedure([
   { label: 'Before', caption: 'Darker teeth with worn edges.', beats: [
-    { dur: 0, hold: 1.2, theta: 0.5, phi: 1.6, zoom: 0.95, focus: FOCUS, labels: [] },
-    { dur: 2.2, hold: 2.0, ...HOME, zoom: 0.78, labels: ['Darker, worn teeth'], key: true }] },
+    { dur: 0, hold: 1.2, theta: 0.5, phi: 1.6, zoom: 0.95 * ZF, focus: FOCUS, labels: [] },
+    { dur: 2.2, hold: 2.0, ...HOME, zoom: 0.78 * ZF, labels: ['Darker, worn teeth'], key: true }] },
   { label: 'Thin preparation', caption: 'A thin layer of enamel is removed from the front of each tooth.', beats: [
-    { dur: 1.8, hold: 0.2, theta: 0.45, phi: 1.62, zoom: 0.82, labels: [] },
+    { dur: 1.8, hold: 0.2, theta: 0.45, phi: 1.62, zoom: 0.82 * ZF, labels: [] },
     { dur: 2.6, hold: 0.3, set: { prep: 1, ghost: 1 }, labels: ['Thin layer removed'] },
     { dur: 1.0, hold: 1.8, labels: ['Thin layer removed'], key: true }] },
   { label: 'Ceramic shells', caption: 'Six thin ceramic shells, made to the new shape and shade.', beats: [
     { dur: 1.2, hold: 0.1, set: { ghost: 0 }, labels: [] },
-    { dur: 2.2, hold: 0.3, theta: 1.05, phi: 1.7, zoom: 0.85, set: { ven: 0.55 }, labels: ['Veneer'] },
+    { dur: 2.2, hold: 0.3, theta: 0.85, phi: 1.7, zoom: 0.9 * ZF, set: { ven: 0.55 }, labels: ['Veneer'] },
     { dur: 0.6, hold: 1.8, labels: ['Veneer'], key: true }] },
   { label: 'Bonded', caption: 'Each one is bonded onto its tooth.', beats: [
-    { dur: 2.2, hold: 1.8, theta: 0.5, zoom: 0.82, set: { ven: 1 }, labels: [], key: true }] },
+    { dur: 2.2, hold: 1.8, theta: 0.5, zoom: 0.82 * ZF, set: { ven: 1 }, labels: [], key: true }] },
   { label: 'New smile', caption: 'Shape and shade of the whole smile change together.', beats: [
-    { dur: 2.2, hold: 2.6, ...HOME, zoom: 0.78, labels: ['Six veneers'], key: true }] }
+    { dur: 2.2, hold: 2.6, ...HOME, zoom: 0.78 * ZF, labels: ['Six veneers'], key: true }] }
 ]);
 fig.start();

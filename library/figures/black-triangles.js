@@ -23,7 +23,7 @@ const flip = (o, y) => { o.scale.y = -1; o.position.y = -(y || 0); return o; }; 
 // ---------- teeth: 12 11 | 21 22 along x, contacts touching; left teeth mirrored (scale.x = -1)
 const s11 = DK.toothPreset(11), s12 = DK.toothPreset(12);
 const X11 = s11.md / 2 - 0.02, X12 = s11.md - 0.04 + s12.md / 2 - 0.05;
-const mk = (fdi, x, rot, z) => { const t = DK.tooth(fdi); flip(t.group); t.group.position.x = x; t.group.position.z = z || 0; if (x > 0) t.group.scale.x = -1; t.group.rotation.y = rot || 0; return t; };
+const mk = (fdi, x, rot, z) => { const t = DK.tooth(fdi, { omit: ['dentin', 'pulp', 'root'] });   // crowns only: the roots stay hidden in the gum flip(t.group); t.group.position.x = x; t.group.position.z = z || 0; if (x > 0) t.group.scale.x = -1; t.group.rotation.y = rot || 0; return t; };
 const t11 = mk(11, -X11), t21 = mk(21, X11), t12 = mk(12, -X12, 0.32, -1.0), t22 = mk(22, X12, -0.32, -1.0);
 // lowest point of the 11/21 contact: where the mesial surfaces close to within 0.05 mm (tooth frame y)
 let CB = 0; for (let y = 2; y < s11.crownL; y += 0.05) { if (DK.toothSurfaceAt(s11, y, 0).x >= X11 - 0.025) { CB = y; break; } }
@@ -41,7 +41,7 @@ fig.part(frameBox, { name: 'Frame', label: false });
 
 // ---------- bone: crest ~2 mm below the CEJ on the facial, peaking between the teeth (interdental septa); loss only at 11/21
 const pk = (x, w) => Math.exp(-Math.pow(x / w, 2));
-const bone = DK.perioBone({ width: 29, height: 6.5, depth: 7.0, cortical: 0.8, crest: 1.0,
+const bone = DK.perioBone({ width: 29, height: 4.0, depth: 7.0, cortical: 0.8, crest: 1.0,
   scallop: (x, z) => smooth(3.9, 2.8, Math.abs(z)) * ((CREST0 - FACIAL_CREST) * pk(x, 1.25) + (CB - NEED + 0.3 - FACIAL_CREST) * (pk(x + X11 * 2 - 0.1, 1.2) + pk(x - X11 * 2 + 0.1, 1.2))),
   loss: (x, z) => -LOSS * pk(x, 1.6), level: 0 });
 flip(bone, FACIAL_CREST);
@@ -49,7 +49,7 @@ fig.part(bone, { name: 'Bone', label: false, fit: false, info: 'The bone around 
 
 // ---------- gum: one block whose top hugs every neck (margin on the enamel) and rises into a papilla in each embrasure.
 // The 11/21 papilla reaches the contact in health and about PAP mm above the crest after the loss.
-const G = { width: 30, height: 7, depth: 8.2, crest: 2.4, base: M0 - 0.9 };
+const G = { width: 30, height: 5.5, depth: 8.2, crest: 2.4, base: M0 - 0.9 };
 const necks = [t11, t21, t12, t22].map(t => ({ x: t.group.position.x, z: t.group.position.z, a: t.spec.mdC / 2, b: t.spec.blC / 2, r: t.group.rotation.y }));
 const tipOf = k => lerp(CB + 0.25, CREST1 + PAP, k);
 const tip12 = CB + 0.1;
@@ -110,6 +110,6 @@ fig.story([
   { dur: 1.8, hold: 2.0, xray: 0.85, set: { bar: 1 }, theta: 0.12, labels: ['Contact point', 'Bone crest'], caption: 'Underneath, the bone sits about 5 mm below the contact.' },
   { dur: 2.6, hold: 1.8, set: { loss: 1 }, labels: ['Contact point', 'Bone crest'], caption: 'The bone between the teeth is lost.' },
   { dur: 1.8, hold: 0.2, xray: 0, set: { bar: 0 }, theta: 0.0, labels: [], caption: 'The papilla shrinks with it.' },
-  { dur: 2.0, hold: 2.8, zoom: 1.15, focus: [0, -5.2, 2], labels: ['Black triangle', 'Papilla', 'Contact point'], caption: 'A dark triangle opens under the contact.' }
+  { dur: 2.0, hold: 2.8, zoom: 0.95, focus: [0, -3.4, 2], labels: ['Black triangle', 'Papilla', 'Contact point'], caption: 'A dark triangle opens under the contact.' }
 ]);
 fig.start();

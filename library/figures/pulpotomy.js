@@ -133,7 +133,7 @@ fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range:
 const TOP = s.crownL, FC = [0, 2.2, CUT], FT = [0, -3.2, CUT];
 fig.procedure([
   { label: 'Decay in the nerve', caption: 'Decay in a baby molar has reached the pulp in the crown.', beats: [
-    { fov: 32, dur: 0, hold: 1.2, theta: 0.5, phi: 1.2, zoom: 1.0, section: false, labels: ['Adult premolar'] },
+    { fov: 32, dur: 0, hold: 1.2, theta: 0.5, phi: 1.2, zoom: 1.0, section: false, labels: [] },
     { fov: 26, dur: 2.0, hold: 0.1, theta: 0.04, phi: 1.45, labels: [] },
     { dur: 0, hold: 0, section: true, offset: 7 },
     { dur: 2.2, hold: 0.4, offset: CUT, labels: ['Root pulp'] },

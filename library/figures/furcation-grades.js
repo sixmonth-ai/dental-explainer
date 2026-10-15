@@ -8,9 +8,9 @@ const HORIZ = 1.6;             // general horizontal loss: the buccal crest sits
 const SPACE = 17;              // set spacing along x
 const CUT = 1.6;               // the buccal plate is cut back to this z (mm buccal of the tooth centre)
 const CLASSES = [
-  { name: 'Class I', sub: 'probe enters under 3 mm', depth: 1.8, drop: 1.0, info: 'Hamp Class I: horizontal loss into the furcation of less than 3 mm; the bone between the roots is still nearly intact.' },
-  { name: 'Class II', sub: '3 mm or more, not through', depth: 4.6, drop: 2.6, info: 'Hamp Class II: the probe goes in 3 mm or more but meets bone before the other side: a cul-de-sac.' },
-  { name: 'Class III', sub: 'through and through', depth: 99, drop: 3.8, info: 'Hamp Class III: bone is gone right across the furcation, buccal to lingual. A Stage III complexity factor.' }
+  { name: 'Class I', sub: 'probe enters under 3 mm', depth: 1.8, drop: 0.8, info: 'Hamp Class I: horizontal loss into the furcation of less than 3 mm; the bone between the roots is still nearly intact.' },
+  { name: 'Class II', sub: '3 mm or more, not through', depth: 4.6, drop: 5.2, info: 'Hamp Class II: the probe goes in 3 mm or more but meets bone before the other side: a cul-de-sac.' },
+  { name: 'Class III', sub: 'through and through', depth: 99, drop: 7.2, info: 'Hamp Class III: bone is gone right across the furcation, buccal to lingual. A Stage III complexity factor.' }
 ];
 const { smooth, lerp } = DK.util;
 
@@ -47,7 +47,7 @@ const sets = CLASSES.map((c, i) => {
   const pdl = DK.perioPdl(s, 0.22, r => Math.min(crestAt(r.x + r.ra + 0.2, 0), crestAt(r.x - r.ra - 0.2, 0)) + 0.2); t.group.add(pdl);
   const probe = furcationProbe();
   const pivot = new THREE.Group(); pivot.add(probe); fig.world.add(pivot);
-  const yProbe = -(s.trunk + Math.min(0.75, c.drop * 0.5));                 // just under the furcation roof
+  const yProbe = -(s.trunk + Math.min(0.9, c.drop * 0.5));                 // just under the furcation roof
   const tipIn = s.blC / 2 + 0.2 - Math.min(c.depth, s.blC + 0.6);          // z of the tip at full insertion
   return Object.assign({ t, s, bone, gum, pdl, pivot, probe, xc, yProbe, tipIn, through }, c);
 });
@@ -96,7 +96,7 @@ fig.story([
   { dur: 0, hold: 0, section: true, offset: 8 },
   { dur: 2.4, hold: 1.6, offset: CUT, theta: 0.3, phi: 1.4, labels: ['Root trunk'], caption: 'The cheek-side bone is cut back: two roots, a short trunk, and bone lost between them.' },
   { dur: 2.6, hold: 2.4, set: { probe: 1 }, labels: ['Class I', 'Class II', 'Class III'], caption: 'A probe slid in from the cheek side reads how far the loss goes.' },
-  { dur: 2.0, hold: 2.2, zoom: 0.5, theta: 0.12, phi: 1.45, focus: [SPACE, -4, 0], labels: ['Furcation'], caption: 'Class III: the probe passes right through.' },
+  { dur: 2.0, hold: 2.2, zoom: 0.5, theta: 0.12, phi: 1.45, focus: [SPACE, -5, 0], labels: ['Furcation'], caption: 'Class III: the probe passes right through.' },
   { dur: 2.2, hold: 2.6, focus: 'auto', zoom: fig.mode === 'image' ? 0.85 : 1, theta: 0.3, phi: 1.4, labels: ['Class I', 'Class II', 'Class III', 'Root trunk'] }
 ]);
 fig.start();

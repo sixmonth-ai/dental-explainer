@@ -134,7 +134,7 @@ fig.standardControls({ explode: false, section: { label: 'Cut', on: false, range
 // --- params: the wear grows on all four together; the loss overlay fades in on the cut
 fig.param('wear', 0, k => teeth.forEach((w, i) => applyWear(i, k)));
 fig.param('loss', 0, k => { lossMat.opacity = 0.32 * k; edgeMat.opacity = 0.95 * k; teeth.forEach(w => { w.loss.visible = k > 0.01; }); });
-fig.view('Cut', { theta: 0, phi: 1.5, zoom: 1, focus: 'auto', section: true, offset: 0, set: { wear: 1, loss: 1 } });
+fig.view('Profiles', { theta: 0, phi: 1.5, zoom: 1, focus: 'auto', section: true, offset: 0, set: { wear: 1, loss: 1 } });
 fig.view('Surfaces', { theta: 0.55, phi: 1.2, zoom: 1, focus: 'auto', section: false, set: { wear: 1, loss: 0 } });
 
 // --- story: four intact teeth → the wear eats in → turn to the cut, which sweeps in → the lost tissue lights up → push in on the

@@ -5,7 +5,7 @@ const SHIFT = 6.5;        // mm the lower teeth come forward with it: about one 
 const fig = DK.figure({
   fov: 34,
   title: 'Underbite',
-  subtitle: 'Seen from the right. Average adult jaw; lower jaw lengthened, schematic.',
+  subtitle: "From the patient's right. Average adult jaw, lower jaw lengthened (schematic).",
   view: { theta: -1.05, phi: 1.45, margin: 0.8 }
 });
 

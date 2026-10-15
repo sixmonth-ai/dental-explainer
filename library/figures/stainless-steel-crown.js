@@ -112,7 +112,7 @@ const TOP = s.crownL, FC = [0, 3.0, CUT], HALF = s.md / 2;
 const park = { by: 40, ry: 40 };
 fig.procedure([
   { label: 'Badly decayed', caption: 'Decay has spread through a baby molar.', beats: [
-    { fov: 32, dur: 0, hold: 1.2, theta: 0.5, phi: 1.2, zoom: 1.0, section: false, labels: ['Adult premolar'] },
+    { fov: 32, dur: 0, hold: 1.2, theta: 0.5, phi: 1.2, zoom: 1.0, section: false, labels: [] },
     { fov: 26, dur: 2.0, hold: 0.1, theta: 0.04, phi: 1.45, labels: [] },
     { dur: 0, hold: 0, section: true, offset: 7 },
     { dur: 2.2, hold: 0.3, offset: CUT, labels: [] },

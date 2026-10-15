@@ -39,12 +39,12 @@ fig.part(gum, { name: 'Gum', label: false, fit: false, info: 'Healthy gum: its e
 const sulcus = DK.pocket(s, { margin: M, base: 0, width: 0.18 }); t36.group.add(sulcus);
 
 // ---------- plaque: a soft band on the buccal surface of 36 along the gum margin (a closed lens-shaped solid)
-const plaqueMat = DK.mat('composite', { color: 0xe3d6a6, roughness: 0.95, cap: 0xd8c88e }); plaqueMat.transparent = true;
+const plaqueMat = DK.mat('composite', { color: 0xc6a456, roughness: 0.95, cap: 0xc2a05a }); plaqueMat.transparent = true;
 const TH0 = 0.35, TH1 = Math.PI - 0.35, ROWS = 40, COLS = 20;
 const plaqueGeo = k => DK.gridGeometry(ROWS, COLS, (i, j) => {
   const u = i / ROWS, th = lerp(TH0, TH1, u), end = Math.sin(Math.PI * u), sa = j / COLS * Math.PI * 2;
-  const H = PH * (0.35 + 0.65 * Math.pow(end, 0.5)), t = Math.max(0.02, 0.32 * k * Math.pow(end, 0.6));
-  const y = M - 0.15 + H / 2 - (H / 2) * Math.cos(sa), d = -0.06 + (t + 0.06) * (0.5 + 0.5 * Math.sin(sa)) * smooth(M + H + 0.2, M + 0.2, y + 0.3);
+  const H = PH * (0.35 + 0.65 * Math.pow(end, 0.5)), t = Math.max(0.02, 0.5 * k * Math.pow(end, 0.6));
+  const y = M - 0.15 + H / 2 - (H / 2) * Math.cos(sa), d = -0.06 + (t + 0.06) * (0.5 + 0.5 * Math.sin(sa)) * (0.45 + 0.55 * smooth(M + H + 0.1, M + 0.55 * H, y));
   const q = DK.toothSurfaceAt(s, y, th), r = Math.hypot(q.x, q.z) || 1;
   return [q.x + q.x / r * d, y, q.z + q.z / r * d];
 }, [DK.toothSurfaceAt(s, M + 0.5, TH1).x, M + 0.5, DK.toothSurfaceAt(s, M + 0.5, TH1).z], [DK.toothSurfaceAt(s, M + 0.5, TH0).x, M + 0.5, DK.toothSurfaceAt(s, M + 0.5, TH0).z]);
@@ -55,19 +55,25 @@ const setPlaque = k => { const g2 = plaqueGeo(k), p = plaque.geometry.attributes
 const brush = new THREE.Group(); fig.world.add(brush); brush.visible = false;
 const brushMats = [];
 {
-  const nylon = DK.mat('zirconia', { color: 0xf4f1ea, roughness: 0.55 }), body = DK.mat('composite', { color: 0x8f9aa3, roughness: 0.45, cap: 0x8f9aa3 });
+  const nylon = new THREE.MeshStandardMaterial({ color: DK.color(0xeeeae2), roughness: 0.6, metalness: 0 }), body = DK.mat('composite', { color: 0x8f9aa3, roughness: 0.45, cap: 0x8f9aa3 });
   brushMats.push(nylon, body);
   const BL = 10, ROWSN = 4, TUFTS = 12, SP = 1.75;
-  const tuftGeo = DK.lathe([[0, 0], [0.42, 0.12], [0.62, 0.45], [0.66, 1.0], [0.66, BL]], 14);
-  for (let r = 0; r < ROWSN; r++) for (let k = 0; k < TUFTS; k++) {
-    const m = new THREE.Mesh(tuftGeo, nylon); m.position.set((k - (TUFTS - 1) / 2) * SP, 0, r * SP);   // row 0 at the origin (in the sulcus), the others down over the gum brush.add(m);
+  // each row of tufts ends where it meets the tooth or the gum (the bristles press on the surface): solve its tip along the bristle
+  const zS = y => DK.toothSurfaceAt(s, y, Math.PI / 2).z;
+  const outer = y => y >= M ? zS(y) : Math.min(6.25, zS(M) + (M - y) * 0.5);   // tooth above the margin, gum below
+  const P0y = M - 0.15, P0z = zS(M - 0.15) + 0.45, ca = Math.cos(ANGLE), sa = Math.sin(ANGLE);
+  for (let r = 0; r < ROWSN; r++) {
+    const zr = (r - 1) * SP;            // row 1 at the sulcus, row 0 on the enamel above it, rows 2 and 3 down over the gum
+    let lo = -6, hi = 8; for (let it = 0; it < 40; it++) { const y0 = (lo + hi) / 2, wy = P0y + y0 * ca - zr * sa, wz = P0z + y0 * sa + zr * ca; if (wz - outer(wy) > 0.05) hi = y0; else lo = y0; }
+    const y0 = (lo + hi) / 2, g = DK.lathe([[0, y0], [0.42, y0 + 0.12], [0.62, y0 + 0.45], [0.66, y0 + 1.0], [0.66, BL]], 14);
+    for (let k = 0; k < TUFTS; k++) { const m = new THREE.Mesh(g, nylon); m.position.set((k - (TUFTS - 1) / 2) * SP, 0, zr); brush.add(m); }
   }
   const headShape = new THREE.Shape(), hw = TUFTS * SP / 2 + 0.9, hd = ROWSN * SP / 2 + 0.9, rr = 3;
   headShape.moveTo(-hw + rr, -hd); headShape.lineTo(hw - rr, -hd); headShape.quadraticCurveTo(hw, -hd, hw, -hd + rr); headShape.lineTo(hw, hd - rr); headShape.quadraticCurveTo(hw, hd, hw - rr, hd); headShape.lineTo(-hw + rr, hd); headShape.quadraticCurveTo(-hw, hd, -hw, hd - rr); headShape.lineTo(-hw, -hd + rr); headShape.quadraticCurveTo(-hw, -hd, -hw + rr, -hd);
   const headGeo = new THREE.ExtrudeGeometry(headShape, { depth: 3.2, bevelEnabled: true, bevelThickness: 0.8, bevelSize: 0.8, bevelSegments: 4, curveSegments: 10 });
-  headGeo.rotateX(-Math.PI / 2); const head = new THREE.Mesh(headGeo, body); head.position.set(0, BL + 0.8, (ROWSN - 1) / 2 * SP); brush.add(head);
+  headGeo.rotateX(-Math.PI / 2); const head = new THREE.Mesh(headGeo, body); head.position.set(0, BL + 0.8, SP / 2); brush.add(head);
   // neck and handle: a tapered bar running toward the front of the mouth (-x), rising a little out of the mouth
-  const zc = (ROWSN - 1) / 2 * SP; const neck = DK.tube([[-hw + 1, BL + 2.4, zc], [-hw - 10, BL + 3.2, zc], [-hw - 30, BL + 5.5, zc], [-hw - 70, BL + 9, zc]], 2.2, body, { taper: t => 0.7 + 0.6 * t, caps: true });
+  const zc = SP / 2; const neck = DK.tube([[-hw + 1, BL + 2.4, zc], [-hw - 10, BL + 3.2, zc], [-hw - 30, BL + 5.5, zc], [-hw - 70, BL + 9, zc]], 2.2, body, { taper: t => 0.7 + 0.6 * t, caps: true });
   brush.add(neck);
   brush.userData.hw = hw;
 }
@@ -101,7 +107,7 @@ fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [sulcus], color: 0x4a403c },
-  { objects: [plaque], color: 0xd8c88e, kind: 'plain' },
+  { objects: [plaque], color: 0xc2a05a, kind: 'plain' },
   { objects: [t36.layers.enamel, t35.layers.enamel, t37.layers.enamel], color: DK.COLORS.enamelCap },
   { objects: [t36.layers.dentin, t36.layers.root, t35.layers.dentin, t35.layers.root, t37.layers.dentin, t37.layers.root], color: DK.COLORS.dentinCap },
   { objects: [t36.layers.pulp, t35.layers.pulp, t37.layers.pulp], color: DK.COLORS.pulpCap }
@@ -127,7 +133,7 @@ setPlaque(1);
 
 // ---------- procedure
 const HOME = { theta: 0.45, phi: 1.2, zoom: 1.0, focus: 'auto', fov: 30 };
-const SIDE = { theta: Math.PI / 2 - 0.1, phi: 1.45, zoom: 0.6, focus: [0, M + 0.8, 2.4], fov: 26 };
+const SIDE = { theta: Math.PI / 2 - 0.1, phi: 1.45, zoom: 0.78, focus: [0, M + 0.8, 2.4], fov: 26 };
 fig.procedure([
   { label: 'Plaque at the gumline', caption: 'Plaque collects in a band along the gum edge.', beats: [
     Object.assign({ dur: 0, hold: 1.2, labels: [], section: false, set: { in: 0, stroke: 0, plaque: 1, angle: 0 } }, HOME, { theta: 0.75, phi: 1.1 }),
@@ -141,7 +147,7 @@ fig.procedure([
   { label: 'Short strokes', caption: 'Small back-and-forth strokes, a tooth or two at a time.', beats: [
     { dur: 0.6, hold: 0, set: { angle: 0 }, labels: [] },
     { dur: 0, hold: 0, section: false },
-    Object.assign({ dur: 2.0, hold: 0.2, labels: ['Short strokes'] }, HOME, { theta: 0.3, phi: 1.22, zoom: 0.85 }),
+    { dur: 2.0, hold: 0.2, labels: ['Short strokes'], theta: 1.3, phi: 1.05, zoom: 1.05, focus: 'auto', fov: 30 },
     { dur: 4.0, hold: 0.4, ease: 'linear', set: { stroke: 1, plaque: 0 }, labels: ['Short strokes'], key: true }] },
   { label: 'Clean gumline', caption: 'The band at the gum edge comes off. Then the inner side, the same way.', beats: [
     { dur: 1.6, hold: 0.2, set: { in: 0, stroke: 0 }, labels: [] },

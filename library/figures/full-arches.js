@@ -9,7 +9,7 @@ const fig = DK.figure({
   fov: 34,
   title: 'Upper and lower teeth together',
   subtitle: '32 adult teeth, third molars included. Patient’s right on the left.',
-  view: { theta: 0.55, phi: 1.32, margin: IMG ? 0.62 : 0.74 }
+  view: { theta: 0.55, phi: 1.32, margin: IMG ? 0.62 : (window.innerWidth < 640 ? 0.98 : 0.74) }
 });
 const crowns = (fdi, spec) => DK.tooth(spec, { omit: ['dentin', 'pulp', 'root'] });
 

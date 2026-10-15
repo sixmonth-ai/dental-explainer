@@ -8,7 +8,7 @@ const fig = DK.figure({
   fov: 26,
   title: 'How many canals in a root',
   subtitle: 'Vertucci types I to VIII, drawn in one upper premolar root (FDI 15), crown up.',
-  view: { theta: 0, phi: 1.5, margin: IMG ? 0.6 : 0.76 }
+  view: { theta: 0, phi: 1.5, margin: IMG ? 0.6 : (window.innerWidth < 640 ? 0.9 : 0.76) }
 });
 const { lerp, smooth } = DK.util;
 

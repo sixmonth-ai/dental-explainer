@@ -53,8 +53,8 @@ const fixedOutline = (spec, o) => {
   pts.sort((a, b) => Math.atan2(a[1] - cz, a[0] - cx) - Math.atan2(b[1] - cz, b[0] - cx));
   return { plane: 'occlusal', points: rounded(pts, 0.85, (o && o.n) || 48), shape: 'trapezoid' };
 };
-const voidMat = DK.mat('pdl', { color: DK.voidColor(fig), roughness: 0.95 });
-const rimMat = new THREE.MeshBasicMaterial({ color: fig.accent.clone(), toneMapped: false, side: THREE.DoubleSide, transparent: true, depthWrite: false });
+const voidMat = new THREE.MeshStandardMaterial({ color: DK.color(fig.dark ? 0x3a3631 : 0xa89e8e), roughness: 1, metalness: 0, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -8 });   // the opening: a recessed shade of the stage
+const rimMat = new THREE.MeshBasicMaterial({ color: fig.accent.clone(), toneMapped: false, side: THREE.DoubleSide, transparent: true, depthWrite: false, depthTest: false });
 const dotMat = new THREE.MeshBasicMaterial({ color: DK.color(fig.dark ? 0xd9a49a : 0x9a4f45), toneMapped: false, transparent: true, depthTest: false, depthWrite: false });
 const row = new THREE.Group(), clear = [], sets = [];
 TEETH.forEach((T, i) => {
@@ -64,9 +64,9 @@ TEETH.forEach((T, i) => {
   if (T.fdi === 11) { holder.rotation.x = Math.PI / 2 * 0.86; holder.position.y = 3.2; holder.position.z += -5.5; }   // palatal surface up, crown toward the viewer
   // aim each other tooth's long axis at the hero camera (above, slightly in front): the orifice dots on the chamber floor then sit under
   // the opening on screen instead of drifting sideways by perspective
-  else holder.rotation.set(0.12, 0, Math.atan(holder.position.x / CAM));
+  else holder.rotation.set(0.12 - Math.atan(holder.position.z / CAM), 0, Math.atan(holder.position.x / CAM));
   // the opening: the access volume as a dark recess (its top follows the crown surface), and its outline as a ribbon
-  DK.accessOutline = fixedOutline; const cav = DK.accessCavity(s, Object.assign({ lift: 0.03 }, T.opts)); DK.accessOutline = kitOutline; cav.material = voidMat; tooth.group.add(cav);
+  DK.accessOutline = fixedOutline; const cav = DK.accessCavity(s, Object.assign({ lift: 0.12 }, T.opts)); DK.accessOutline = kitOutline; cav.material = voidMat; tooth.group.add(cav);
   const N = cav.outline.points.length, P = cav.geometry.attributes.position, ring = [];
   const out = cav.outline.plane === 'lingual' ? (() => { const o = new THREE.Vector3(0, s.crownL * 0.42, 0), t = new THREE.Vector3(0, s.crownL * 0.4, -s.bl / 2); return t.sub(o).normalize(); })() : new THREE.Vector3(0, 1, 0);
   for (let j = 0; j <= N; j++) { const v = new THREE.Vector3().fromBufferAttribute(P, 4 * N + (j % N)).addScaledVector(out, 0.06); ring.push([v.x, v.y, v.z]); }
@@ -91,7 +91,7 @@ if (mb2i >= 0) fig.part(s16.dots[mb2i], { inPlace: true, name: 'MB2', accent: tr
   info: 'The second mesiobuccal canal: about 1.9 mm palatal to MB1, often under a dentin shelf. A triangular outline misses it.' });
 
 // the outlines appear with one param; the X-ray state fades the crowns and shows the orifice dots
-fig.param('open', 1, k => sets.forEach(st => { st.cav.visible = k > 0.02; st.cav.scale.setScalar(1); voidMat.transparent = k < 1; voidMat.opacity = k; rimMat.opacity = k; }));
+fig.param('open', 1, k => sets.forEach(st => { st.cav.visible = st.rim.visible = k > 0.02; voidMat.transparent = k < 1; voidMat.opacity = k; rimMat.opacity = k; }));
 const enamel0 = sets[1].tooth.layers.enamel;
 fig.onFrame(() => { const op = enamel0.material.opacity, a = DK.util.clamp((1 - op) / 0.6, 0, 1); dotMat.opacity = a; sets.forEach(st => st.dots.forEach(d => { d.visible = a > 0.02; })); });
 
@@ -100,13 +100,13 @@ fig.standardControls({ explode: false });
 
 // story: four teeth from the side → up over them as the crowns turn see-through (chambers and orifice dots) → the outlines open
 // over the dots → push in on the molars (rhomboid with MB2, trapezoid) → then incisor and premolar → hero: all four from above
-const X = i => sets[i].holder.position.x;
+const X = i => sets[i].holder.position.x, Z = i => sets[i].holder.position.z;
 fig.story([
-  { fov: 32, dur: 0, hold: 1.4, theta: 0.35, phi: 1.2, zoom: 1.0, xray: 0, set: { open: 0 }, labels: [], caption: 'An incisor, a premolar, an upper and a lower molar.' },
+  { fov: 30, dur: 0, hold: 1.4, theta: 0.3, phi: 0.85, zoom: 1.1, xray: 0, set: { open: 0 }, labels: [], caption: 'An incisor, a premolar, an upper and a lower molar.' },
   { fov: 12, dur: 2.4, hold: 1.4, theta: 0, phi: 0.12, xray: 1, labels: [], caption: 'Under each crown, the pulp chamber and its canal openings.' },
   { dur: 1.8, hold: 1.4, set: { open: 1 }, labels: [], caption: 'The access is shaped to reach every opening.' },
-  { dur: 2.2, hold: 2.4, zoom: 0.55, focus: [(X(2) + X(3)) / 2, 5, 0], labels: ['Upper first molar', 'Lower first molar', 'MB2'], caption: 'Upper molar: a rhomboid that takes in MB2. Lower molar: wider mesially.' },
-  { dur: 2.2, hold: 2.2, zoom: 0.55, focus: [(X(0) + X(1)) / 2, 5, 0], labels: ['Upper central incisor', 'Upper first premolar'], caption: 'Incisor: a palatal triangle. Premolar: an oval from cheek to palate.' },
+  { dur: 2.2, hold: 2.4, zoom: NARROW ? 0.8 : 0.68, focus: NARROW ? [(X(2) + X(3)) / 2, 5, (Z(2) + Z(3)) / 2] : [(X(2) + X(3)) / 2, 5, 0], labels: ['Upper first molar', 'Lower first molar', 'MB2'], caption: 'Upper molar: a rhomboid that takes in MB2. Lower molar: wider mesially.' },
+  { dur: 2.2, hold: 2.2, zoom: NARROW ? 0.8 : 0.68, focus: NARROW ? [(X(0) + X(1)) / 2, 5, (Z(0) + Z(1)) / 2] : [(X(0) + X(1)) / 2, 5, 0], labels: ['Upper central incisor', 'Upper first premolar'], caption: 'Incisor: a palatal triangle. Premolar: an oval from cheek to palate.' },
   { dur: 2.2, hold: 2.6, zoom: 1.0, focus: 'auto', xray: 0.55, drift: 0, labels: ['Upper central incisor', 'Upper first premolar', 'Upper first molar', 'Lower first molar', 'MB2'], caption: '' }
 ]);
 fig.start();

@@ -88,12 +88,13 @@ fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range:
 fig.view('Threads', { section: true, offset: 0, theta: 0.1, phi: 1.5, zoom: 0.4, focus: [0, CREST - 4.2, 0], fov: 26 });
 
 // --- the procedure: whole site → push in on the threads → the spaces fill over time → back out for the crown
+const ZF = window.innerWidth < window.innerHeight ? 1.45 : 1;   // portrait phone stage: pull back on the wide shots
 const CLOSE = { theta: 0.1, phi: 1.5, zoom: 0.5, focus: [0, CREST - 5.4, 0] };
 fig.procedure([
   { label: 'Implant placed', caption: 'On the day it goes in, the implant is held only by its threads.', beats: [
-    { fov: 32, dur: 0, hold: 1.0, theta: 0.6, phi: 1.25, zoom: 1.05, section: false, labels: [] },
+    { fov: 32, dur: 0, hold: 1.0, theta: 0.6, phi: 1.25, zoom: 1.05 * ZF, section: false, labels: [] },
     { fov: 26, dur: 0, hold: 0, section: true, offset: 7 },
-    { dur: 2.2, hold: 1.0, theta: 0, phi: 1.45, zoom: 1, offset: 0, labels: ['Implant', 'Healing cap'] },
+    { dur: 2.2, hold: 1.0, theta: 0, phi: 1.45, zoom: ZF, offset: 0, labels: ['Implant', 'Healing cap'] },
     { dur: 2.4, hold: 1.8, ...CLOSE, labels: ['Implant', 'Spaces'], key: true }] },
   { label: 'First days', caption: 'Blood fills the spaces and clots.', beats: [
     { dur: 2.0, hold: 2.0, theta: 0.06, set: { clot: 1 }, labels: ['Blood clot', 'Implant'], key: true }] },
@@ -101,9 +102,9 @@ fig.procedure([
     { dur: 2.6, hold: 2.0, theta: 0.12, set: { bone: 0.6 }, labels: ['New bone', 'Implant'], key: true }] },
   { label: '3 to 6 months', caption: 'The spaces fill with bone and the implant is locked in.', beats: [
     { dur: 2.6, hold: 0.6, theta: 0.08, set: { bone: 1 }, labels: ['New bone', 'Implant'] },
-    { dur: 1.6, hold: 2.0, zoom: 0.62, focus: [0, CREST - 4.6, 0], labels: ['New bone', 'Implant'], key: true }] },
+    { dur: 1.6, hold: 2.0, zoom: 0.62 * ZF, focus: [0, CREST - 4.6, 0], labels: ['New bone', 'Implant'], key: true }] },
   { label: 'Crown', caption: 'Now it can carry a crown and chewing forces.', beats: [
-    { dur: 2.0, hold: 0.2, theta: 0.3, phi: 1.35, zoom: 1, focus: 'auto', set: { heal: 0 }, labels: [] },
+    { dur: 2.0, hold: 0.2, theta: 0.3, phi: 1.35, zoom: ZF, focus: 'auto', set: { heal: 0 }, labels: [] },
     { dur: 1.8, hold: 2.4, set: { crown: 1 }, labels: ['Crown', 'Implant'], key: true }] }
 ]);
 fig.start();

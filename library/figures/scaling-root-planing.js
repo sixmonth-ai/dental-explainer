@@ -1,7 +1,7 @@
 // Deep cleaning (scaling and root planing) at the mesial site of a lower left first molar (FDI 36 = Universal 19), mesio-distal
+// poster: step 2
 // cut: a probe finds the pocket, a curette scales the dark subgingival tartar off the root, then planes the root smooth, and
 // the gum settles back against the clean root. The lost bone stays lost (dental-facts.md §17). Patient-facing procedure.
-// poster: step 2
 // Frame: +x = mesial, +z = buccal, y up, CEJ at y = 0. Sizes in mm (Wheeler averages via DK.toothPreset).
 const CREST = -1.8;                                                   // where the crest sat in health
 const SICK = { margin: 1.4, base: -4.2, inflamed: 1 };                // swollen margin, pocket base on the root: PD 5.6 mm

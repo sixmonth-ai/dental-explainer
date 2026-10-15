@@ -59,7 +59,7 @@ const gp = (xn, zn) => [xn * s.md / 2, ysurf(xn * s.md / 2, zn * s.bl / 2), zn *
 const PIT = gp(0, 0), CUTP = gp(CUT / (s.md / 2), 0);
 
 fig.part(L.enamel, { inPlace: true, name: 'Grooves', sub: 'too narrow for a toothbrush bristle', anchor: [gp(0.45, 0)[0], gp(0.45, 0)[1] + 0.05, 0], dim: false, info: 'Pits and fissures on the chewing surface trap plaque where brushing cannot reach: most decay in children starts here.', when: () => !seal.central.visible });
-fig.part(etch.central, { inPlace: true, name: 'Etch gel', sub: 'then rinsed and dried', anchor: () => gp(-0.45, 0), dim: false, info: 'Mild acid (usually phosphoric acid gel) roughens the enamel for ~15–30 s so the resin can lock into it; then rinsed and dried. Sound enamel: nothing is drilled.' });
+fig.part(etch.central, { inPlace: true, name: 'Etch gel', sub: 'then rinsed and dried', anchor: () => gp(-0.45, 0), dim: false, info: 'Mild acid (usually phosphoric acid gel) roughens the enamel for a few seconds so the resin can lock into it; then rinsed and dried. Sound enamel: nothing is drilled.' });
 fig.part(seal.central, { inPlace: true, name: 'Sealant', sub: 'flows into the grooves', anchor: () => { const p = gp(-0.5, 0); return [p[0], p[1] + 0.1, p[2]]; }, accent: true, dim: false, info: 'A runny resin (or glass ionomer) flows into the etched fissures and seals them, about 0.2 mm above the rims. Reduces new occlusal decay by roughly three quarters in children (ADA/AAPD 2016). Checked at recalls; it can wear and be topped up.' });
 fig.part(L.enamel, { inPlace: true, name: 'Enamel', anchor: [CUT, s.crownL - 1.2, -s.bl / 2 + 1.3], info: 'Sound enamel under the sealant: nothing is removed.', when: (e, sec) => sec.enabled });
 fig.part(L.dentin, { inPlace: true, name: 'Dentin', anchor: [CUT, 3.4, 2.2], info: 'Dentin under the enamel.', when: (e, sec) => sec.enabled });
@@ -72,7 +72,7 @@ const hub = DK.lathe([[0.45, 0], [0.9, 1.5], [1.1, 9], [0, 9.2]], 24, DK.mat(0xd
 const light = DK.curingLight({ tip: 4 });
 [tipGrp, light].forEach(o => fig.world.add(DK.inFront(o)));
 fig.part(tipGrp, { inPlace: true, name: 'Applicator tip', anchor: [0, 3.2, 1.2], info: 'A fine tip lays the gel or resin along each groove so it wets the fissure without trapping air.' });
-fig.part(light, { inPlace: true, name: 'Curing light', sub: '~20 s', anchor: [0, 6, 0], info: 'Blue light (about 450–470 nm) sets the resin in seconds.' });
+fig.part(light, { inPlace: true, name: 'Curing light',  anchor: [0, 6, 0], info: 'Blue light sets the resin in seconds.' });
 
 // --- params
 const all = (o, k0, k1, k) => { const c = DK.util.clamp; o.central.userData.grow(c(k / k0, 0, 1)); ['mb', 'db', 'lingual'].forEach(n => o[n].userData.grow(c((k - k0) / (k1 - k0), 0, 1))); };

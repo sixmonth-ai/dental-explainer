@@ -1,7 +1,7 @@
 // Story: why a root-filled mandibular left first molar (FDI 36 = Universal 19) gets a crown. A large MOD filling over the access
+// poster: end
 // leaves thin cusp walls; in a bucco-lingual cut through the mesial root, a bite wedges them and a lingual cusp cracks; then the
 // tooth is prepared, built up with a core and covered by a crown that holds the cusps together.
-// poster: end
 // Frame: +x = mesial, +z = buccal, CEJ at y = 0. Camera on +x looks at the cut face (mesial half removed). Sizes in mm.
 const FDI = 36;
 const CAV = { isthmus: 4.2, depth: 2.8, boxes: ['mesial', 'distal'], boxFloor: 1.0 };   // wide MOD: marginal ridges lost
@@ -18,7 +18,7 @@ const dark = fig.dark, INK = dark ? 0xd9d4ca : 0x3a3a36;
 
 // --- context
 const roots = DK.tooth(FDI, { omit: ['enamel', 'dentin'] }), s = roots.spec;
-const bone = DK.bone({ width: 20, height: 18, depth: 13, crest: 1.6 }); bone.position.y = -1.8;
+const bone = DK.bone({ width: 20, height: 14.6, depth: 13, crest: 1.6 }); bone.position.y = -1.8;
 const gum = DK.gingiva({ width: 20, height: 3.2, depth: 13.6, crest: 1.3, around: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, rise: 0.8 }] }); gum.position.y = 1.2;
 fig.part(bone, { name: 'Bone', label: false, fit: false, info: 'Alveolar bone around the two roots.' });
 fig.part(gum, { name: 'Gum', label: false, fit: false, info: 'Gum around the neck of the tooth.' });
@@ -109,6 +109,6 @@ fig.story([
   { dur: 1.4, hold: 0.2, zoom: 1, focus: 'auto', set: { force: 0, wedge: 0, crack: 0 }, labels: [] },
   { dur: 1.0, hold: 1.4, set: { crowned: 1 }, labels: ['Core', 'Own tooth'] },
   { dur: 1.8, hold: 0.6, set: { crownY: 0 }, labels: ['Crown'] },
-  { dur: 1.8, hold: 2.8, theta: Math.PI / 2 - 0.42, phi: 1.3, set: { force: 1 }, labels: ['Crown', 'Core', 'Own tooth', 'Root fillings', 'Biting force'] }   // teaching shot
+  { dur: 1.8, hold: 2.8, theta: Math.PI / 2 - 0.42, phi: 1.3, zoom: 1.08, set: { force: 1 }, labels: ['Crown', 'Core', 'Own tooth', 'Root fillings', 'Biting force'] }   // teaching shot
 ]);
 fig.start();

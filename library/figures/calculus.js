@@ -1,7 +1,7 @@
 // Plaque and tartar on the lower central incisors (FDI 31 and 41 = Universal 24 and 25), seen from the tongue side, then in a
+// poster: end
 // labio-lingual cut through 41: a soft plaque film at the gumline hardens into pale supragingival calculus above the margin and
 // dark subgingival calculus on the root inside a shallow pocket (dental-facts.md §17, Calculus). Patient-facing story.
-// poster: end
 // Frame: +x = toward the patient's left, +z = labial, y up, CEJ at y = 0. Tooth 41 natural (its mesial +x faces the midline),
 // 31 mirrored (scale.x = -1). Sizes in mm (Wheeler averages via DK.toothPreset).
 const MARGIN = 1.0;          // gingival margin on the enamel, slightly swollen
@@ -123,6 +123,6 @@ fig.story([
   { dur: 2.2, hold: 0.1, theta: HERO, phi: 1.36, zoom: 0.9, focus: 'auto', fov: 26, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 9 },
   { dur: 2.2, hold: 0.6, offset: XC, set: { plaque: 0 }, labels: [], caption: 'A cut through one tooth.' },
-  { dur: 2.0, hold: 2.6, zoom: 0.55, focus: [-XC, 0.6, -2.0], labels: ['Tartar above the gum', 'Tartar below the gum', 'Gum'], caption: 'Tartar also forms below the gum, where only a professional cleaning reaches it.' }
+  { dur: 2.0, hold: 2.6, zoom: 0.66, focus: [-XC, 0.2, -2.0], labels: ['Tartar above the gum', 'Tartar below the gum', 'Gum'], caption: 'Tartar also forms below the gum, where only a professional cleaning reaches it.' }
 ]);
 fig.start();

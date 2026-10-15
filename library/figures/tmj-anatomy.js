@@ -4,7 +4,7 @@ const OPEN = 45;                                  // mm interincisal opening at 
 const ROT = 22;                                   // mm: the kit's pure-rotation phase (about 20-25 mm, facts §21)
 const fig = DK.figure({
   title: 'The jaw joint',
-  subtitle: "Patient's left joint, seen from the side. Average adult; values approximate.",
+  subtitle: "Patient's left joint, cut front to back. Average adult; values approximate.",
   view: { theta: 0.62, phi: 1.28, margin: 0.86 }
 });
 
@@ -19,20 +19,20 @@ fig.part(m.body, { inPlace: true, name: 'Mandible', label: false, info: 'The low
 fig.part(m.upper.holder, { inPlace: true, name: 'Upper teeth', label: false, info: 'Upper teeth, fixed to the skull.' });
 
 // temporal bone of the left joint: the fossa (the socket) and the eminence (the slope in front of it)
-fig.part(tmjL, { inPlace: true, name: 'Glenoid fossa', sub: 'socket in the skull', anchor: (e, s) => s.enabled ? tmjL.userData.at(-1, W) : tmjL.userData.anchors.roof, labelOffset: [110, -45], dim: false,
+fig.part(tmjL, { inPlace: true, name: 'Glenoid fossa', sub: 'socket in the skull', anchor: (e, s) => s.enabled ? tmjL.userData.at(-1, W) : tmjL.userData.anchors.roof, labelOffset: [90, -85], dim: false,
   info: 'Hollow in the temporal bone, just in front of the ear canal, that houses the condyle and disc when the teeth are together. About 6 mm deep.' });
 const eminObj = new THREE.Group(); m.group.add(eminObj);
-fig.part(eminObj, { inPlace: true, name: 'Articular eminence', sub: 'slope in front', anchor: (e, s) => s.enabled ? tmjL.userData.at(m.eminence.length * 0.8, W) : tmjL.userData.anchors.crest, labelOffset: [-100, -80], dim: false,
+fig.part(eminObj, { inPlace: true, name: 'Articular eminence', sub: 'slope in front', anchor: (e, s) => s.enabled ? tmjL.userData.at(m.eminence.length * 0.8, W) : tmjL.userData.anchors.crest, labelOffset: [-110, -85], dim: false,
   info: 'Convex ridge of the temporal bone in front of the fossa, about 7 mm high. On wide opening the condyle and its disc slide down its back slope.' });
 
 // the disc and the condyle
-fig.part(discs.left, { inPlace: true, name: 'Articular disc', sub: 'thick, thin, thick', anchor: discs.left.userData.anchors.lateral, labelOffset: [-140, -10], dim: false,
+fig.part(discs.left, { inPlace: true, name: 'Articular disc', sub: 'thick, thin, thick', anchor: (e, s) => { const a = discs.left.userData.anchors; return s.enabled ? [0.5 / m.axes.left.x, a.intermediate[1], a.intermediate[2]] : a.lateral; }, labelOffset: [-150, 0], dim: false,
   info: 'Biconcave fibrocartilage pad between the condyle and the skull: posterior band about 3 mm, thin middle about 1 mm, anterior band about 2 mm. It moves with the condyle; clicking joints usually involve a displaced disc.' });
 const headSide = L.clone().addScaledVector(m.axes.left, m.head.ml / 2 - 0.6).add(new THREE.Vector3(0, -1.5, 0)).toArray();   // lateral pole, visible from the side
-const condyle = fig.part(m.condyles.left, { inPlace: true, name: 'Condyle', sub: 'seated in the fossa', anchor: (e, s) => s.enabled ? [L.x + 0.5, L.y, L.z] : headSide, labelOffset: [-120, 85], dim: false,
+const condyle = fig.part(m.condyles.left, { inPlace: true, name: 'Condyle', sub: 'seated in the fossa', anchor: (e, s) => s.enabled ? [L.x + 0.5, L.y - 2, L.z] : headSide, labelOffset: [-130, 95], dim: false,
   info: 'Rounded top of the jaw, about 20 mm wide and 9 mm front to back. In early opening it turns in place; past about 20-25 mm it slides forward with its disc.' });
-fig.part(discs.left, { inPlace: true, name: 'Retrodiscal tissue', sub: 'behind the disc', anchor: (() => { const a = discs.left.userData.anchors.posteriorBand; return [a[0], a[1] - 2, a[2] - 5]; })(),
-  labelOffset: [-80, 40], dim: false, info: 'Loose, vascular and innervated tissue tying the back of the disc to the fossa and the condylar neck. It stretches as the condyle moves forward.' });
+fig.part(discs.left, { inPlace: true, name: 'Retrodiscal tissue', sub: 'behind the disc', anchor: (() => { const a = discs.left.userData.anchors.posteriorBand; return [0.5 / m.axes.left.x, a[1] - 2, a[2] - 5]; })(),
+  labelOffset: [150, 85], dim: false, info: 'Loose, vascular and innervated tissue tying the back of the disc to the fossa and the condylar neck. It stretches as the condyle moves forward.' });
 
 fig.enableSection([1, 0, 0], [
   { objects: m.bone, color: 0xCCC3B2, kind: 'plain' },
@@ -70,7 +70,7 @@ fig.param('open', 0, v => { open = v; pose = m.pose({ open: v }); slider.value =
 fig.param('context', 0.85, v => [mx.maxilla, mx.zygoma.left, mx.zygoma.right].forEach(b => { DK.fadeMaterial(b.material, v); b.visible = v > 0.02; }));
 // the hero view: the upper teeth and the far (right) joint hidden so only the left joint reads
 fig.param('upper', 1, v => { m.upper.holder.visible = v > 0.5; });
-fig.param('far', 1, v => { mx.temporal.right.visible = mx.joints.right.visible = v > 0.5; discs.right.visible = v > 0.5; });
+fig.param('far', 1, v => { mx.temporal.right.visible = mx.joints.right.visible = v > 0.5; discs.right.visible = v > 0.5; tmjL.userData.line.visible = v > 0.5; });
 fig.param('fossa', 0.3, v => { [mx.temporal.left, mx.temporal.right].forEach(b => { DK.fadeMaterial(b.material, v); b.visible = v > 0.02; }); });
 fig.onFrame(() => {
   if (fig.section.enabled !== cut) tracePath();
@@ -86,16 +86,17 @@ fig.onFrame(() => {
 // --- the story: whole jaw → the left joint closed → rotation → translation → the cut through the open joint
 const J = [L.x, L.y + 1, L.z + 5], SIDE = Math.PI / 2 - 0.12;
 const parts4 = ['Condyle', 'Articular disc', 'Glenoid fossa', 'Articular eminence'];
+const five = ['Condyle', 'Articular disc', 'Glenoid fossa', 'Articular eminence', 'Retrodiscal tissue'];
+const SEC = { theta: Math.PI / 2, phi: 1.55, zoom: 0.29, fov: 26, focus: [L.x, L.y - 1, L.z + 5] };
 fig.story([
   { dur: 0, hold: 1.4, labels: [], set: { open: 0, context: 0.85, fossa: 0.3, upper: 1, far: 1 } },
-  { dur: 2.4, hold: 2.2, theta: SIDE, phi: 1.42, zoom: 0.3, fov: 28, focus: J, set: { context: 0.1, fossa: 0.14 }, labels: parts4 },
-  { dur: 2.2, hold: 1.6, set: { open: ROT }, labels: ['Condyle', 'Glenoid fossa'] },
-  { dur: 2.6, hold: 1.8, zoom: 0.36, focus: [L.x, L.y - 1, L.z + 8], set: { open: OPEN }, labels: ['Condyle', 'Articular eminence', 'Condyle path'] },
-  { dur: 2.4, hold: 1.8, theta: SIDE + 0.1, phi: 1.5, zoom: 0.8, focus: [L.x, L.y - 28, L.z + 26], set: { context: 0.35, fossa: 0.18 }, labels: ['Condyle'] },
-  { dur: 2.2, hold: 2.6, theta: SIDE, phi: 1.5, zoom: 0.8, focus: [L.x, L.y - 30, L.z + 14], set: { context: 0, fossa: 0, upper: 0, far: 0 }, labels: ['Condyle', 'Articular disc', 'Glenoid fossa', 'Articular eminence', 'Condyle path'] }
+  { dur: 2.4, hold: 1.6, theta: SIDE, phi: 1.42, zoom: 0.3, fov: 28, focus: J, set: { context: 0, fossa: 0.22, upper: 0, far: 0 }, labels: ['Condyle', 'Glenoid fossa'] },
+  { dur: 0, hold: 0, section: true, offset: L.x + 16 },
+  Object.assign({ dur: 2.4, hold: 2.4, offset: L.x + 0.5, labels: five }, SEC),
+  { dur: 2.0, hold: 1.4, set: { open: ROT }, labels: ['Condyle', 'Articular disc'] },
+  { dur: 2.6, hold: 2.8, set: { open: OPEN }, labels: five }
 ]);
 fig.view('Whole jaw', { theta: 0.62, phi: 1.28, zoom: 1, fov: 32, focus: 'auto', section: false, set: { context: 0.85, fossa: 0.3, upper: 1, far: 1 }, labels: [] });
 fig.view('Joint', { theta: SIDE, phi: 1.42, zoom: 0.3, fov: 28, focus: J, section: false, set: { context: 0, fossa: 0.22, upper: 0, far: 0 }, labels: parts4 });
-fig.view('Cut', { theta: SIDE + 0.06, phi: 1.5, zoom: 0.36, fov: 28, focus: [L.x, L.y - 1, L.z + 8], section: true, offset: L.x + 0.5, set: { context: 0.25, fossa: 0.1 },
-  labels: ['Condyle', 'Articular disc', 'Articular eminence', 'Retrodiscal tissue'] });
+fig.view('Cut', Object.assign({ section: true, offset: L.x + 0.5, set: { context: 0, fossa: 0.22, upper: 0, far: 0 }, labels: five }, SEC));
 fig.start();

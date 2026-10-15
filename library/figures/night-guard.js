@@ -1,6 +1,6 @@
 // Story: a hard occlusal splint (night guard) over the upper teeth (FDI 17–27), the lower teeth (37–47) closing and grinding
-// on its flat underside, then a midline cut through 11 and 41 seen from the patient's left: the guard between the teeth.
 // poster: end
+// on its flat underside, then a midline cut through 11 and 41 seen from the patient's left: the guard between the teeth.
 // Jaw frame: +x = patient's left, +y up, +z anterior; lower CEJs at y = 0. Upper teeth crown-down in a holder (2.5 mm overbite,
 // 2.6 mm forward, as DK.mandible places them). The guard is cast on the upper crowns (DK.alignerArch) and its occlusal side is
 // flattened to one plane; the lower jaw hinges open about the condylar axis until its teeth just meet that plane. Sizes in mm.
@@ -19,11 +19,11 @@ const upperHold = new THREE.Group();
 const upper = DK.arch({ jaw: 'maxilla', placement: 'jaw', teeth: [17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27], build: shortRoots });
 // DK.arch seats every CEJ at y = 0, which leaves the long canine (and lower first premolar) cusps standing well above the
 // occlusal plane; sink them apically to a natural curve so the arches meet as a mouth does (positions only, sizes untouched)
-const SINK = { 13: 1.2, 23: 1.2, 14: 0.6, 24: 0.6, 33: 3.4, 43: 3.4, 34: 1.8, 44: 1.8, 35: 1.0, 45: 1.0 };
+const SINK = { 13: 3.2, 23: 3.2, 14: 0.6, 24: 0.6, 33: 2.0, 43: 2.0, 34: 1.8, 44: 1.8, 35: 1.0, 45: 1.0 };
 const sink = arch => arch.teeth.forEach(t => { if (SINK[t.fdi]) t.tooth.group.position.y -= SINK[t.fdi]; });
 sink(upper);
 upperHold.add(upper.group); upperHold.updateMatrixWorld(true);
-const upperGum = DK.gingivaArch(upper); upperHold.add(upperGum);
+const upperGum = DK.gingivaArch(upper, { height: 4.6 }); upperHold.add(upperGum);
 
 // --- the guard (built while the holder is at the origin, so world = holder frame; crowns point to −y)
 const spinePts = (() => { const T = upper.teeth, s0 = upper.slots[T[0].fdi], s1 = upper.slots[T[T.length - 1].fdi];
@@ -62,7 +62,7 @@ lowerHold.add(pivot); pivot.add(slide); slide.add(inner);
 const lower = DK.arch({ jaw: 'mandible', teeth: [37, 36, 35, 34, 33, 32, 31, 41, 42, 43, 44, 45, 46, 47], build: shortRoots });
 sink(lower);
 inner.add(lower.group); lowerHold.updateMatrixWorld(true);
-const lowerGum = DK.gingivaArch(lower); inner.add(lowerGum);
+const lowerGum = DK.gingivaArch(lower, { height: 4.6 }); inner.add(lowerGum);
 
 // --- how far the jaw opens: the smallest hinge angle at which no lower tooth is inside the guard (0.05 mm clear). Test: each
 // lower enamel vertex against the nearest vertex of the guard's outer surface and its outward normal (a 1 mm hash grid)
@@ -78,10 +78,27 @@ const pen = ang => { pivot.rotation.x = ang; lowerHold.updateMatrixWorld(true); 
   return m; };
 let lo = 0, hi = 0.3; for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2; if (pen(mid) > -0.05) lo = mid; else hi = mid; }
 const BITE = hi, WIDE = BITE + 0.1;
-window.__ng = (() => { const out = {}; const all = lowerVerts.slice(); lower.teeth.forEach(t => { lowerVerts.length = 0; all.filter(o => o.e === t.tooth.layers.enamel).forEach(o => lowerVerts.push(o)); let l = 0, h = 0.3; for (let i = 0; i < 14; i++) { const mid = (l + h) / 2; if (pen(mid) > -0.05) l = mid; else h = mid; } out[t.fdi] = +(h * 89).toFixed(2); }); lowerVerts.length = 0; all.forEach(o => lowerVerts.push(o)); return out; })();
+// with the jaw at that angle, bring the guard's biting surface down onto the lower teeth wherever a gap is left (the
+// anterior platform the lower incisors close on, the fossae between cusps): every lower tooth then meets acrylic
+{
+  pivot.rotation.x = BITE; lowerHold.updateMatrixWorld(true);
+  const g = guard.geometry, P = g.attributes.position, UV = g.attributes.uv, N1 = guard.userData.N1, rowOf = k => Math.round(UV.getX(k) * 1e4);
+  const rowPts = new Map(); for (let k = 0; k < N1; k++) { const r = rowOf(k); if (Math.abs(UV.getY(k) - 0.5) < 0.02) rowPts.set(r, [P.getX(k), P.getZ(k)]); }
+  const rk = [...rowPts.keys()].sort((a, b) => a - b), top = new Map(), q = new THREE.Vector3();
+  lowerVerts.forEach(({ e, v }) => { q.copy(v).applyMatrix4(e.matrixWorld); upperHold.worldToLocal(q);
+    let best = null, bd = 9; rk.forEach(r => { const c = rowPts.get(r), d = (c[0] - q.x) ** 2 + (c[1] - q.z) ** 2; if (d < bd) { bd = d; best = r; } });
+    if (best !== null && (!top.has(best) || q.y > top.get(best))) top.set(best, q.y); });
+  const W = 3, lvl = new Map(rk.map((r, i) => { let m = -Infinity; for (let j = Math.max(0, i - W); j <= Math.min(rk.length - 1, i + W); j++) if (top.has(rk[j])) m = Math.max(m, top.get(rk[j])); return [r, m + 0.05]; }));
+  const sm = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const isOuter = k => k < N1 || (k >= 2 * N1 && [1, 2].includes((k - 2 * N1) % 4));
+  for (let k = 0; k < P.count; k++) { if (!isOuter(k)) continue; const yp = lvl.get(rowOf(k)); if (!(yp > -Infinity)) continue;
+    const w = 1 - sm(0.18, 0.32, Math.abs(UV.getY(k) - 0.5)), y = P.getY(k); if (y > yp) P.setY(k, y + (yp - y) * w); }
+  P.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere();
+}
 pivot.rotation.x = 0; lowerHold.updateMatrixWorld(true);
 
 // --- parts
+const XCUT = (upper.slots[11].c[0] + lower.slots[41].c[0]) / 2;   // the midline cut runs through 11 and 41
 const T = (arch, fdi) => arch.teeth.find(t => t.fdi === fdi);
 const u11 = T(upper, 11), l41 = T(lower, 41), P13 = T(upper, 13), P43 = T(lower, 43);
 const facial = (t, k, hold) => () => { const s = t.spec, q = t.tooth.group.localToWorld(new THREE.Vector3(0, s.crownL * k, s.bl / 2)); return hold.worldToLocal(q).toArray(); };
@@ -91,8 +108,8 @@ upper.teeth.forEach(t => fig.part(t.tooth.group, { inPlace: true, name: String(t
 lower.teeth.forEach(t => fig.part(t.tooth.group, { inPlace: true, name: String(t.fdi), label: false, info: `${t.spec.name}, FDI ${t.fdi}.` }));
 fig.part(upperGum, { inPlace: true, name: 'Upper gum', label: false, info: 'Gum around the upper teeth.' });
 fig.part(lowerGum, { inPlace: true, name: 'Lower gum', label: false, info: 'Gum around the lower teeth.' });
-const P24 = T(upper, 24);
-const onGuard = () => { const s = P24.spec, q = P24.tooth.group.localToWorld(new THREE.Vector3(0, s.crownL * 0.75, s.bl / 2 + THICK + 0.1)); return guard.worldToLocal(q).toArray(); };
+const P24 = T(upper, 24), P14 = T(upper, 14);
+const onGuard = (e, sec) => { const on = sec && sec.enabled, t = on ? u11 : P24, s = t.spec, q = t.tooth.group.localToWorld(on ? new THREE.Vector3(0, s.crownL + 2.2, -1.2) : new THREE.Vector3(0, s.crownL * 0.75, s.bl / 2 + THICK + 0.1)); if (on) q.x = XCUT + 0.1; return guard.worldToLocal(q).toArray(); };
 fig.part(guard, { inPlace: true, name: 'Night guard', sub: 'hard acrylic, about 2 mm', anchor: onGuard, accent: true, dim: false, when: () => guard.visible, info: 'A hard acrylic splint made to fit the upper teeth, about 2 mm thick over the biting surfaces (it varies by design). Grinding wears the guard, not the enamel. It protects the teeth; it does not stop the grinding.' });
 fig.part(u11.tooth.layers.dentin, { inPlace: true, name: 'Upper incisor', anchor: [0, 6, 0], dim: false, when: (e, sec) => sec.enabled, info: 'Upper right central incisor (FDI 11), cut lip to palate: the guard wraps its edge.' });
 fig.part(l41.tooth.layers.dentin, { inPlace: true, name: 'Lower incisor', anchor: [0, 5.5, 0], dim: false, when: (e, sec) => sec.enabled, info: 'Lower right central incisor (FDI 41): its edge rests on the acrylic, not on the upper tooth.' });
@@ -103,7 +120,6 @@ fig.param('grind', 0, x => { slide.position.x = x; });
 fig.param('guard', 0, k => { guardHold.position.y = -14 * (1 - k); guard.visible = k > 0.02; guard.material.opacity = 0.5 * Math.min(1, k * 3); });
 
 // --- cut along the midline through 11 and 41 (patient's left half removed; camera on the patient's left looks at the cut)
-const xU = upper.slots[11].c[0], xL = lower.slots[41].c[0], XCUT = (xU + xL) / 2;
 const cutTeeth = [u11, l41];
 fig.enableSection([1, 0, 0], [
   { objects: [upperGum, lowerGum], color: DK.COLORS.gingivaCap },
@@ -119,7 +135,7 @@ fig.view('With guard', { set: { guard: 1, open: BITE, grind: 0 } }, 1.2);
 // story: teeth together → the jaw opens and the guard goes in → the jaw closes on it → grinding slides on the acrylic →
 // turn to the patient's left and sweep the cut to the midline → the guard between upper and lower incisors and the right side
 // of both arches behind (teaching shot)
-const SIDE = 0.9, FOCUS = [XCUT, 9, -6];
+const SIDE = 0.9, FOCUS = [XCUT, 7, -12];
 fig.story([
   { dur: 0, hold: 1.4, theta: HOME.theta, phi: HOME.phi, zoom: 1, labels: ['Upper teeth', 'Lower teeth'] },
   { dur: 1.6, hold: 0.2, set: { open: WIDE }, labels: [] },
@@ -130,6 +146,6 @@ fig.story([
   { dur: 1.0, hold: 0.8, set: { grind: 0 } },
   { fov: 30, dur: 2.2, hold: 0.2, theta: Math.PI / 2 - 0.35, phi: 1.5, zoom: 1, labels: [] },
   { dur: 0, hold: 0, section: true, offset: XCUT + 30 },
-  { dur: 2.6, hold: 2.8, offset: XCUT, labels: ['Night guard', 'Upper incisor', 'Lower incisor', 'Lower teeth'] }   // teaching shot
+  { dur: 2.6, hold: 2.8, offset: XCUT, theta: Math.PI / 2 - 0.22, phi: 1.52, zoom: 0.74, focus: FOCUS, labels: ['Night guard', 'Upper incisor', 'Lower incisor'] }   // teaching shot
 ]);
 fig.start();

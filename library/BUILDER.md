@@ -27,6 +27,14 @@ The catalog entry (`library/catalog.json`) gives the slug, title, the teeth, the
    Add `--no-webkit` to check.py: Playwright's WebKit segfaults on this machine (known, logged in KIT-GAPS.md). check.py must print `OK`. **Look at `shots/sheet.png` and both PNGs** with the Read tool. Fix and re-check until a demanding clinician would put it in a lecture: no labels off their part, no parts poking through others, no empty or cropped framing, nothing that reads as a toy (a bent tube for a bone, a sphere for an organ), light and dark both readable, the 390 px mobile shot readable.
 4. Run the SKILL.md accuracy checklist against the figure and fix what fails. Tooth numbers in the subtitle state their system (FDI, with Universal in brackets when it helps patients).
 
+## Storytelling and visuals (the owner's bar)
+
+Every figure must tell its point like a short film, not just show a model:
+- **A story arc**: an establishing shot that sets the scene, then one idea per shot (reveal, cut sweeping in, push-in on the detail), ending on the teaching shot. Procedures: each step is a beat a patient could narrate ("the drill makes room", "the implant threads in").
+- **Motion with purpose**: the camera moves to reveal something each time; parts arrive, separate, or cut open in the order a clinician would explain them. Never a static model with labels popping in.
+- **Great visuals**: a hero framing that fills the stage, one accent colour on the thing that matters, context quiet and translucent, materials from the kit palette, generous margins. Each storyboard panel and the final frame must look like a polished textbook illustration at thumbnail size.
+- **Few words**: short labels that land as the camera settles; the picture carries the explanation.
+
 ## What review sent back in wave 1 (avoid these)
 
 - **Cluttered teaching shot**: ghost outlines of context bones, stray translucent shapes, out-of-focus teeth filling a third of the frame. Hide context that does not carry the point; the last frame should read at a glance.

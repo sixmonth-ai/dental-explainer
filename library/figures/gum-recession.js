@@ -1,8 +1,8 @@
 // Gum recession on the lower left canine (FDI 33 = Universal 22): the labial gum margin and the thin labial bone plate
+// poster: end
 // pull back past the CEJ and expose the root (no interproximal loss, Cairo RT1; dental-facts.md §17, Gingival recession).
 // Story: healthy tooth, a labio-lingual cut shows the thin bone, the gum and bone recede, then the hero shot shows the
 // exposed root beside the cut, with an accent line where the gum used to be. Patient-facing.
-// poster: end
 // Frame: tooth 33 mirrored (scale.x = -1, a preset tooth has right-side chirality), so world +x = distal; +z = labial; y up,
 // CEJ at y = 0. Sizes in mm (Wheeler averages via DK.toothPreset).
 const CREST = -1.8;          // healthy crest, ~2 mm below the CEJ
@@ -76,7 +76,7 @@ fig.param('rec', 0, k => {
 fig.slider('Recession', 0, 1, 0.01, 1, v => fig.goTo({ set: { rec: v } }, 0.3));
 
 // --- story: healthy canine → the cut shows the thin bone → gum and bone recede → the exposed root beside the cut
-const HERO = { theta: 0.45, phi: 1.4, zoom: 0.8, focus: [-0.4, -0.6, 1.0], fov: 28 };
+const HERO = { theta: 0.45, phi: 1.4, zoom: 0.9, focus: [-0.4, -1.2, 1.0], fov: 28 };
 fig.story([
   { dur: 0, hold: 1.4, theta: 0.3, phi: 1.36, zoom: 1, section: false, labels: [], caption: 'A healthy lower canine: the gum covers the root.' },
   { dur: 2.2, hold: 0.2, theta: Math.PI / 2 - 0.15, phi: 1.42, zoom: 0.95, fov: 28, labels: [] },

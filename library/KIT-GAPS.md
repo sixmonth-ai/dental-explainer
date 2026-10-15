@@ -21,3 +21,10 @@ which would also help the skill on topics with no example.
 - Residual bone under the sinus about 4 mm before a lateral lift, about 12 mm after.
 - Overbite and overjet norms about 2 to 3 mm; incisor tilts.
 - Rapid palatal expansion screw rate about 0.2 to 0.25 mm per turn.
+- `DK.crack(tooth, {plane, depth, width})`; dentin-tubule and pulp-nerve overlays on a cut face; sinus-tract / parulis and a soft-tissue layer over bone; fissure-etch gel and path-growing sealant (cracked-tooth-36, sensitivity, periapical-abscess, sealant-36).
+- `DK.forceps`, `DK.elevator`, `DK.syringe`, `DK.toothSplit` (crown and roots as separate solids), `DK.flap`, a section-ready "bone removed" void, nerve pathways on `DK.mandible` (canal, foramina, lingual nerve) (surgery figures).
+- `DK.holeCap` is nearly the bone cut-face colour in the light theme: empty space in bone sections needs `DK.RIM` outlines. Section-group order affected cutOnly voids in surgical-extraction (workaround in the script).
+- Not in dental-facts.md: dry socket onset 2 to 4 days and healing 1 to 2 weeks; mandibular foramen at about the occlusal level.
+- Section-safe calculus deposit band (overlapping `DK.calculus` lumps break stencil caps); `DK.curette`; site-specific gingival margin (labial recession, papillae kept); an inside-a-layer sampler for placing particles in enamel/dentin/pulp (calculus, scaling-root-planing, gum-recession, whitening).
+- Kit artefact: thin dark hairlines on incisor enamel/pulp-horn cut faces.
+- Not in dental-facts.md: whitening mechanism (qualitative only, e.g. Joiner 2006).

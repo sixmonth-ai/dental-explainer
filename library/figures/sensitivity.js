@@ -1,6 +1,6 @@
 // Dentin hypersensitivity on the mandibular left first premolar (FDI 34 = Universal 21) with buccal gum recession; story in a bucco-lingual cut (frame: +x mesial, +z buccal, CEJ at y = 0; camera on the mesial side, buccal on the viewer's left).
 // poster: end
-// Hydrodynamic theory (Brännström): cold on exposed root dentin moves the fluid in open tubules, which excites the nerve endings at the pulp. Tubules and fluid drawn enlarged (real tubules are ~1–3 µm wide). Sizes in mm.
+// Hydrodynamic theory (Brännström): cold on exposed root dentin moves the fluid in open tubules, which excites the nerve endings at the pulp. Tubules and fluid drawn enlarged (real tubules are microscopic). Sizes in mm.
 const FDI = 34, CUT = 0;
 const fig = DK.figure({
   fov: 26,
@@ -65,10 +65,10 @@ drop.rotation.x = Math.PI / 2 + 0.3; drop.position.set(CUT - 0.75, T0.y, T0.zo +
 const cutOn = (e, sec) => sec.enabled;
 const mid = tubules[1];
 fig.part(L.enamel, { inPlace: true, name: 'Enamel', sub: 'seals the crown', anchor: [CUT, s.crownL * 0.55, s.bl / 2 - 0.4], labelOffset: [-60, -30], dim: false, info: 'Enamel has no tubules, so a covered crown does not feel cold this way.' });
-fig.part(tubGroup, { inPlace: true, name: 'Open tubules', sub: 'shown enlarged', anchor: () => tubPath(mid, 0.45), dim: false, when: () => tubMat.opacity > 0.3, info: 'Dentin is full of microscopic fluid-filled tubes (about 1–3 µm wide) running from the root surface to the pulp. Exposed root loses its thin cementum, leaving them open.' });
+fig.part(tubGroup, { inPlace: true, name: 'Open tubules', sub: 'shown enlarged', anchor: () => tubPath(mid, 0.45), dim: false, when: () => tubMat.opacity > 0.3, info: 'Dentin is full of microscopic fluid-filled tubes running from the root surface to the pulp. Exposed root loses its thin cementum, leaving them open.' });
 fig.part(drop, { inPlace: true, name: 'Cold', anchor: [0, 0, 0], dim: false, when: () => drop.visible, info: 'Cold drinks, air or sweet food on exposed dentin.' });
-fig.part(flowGroup, { inPlace: true, name: 'Fluid moves', anchor: () => beads[beads.length - 1].m.position.toArray(), accent: true, dim: false, when: () => flowMat.opacity > 0.3, info: 'Cold makes the fluid in the tubules shift quickly. That movement, not the cold itself, tugs on nerve endings at the inner end (the hydrodynamic theory). Sensitivity toothpastes plug or calm the tubules.' });
-fig.part(nerve, { inPlace: true, name: 'Nerve', sub: 'a sharp, short twinge', anchor: () => { const t = tubules[0]; return [CUT, t.y - 0.3, t.zi - 0.3]; }, dim: false, when: () => nerveOn > 0.3, info: 'Nerve fibres in the pulp reach just into the inner tubules. The fluid shift fires them: a sharp pain that stops when the stimulus goes. A lingering ache points to something else, such as decay or a crack.' });
+fig.part(flowGroup, { inPlace: true, name: 'Fluid moves', labelOffset: [170, 40], anchor: () => beads[beads.length - 1].m.position.toArray(), accent: true, dim: false, when: () => flowMat.opacity > 0.3, info: 'Cold makes the fluid in the tubules shift quickly. That movement, not the cold itself, tugs on nerve endings at the inner end (the hydrodynamic theory). Sensitivity toothpastes plug or calm the tubules.' });
+fig.part(nerve, { inPlace: true, name: 'Nerve', sub: 'a sharp, short twinge', labelOffset: [170, -70], anchor: () => { const t = tubules[0]; return [CUT, t.y - 0.3, t.zi - 0.3]; }, dim: false, when: () => nerveOn > 0.3, info: 'Nerve fibres in the pulp reach just into the inner tubules. The fluid shift fires them: a sharp pain that stops when the stimulus goes. A lingering ache points to something else, such as decay or a crack.' });
 
 // --- params
 let nerveOn = 0;
@@ -103,6 +103,6 @@ fig.story([
   { dur: 1.0, hold: 0.8, set: { cold: 1 }, labels: ['Cold', 'Open tubules'], caption: 'Something cold touches it.' },
   { dur: 1.6, hold: 1.0, set: { flow: 1 }, labels: ['Cold', 'Fluid moves'], caption: 'The fluid in the tubules shifts toward the pulp.' },
   { dur: 1.0, hold: 1.4, set: { nerve: 1 }, labels: ['Fluid moves', 'Nerve'], caption: 'Nerve endings fire: a sharp twinge.' },
-  { dur: 2.4, hold: 2.6, zoom: 0.64, focus: [CUT, 0.9, ROOT[2] - 0.2], theta: SIDE - 0.1, phi: 1.45, labels: ['Gum recession', 'Open tubules', 'Cold', 'Fluid moves', 'Nerve'] }
+  { dur: 2.4, hold: 2.6, zoom: 0.92, focus: [CUT, -2.6, 0], theta: SIDE - 0.1, phi: 1.45, labels: ['Gum recession', 'Open tubules', 'Cold', 'Fluid moves', 'Nerve'] }
 ]);
 fig.start();

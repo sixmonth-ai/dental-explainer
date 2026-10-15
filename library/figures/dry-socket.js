@@ -9,7 +9,7 @@ const fig = DK.figure({
   fov: 28,
   title: 'Dry socket',
   subtitle: 'Socket of a removed lower left third molar, FDI 38 (Universal 17), days after. Mesio-distal cut.',
-  view: { theta: 0.2, phi: 1.36, margin: window.DK_MODE === 'image' ? 0.8 : 0.95 }
+  view: { theta: 0.2, phi: 1.36, margin: window.DK_MODE === 'image' ? 0.68 : 0.9 }
 });
 const ACC = fig.dark ? 0x5A8FB8 : 0x0E3A5C;
 
@@ -77,6 +77,8 @@ fig.enableSection([0, 0, 1], [
   { objects: G.pulp, color: DK.COLORS.pulpCap }
 ]);
 D.walls.children.forEach(m => { m.material.clippingPlanes = [fig.section.plane]; });
+// the hole's walls draw without a depth test: only when the cut is on or the camera looks down into the socket
+fig.onFrame(() => { D.walls.visible = fig.section.enabled || fig.orbit.phi < 1.0; });
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-5, 5], offset: 0 } });
 fig.view('From above', { theta: 0.15, phi: 0.55, zoom: 0.9, section: false, labels: ['Normal healing', 'Dry socket'] });
 

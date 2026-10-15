@@ -1,9 +1,9 @@
-// Teeth grinding (bruxism): the masseter clenches, the lower jaw grinds side to side with the teeth in contact, and the cusp tips and incisal edges wear into flat facets (enamel ground through to a dentin island). Frame: DK.mandible (+x = patient's left, +z anterior, y up); the story ends on the worn lower teeth seen from above (upper teeth hidden).
+// Teeth grinding (bruxism): the masseter clenches, the lower jaw grinds side to side with the teeth in contact, and the cusp tips and incisal edges wear into flat facets (enamel ground through to a dentin island). Frame: DK.mandible (+x = patient's left, +z anterior, y up); the story ends on a close three-quarter view of the worn front teeth, just apart.
 // poster: end
 const GRIND = 4;                                  // mm the lower midline slides to each side while grinding (a normal full excursion is ~8 mm or more, facts §21)
 const fig = DK.figure({
   title: 'Teeth grinding',
-  subtitle: 'Lower teeth from above, upper teeth hidden. Wear and muscle schematic.',
+  subtitle: 'Front teeth, just apart. Average adult; wear and muscle schematic.',
   view: { theta: 0.75, phi: 1.3, margin: 0.86 }
 });
 
@@ -78,16 +78,18 @@ function clampGeo(r, h) {
 const holderY = m.upper.holder.position.y;
 const setWear = w => { worn.forEach(t => { const h = t.yTop - t.mm * w; clampGeo(t.en, h); clampGeo(t.de, h + 0.04); }); m.upper.holder.position.y = holderY - CLOSE * w; m.upper.holder.updateMatrix(); };
 
-// labels on the worn teeth (patient's left side, facing a camera on the left): lower canine 33 and upper canine 23
+// labels on the worn teeth, seen from slightly above and to the patient's left: upper canine 23 shows its
+// flattened tip from the side, the lower canine 33 and incisor 31 their facets with dentin showing
 const toothOf = (arch, fdi) => arch.teeth.find(t => t.fdi === fdi);
 const t33 = toothOf(m.teeth, 33), t23 = toothOf(mx.teeth, 23), t31 = toothOf(m.teeth, 31);
 const facetOf = fdi => worn.find(t => t.fdi === fdi);
-const wear33 = fig.part(t33.tooth.group, { inPlace: true, name: 'Worn canine', sub: 'tip ground flat', accent: true, anchor: () => [0, facetOf(33).yTop - facetOf(33).mm * wearNow, 0], labelOffset: [150, 10], dim: false,
-  info: 'Lower left canine (FDI 33, Universal 22). Grinding wears its pointed tip into a flat, shiny facet; once the enamel is through, the softer dentin wears faster.' });
-fig.part(t23.tooth.group, { inPlace: true, name: 'Upper canine', sub: 'matching facet', anchor: () => [0, facetOf(23).yTop - facetOf(23).mm * wearNow, 0], labelOffset: [80, -70], dim: false,
-  info: 'Upper left canine (FDI 23, Universal 11). Facets on upper and lower teeth fit together like puzzle pieces when the jaw is moved to the grinding position.' });
-fig.part(t31.tooth.group, { inPlace: true, name: 'Incisal edges', sub: 'flattened, dentin showing', anchor: () => [0, facetOf(31).yTop - facetOf(31).mm * wearNow, 0], labelOffset: [-160, 10], dim: false,
-  info: 'Lower incisors (FDI 31, 41). Worn edges become flat and short; the yellow dentin island in the middle is a typical sign of attrition. Enamel does not grow back.' });
+const onFacet = fdi => () => [0, facetOf(fdi).yTop - facetOf(fdi).mm * wearNow, 0];
+fig.part(t23.tooth.group, { inPlace: true, name: 'Worn canine', sub: 'tip ground flat', accent: true, anchor: onFacet(23), labelOffset: [170, -50], dim: false,
+  info: 'Upper left canine (FDI 23, Universal 11). Grinding wears its pointed tip into a flat, shiny facet; once the enamel is through, the softer dentin wears faster.' });
+fig.part(t33.tooth.group, { inPlace: true, name: 'Lower canine', sub: 'matching facet', anchor: onFacet(33), labelOffset: [170, 90], dim: false,
+  info: 'Lower left canine (FDI 33, Universal 22). Its facet fits the upper one like a puzzle piece when the jaw is moved to the grinding position.' });
+fig.part(t31.tooth.group, { inPlace: true, name: 'Incisal edges', sub: 'worn flat, dentin showing', anchor: onFacet(31), labelOffset: [-190, 40], dim: false,
+  info: 'Lower central incisors (FDI 31, 41; Universal 24, 25). Worn edges become flat and short; the yellow dentin line in the middle is a typical sign of attrition. Enamel does not grow back.' });
 const joint = fig.part(mx.temporal.left, { inPlace: true, name: 'Jaw joint', sub: 'loaded too', anchor: mx.joints.left.userData.anchors.roof, labelOffset: [-60, -60], dim: false,
   info: 'The temporomandibular joint takes the reaction to the clenching force. Long clenching can leave it sore; the figure does not show joint damage.' });
 
@@ -127,9 +129,9 @@ fig.story([
   { dur: 1.0, hold: 0.1, set: { grind: GRIND }, labels: [] },
   { dur: 1.0, hold: 0.4, set: { grind: -GRIND }, labels: [] },
   { dur: 1.2, hold: 0.3, set: { grind: 0 }, labels: [] },
-  { dur: 2.0, hold: 0.4, theta: 0.3, phi: 0.62, zoom: 0.36, focus: [10, 6, -2], set: { open: 6, context: 0, upper: 0, muscle: 0, skull: 0 }, labels: [] },
-  { dur: 3.0, hold: 2.8, theta: 0, phi: 0.1, zoom: 0.86, focus: [0, 6, -40], set: { open: 0, wear: 1 }, labels: ['Worn canine', 'Incisal edges'] }
+  { dur: 2.2, hold: 0.3, theta: 0.32, phi: 1.3, zoom: 0.28, focus: [7, 6.5, 4], set: { open: 4.5, context: 0.9, upper: 1, muscle: 0, skull: 0 }, labels: [] },
+  { dur: 3.0, hold: 2.8, set: { wear: 1 }, labels: ['Worn canine', 'Lower canine', 'Incisal edges'] }
 ]);
-fig.view('Worn teeth', { theta: 0, phi: 0.1, zoom: 0.86, focus: [0, 6, -40], set: { grind: 0, open: 0, context: 0, upper: 0, muscle: 0, skull: 0 }, labels: ['Worn canine', 'Incisal edges'] });
+fig.view('Worn teeth', { theta: 0.32, phi: 1.3, zoom: 0.28, focus: [7, 6.5, 4], set: { grind: 0, open: 4.5, context: 0.9, upper: 1, muscle: 0, skull: 0 }, labels: ['Worn canine', 'Lower canine', 'Incisal edges'] });
 fig.view('Whole jaw', { theta: 0.78, phi: 1.3, zoom: 0.78, focus: [22, 10, -30], set: { grind: 0, open: 0, upper: 1, context: 0.55, muscle: 0.9, skull: 1 }, labels: ['Worn canine', 'Incisal edges', 'Masseter', 'Jaw joint'] });
 fig.start();

@@ -1,6 +1,6 @@
 // Story: what sits under a crown on the mandibular left first molar (FDI 36 = Universal 19). The crown lifts off its cement
-// and the prepared stump, then a mesio-distal cut shows the shell, the cement line and the patient's own dentin and pulp.
 // poster: end
+// and the prepared stump, then a mesio-distal cut shows the shell, the cement line and the patient's own dentin and pulp.
 // Frame: +x = mesial, +z = buccal, CEJ (= crown margin) at y = 0. All sizes in mm.
 const FDI = 36;
 const PREP = { axial: 1.0, occlusal: 1.5, margin: 0.5 };   // monolithic zirconia, typical (dental-facts.md §14)
@@ -14,7 +14,7 @@ const fig = DK.figure({
 
 // --- context
 const tooth = DK.tooth(FDI, { omit: ['enamel', 'dentin'] }), s = tooth.spec;   // roots + pulp; the crown part is the prep below
-const bone = DK.bone({ width: 20, height: 18, depth: 13, crest: 1.6 }); bone.position.y = -1.8;
+const bone = DK.bone({ width: 20, height: 14.6, depth: 13, crest: 1.6 }); bone.position.y = -1.8;
 const gum = DK.gingiva({ width: 20, height: 3.2, depth: 13.6, crest: 1.3, around: [{ x: 0, z: 0, md: s.mdC, bl: s.blC, rise: 0.8 }] }); gum.position.y = 1.2;
 fig.part(bone, { name: 'Bone', label: false, fit: false, info: 'Alveolar bone around the two roots.' });
 fig.part(gum, { name: 'Gum', label: false, fit: false, info: 'The crown edge sits at or just under the gum line.' });
@@ -57,6 +57,6 @@ fig.story([
   { fov: 26, dur: 2.2, hold: 0.3, zoom: 1, focus: 'auto', theta: 0.05, phi: 1.45, explode: 0.32, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 7 },
   { dur: 2.2, hold: 2.4, offset: 0, labels: ['Crown', 'Your tooth', 'Pulp'] },
-  { dur: 2.0, hold: 2.6, theta: 0.32, phi: 1.36, explode: 0, labels: ['Crown', 'Cement', 'Your tooth', 'Pulp', 'Roots'] }   // teaching shot
+  { dur: 2.0, hold: 2.6, theta: 0.32, phi: 1.36, zoom: 1.08, explode: 0, labels: ['Crown', 'Cement', 'Your tooth', 'Pulp', 'Roots'] }   // teaching shot
 ]);
 fig.start();

@@ -1,7 +1,7 @@
 // Procedure: lateral-window sinus lift at the missing upper right first molar (FDI 16 = Universal 3), in the jaw (crest down, sinus above),
 // poster: step 5
 // seen in a bucco-palatal cut. The posterior maxilla is built from a traced coronal outline (alveolar ridge, thin lateral sinus wall, medial
-// wall, palate) swept into a 6 mm CBCT-style slab; the sinus is the air space inside it, 17 drawn faint behind. Steps: too little bone for an implant, a side window in the
+// wall, palate) swept into a 6 mm CBCT-style slab cropped across the sinus; the sinus is the air space inside it. Steps: too little bone for an implant, a side window in the
 // lateral wall, the sinus membrane lifted, graft packed under it, the implant in the new bone. Frame: +x = mesial, +z = buccal, crest at y = 0, mm.
 const L = 3;                                   // half-thickness of the slab (mesio-distal): a CBCT-style coronal slice
 const FLOOR = 3.9;                             // residual bone height under the sinus at the site (crest to floor)
@@ -20,14 +20,14 @@ const { smooth, lerp } = DK.util;
 
 // ---------- outlines in the cut plane, (z, y): buccal +z, up +y ----------
 const curve = (pts, n) => { const c = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], 0)), false, 'centripetal'); return c.getSpacedPoints(n).map(v => [v.x, v.y]); };
-// bone, outside (counter-clockwise from the crest): buccal alveolar wall, the lateral sinus wall flaring out toward the zygomatic buttress,
-// cropped flat at the orbital floor, the lateral nasal wall, the nasal floor and palate (cut flat medially), the palatal side of the ridge
-const OUT = curve([[0, 0], [2.4, 0.2], [4.2, 1.3], [5.3, 3.4], [6.2, 6.5], [7.6, 10], [10, 14], [13, 18.5], [15.2, 23], [15.8, 27], [15, 30.5], [13, 32]], 70)
-  .concat(curve([[-9, 32], [-10.6, 30], [-10.8, 26], [-9.8, 20], [-8.6, 15.5], [-8.0, 13.9]], 30))
-  .concat(curve([[-11, 13.6], [-15, 13.3]], 4)).concat(curve([[-15, 10.4], [-11.5, 10.1], [-8.6, 9.2], [-6.4, 7.2], [-5.2, 4.2], [-4.2, 1.6], [-2.5, 0.3]], 34));
-// the sinus (a hole in it): floor over the ridge, lateral wall, roof under the orbit, medial wall. LINING = its lower part, medial to lateral.
+// bone, one outline counter-clockwise from the crest: buccal alveolar wall and the thin lateral sinus wall up to a flat crop, back down the
+// inside of the sinus (lateral wall, floor over the ridge, medial wall), up the lateral nasal wall, the nasal floor and palate (cut flat), the palatal ridge
+const TOP = 23.5;   // cropped well above the frame: the walls run off the top of every shot
+const SIN = curve([[13.7, TOP], [12.1, 19.5], [11.3, 17.5], [8.3, 13], [5.6, 8.8], [4.4, 5.6], [3.0, 4.3], [1.0, FLOOR], [-1.0, FLOOR], [-3.0, 4.6], [-4.4, 6.6], [-5.6, 10.5], [-7.2, 15.5], [-8.3, 19.5], [-9.0, TOP]], 90);
 const LINING_PTS = [[-7.2, 15.5], [-5.6, 10.5], [-4.4, 6.6], [-3.0, 4.6], [-1.0, FLOOR], [1.0, FLOOR], [3.0, 4.3], [4.4, 5.6], [5.6, 8.8], [8.3, 13]];
-const SIN = curve(LINING_PTS.concat([[11.3, 17.5], [13.4, 22.5], [14, 26.5], [13, 29.5], [10, 30.6], [0, 30.8], [-7, 30.5], [-9.2, 28.5], [-9.3, 25], [-8.4, 20]]).concat([LINING_PTS[0]]), 160);
+const OUT = curve([[0, 0], [2.4, 0.2], [4.2, 1.3], [5.3, 3.4], [6.2, 6.5], [7.6, 10], [10, 14], [12.9, 18.5], [13.5, 19.5], [15.1, TOP]], 60)
+  .concat(SIN, curve([[-10.4, TOP], [-9.7, 19.5], [-9.4, 17.5], [-8.6, 15.5], [-8.0, 13.9]], 12), curve([[-11, 13.6], [-12, 13.5]], 3),
+    curve([[-12, 10.2], [-11.5, 10.1], [-8.6, 9.2], [-6.4, 7.2], [-5.2, 4.2], [-4.2, 1.6], [-2.5, 0.3]], 30));
 const at = (pts, y, side) => {                 // z on a wall outline at height y (side: +1 buccal, -1 medial)
   let best = null; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1]; if ((a[1] - y) * (b[1] - y) <= 0 && a[1] !== b[1] && Math.sign(a[0] + b[0]) === side) { const z = lerp(a[0], b[0], (y - a[1]) / (b[1] - a[1])); if (best === null || side * z > side * best) best = z; } }
   return best;
@@ -60,12 +60,12 @@ const offsetPath = (P, t) => P.map((p, i) => {   // offset a path to its left (w
 });
 
 // ---------- bone: cortical shell (the outline) and a cancellous core in the ridge ----------
-const boneMesh = new THREE.Mesh(sweep(-L, L, 1, () => OUT, SIN.slice(0, -1)), DK.mat('bone', { cap: DK.COLORS.corticalCap }));
+const boneMesh = new THREE.Mesh(sweep(-L, L, 1, () => OUT), DK.mat('bone', { cap: DK.COLORS.corticalCap }));
 const CORE = curve([[-3.4, 1.4], [-1.5, 0.95], [1.5, 0.95], [3.4, 1.4], [4.4, 2.6], [4.2, 3.4], [3.0, 3.2], [1, FLOOR - 1.0], [-1, FLOOR - 1.0], [-3.0, 3.3], [-4.5, 3.8], [-4.6, 2.6]], 40);
 const core = new THREE.Mesh(sweep(-L + 0.6, L - 0.6, 1, () => CORE), DK.mat('bone', { color: DK.COLORS.cancellous })); core.material.visible = false;
 const jaw = new THREE.Group(); jaw.add(boneMesh, core);
 // gum over the ridge: from the buccal fold (flap reflected above it) round the crest onto the palate
-const gumPath = curve([[5.6, 4.6], [5.0, 2.6], [4.2, 1.3], [2.4, 0.2], [0, 0], [-2.5, 0.3], [-4.2, 1.6], [-5.2, 4.2], [-6.4, 7.2], [-8.6, 9.2], [-11.5, 10.1], [-14.6, 10.4]], 50);
+const gumPath = curve([[5.6, 4.6], [5.0, 2.6], [4.2, 1.3], [2.4, 0.2], [0, 0], [-2.5, 0.3], [-4.2, 1.6], [-5.2, 4.2], [-6.4, 7.2], [-8.6, 9.2], [-11.5, 10.1], [-11.9, 10.15]], 50);
 const gumOuter = offsetPath(gumPath, i => { const u = i / (gumPath.length - 1); return 0.9 + 1.1 * Math.exp(-Math.pow((u - 0.33) / 0.2, 2)) + (u > 0.6 ? 0.8 * smooth(0.6, 0.8, u) : 0); });
 const gum = new THREE.Mesh(sweep(-L, L, 1, () => gumOuter.concat(gumPath.slice().reverse().map(p => [p[0], p[1] + 0.02]))), DK.mat('mucosa'));
 
@@ -117,23 +117,19 @@ const ghost = new THREE.Mesh(DK.lathe([[0, -IMPLANT.length], [1.0, -IMPLANT.leng
 ghost.rotation.x = Math.PI; ghost.renderOrder = 998;
 [membrane, graft, windowVoid, windowFace, bur, implant, ghost].forEach(o => fig.world.add(o));
 
-// ---------- the neighbour behind the slab: upper right second molar 17, crown down, drawn faint ----------
-const t17 = DK.tooth(17, { omit: ['root', 'pulp'] }); t17.group.scale.y = -1; t17.group.position.set(-(DK.toothPreset(16).md / 2 + DK.toothPreset(17).md / 2), -1.6, 0);
-t17.group.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.transparent = true; m.material.opacity = 0.3; m.material.depthWrite = false; } });
-fig.world.add(t17.group);
-
 // ---------- parts ----------
 const onCut = (sec, dz) => (sec.enabled ? sec.offset : 0) + (dz || 0.1);
-fig.part(jaw, { name: 'Upper jaw', label: false, info: 'Back of the upper jaw: the ridge where 16 was, the thin side wall of the sinus and the palate. Cropped above the sinus floor.' });
+const frameBox = new THREE.Mesh(new THREE.BoxGeometry(2 * L, 22.5, 26), new THREE.MeshBasicMaterial({ visible: false })); frameBox.position.set(0, 8.6, 0.75);   // what the camera frames: ridge, floor, walls
+fig.part(frameBox, { name: 'frame', label: false });
+fig.part(jaw, { name: 'Upper jaw', label: false, fit: false, info: 'Back of the upper jaw: the ridge where 16 was, the thin side wall of the sinus and the palate. Cropped across the sinus.' });
 fig.part(gum, { name: 'Gum', label: false, fit: false, info: 'Gum over the ridge. For the side window it is lifted as a flap (not shown) and closed again at the end.' });
-fig.part(boneMesh, { inPlace: true, name: 'Sinus', sub: 'air space', anchor: (e, sec) => [onCut(sec), 18, 0.8], dim: false, info: 'The maxillary sinus: an air space above the upper back teeth. After a tooth is lost it often expands down into the ridge.' });
+fig.part(boneMesh, { inPlace: true, name: 'Sinus', sub: 'air space', anchor: (e, sec) => [onCut(sec), 13.5, 1.5], dim: false, info: 'The maxillary sinus: an air space above the upper back teeth. After a tooth is lost it often expands down into the ridge.' });
 fig.part(core, { inPlace: true, name: 'Bone left', sub: `about ${FLOOR.toFixed(0)} mm`, anchor: (e, sec) => [onCut(sec), 1.9, 2.6], dim: false, info: `Only about ${FLOOR.toFixed(0)} mm of bone between the gum side and the sinus floor: too little to hold a standard implant.` });
 fig.part(ghost, { inPlace: true, name: 'Implant needs', sub: `about ${IMPLANT.length} mm`, anchor: [-IMPLANT.diameter / 2, -7.5, 0], accent: true, dim: false, info: 'A standard implant here is about 8 to 10 mm long: it would end in the sinus.' });
 fig.part(windowFace, { inPlace: true, name: 'Side window', anchor: [WIN.x - 1, (WIN.y0 + WIN.y1) / 2 + 1, zOut((WIN.y0 + WIN.y1) / 2 + 1) + 0.1], dim: false, info: 'A small window is opened in the thin side wall of the sinus, with a round bur or a piezo tip, without tearing the membrane behind it.' });
 fig.part(membrane, { inPlace: true, name: 'Sinus membrane', anchor: (e, sec) => [onCut(sec), FLOOR + LIFT * lift.k + MEMB / 2 + 0.05, -1.6], dim: false, info: 'The thin lining of the sinus (Schneiderian membrane). It is peeled gently off the floor and lifted like a tent; a tear has to be repaired. It lines the whole sinus; only its lower part is drawn.' });
 fig.part(graft, { inPlace: true, name: 'Bone graft', anchor: (e, sec) => [onCut(sec), FLOOR + 2.4, 1.6], dim: false, info: 'Graft granules fill the space under the lifted membrane. Over the following months new bone grows through them.' });
 fig.part(implant, { inPlace: true, name: 'Implant', sub: `about ${(FLOOR + LIFT).toFixed(0)} mm of bone now`, anchor: [IMPLANT.diameter / 2 + 0.1, -6.5, 0], accent: true, info: `With about ${(FLOOR + LIFT).toFixed(0)} mm of bone height an implant of normal length fits. It goes in at the same visit if the remaining bone holds it firmly, otherwise after the graft heals (often 6 to 9 months).` });
-fig.part(t17.group, { inPlace: true, name: '17 behind', anchor: [0, 4, 0], dim: false, info: 'The upper right second molar, behind the slice: the missing 16 sat in front of it.' });
 fig.part(bur, { inPlace: true, name: 'Round bur', anchor: [0, 6, 0], info: 'A round diamond (or a piezo tip) thins the wall until the bluish membrane shows through.' });
 
 // ---------- params ----------
@@ -161,24 +157,28 @@ fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range:
 
 // ---------- procedure ----------
 const CUTV = { theta: Math.PI / 2 - 0.1, phi: 1.5 };
+const ZK = fig.mode === 'image' ? 1 : 1.3;   // the interactive stage is shorter than a storyboard panel: pull back a little there
+const HERO = { theta: CUTV.theta, phi: CUTV.phi, zoom: 0.68 * ZK, focus: [0, 7.2, 0.75] };   // the ridge, floor, window and lift fill the frame; the walls run off the top
 fig.procedure([
   { label: 'Too little bone', caption: 'The sinus has dropped toward the ridge: about 4 mm of bone is left.', beats: [
-    { fov: 30, dur: 0, hold: 1.0, theta: 0.9, phi: 1.4, zoom: 1, section: true, offset: 0, labels: ['Sinus', '17 behind'] },
-    { fov: 26, dur: 2.2, hold: 0.6, theta: CUTV.theta, phi: CUTV.phi, labels: ['Sinus', 'Bone left'] },
-    { dur: 1.4, hold: 1.8, set: { ghost: 1 }, labels: ['Sinus', 'Bone left', 'Implant needs'], key: true }] },
+    { fov: 30, dur: 0, hold: 1.2, theta: 1.0, phi: 1.36, zoom: 1.05, section: true, offset: 0, labels: ['Sinus'] },
+    { fov: 26, dur: 2.2, hold: 1.2, theta: CUTV.theta, phi: CUTV.phi, zoom: 0.5 * ZK, focus: [0, 3, 0], labels: ['Bone left'] },
+    Object.assign({ dur: 2.0, hold: 2.0, set: { ghost: 1 }, labels: ['Sinus', 'Bone left', 'Implant needs'], key: true }, HERO)] },
   { label: 'Side window', caption: 'Through a gum flap, a small window is opened in the side wall of the sinus.', beats: [
-    { dur: 1.4, hold: 0.1, zoom: 0.8, focus: [0, 10, 0], set: { ghost: 0, burT: 0 }, labels: ['Round bur'] },
+    { dur: 1.6, hold: 0.1, zoom: 0.48 * ZK, focus: [0, 8.5, 5], set: { ghost: 0, burT: 0 }, labels: ['Round bur'] },
     { dur: 3.0, hold: 0.1, set: { burT: 1 }, labels: ['Round bur'] },
-    { dur: 0.8, hold: 1.6, set: { burT: -1, win: 1 }, labels: ['Side window'], key: true }] },
+    Object.assign({ dur: 1.6, hold: 1.6, set: { burT: -1, win: 1 }, labels: ['Side window'], key: true }, HERO)] },
   { label: 'Lift membrane', caption: 'The membrane is peeled off the sinus floor and lifted like a tent.', beats: [
-    { dur: 1.6, hold: 0.1, zoom: 0.8, focus: [0, 10, 0], labels: [] },
-    { dur: 2.6, hold: 1.6, set: { lift: 1 }, labels: ['Sinus membrane', 'Side window'], key: true }] },
+    { dur: 1.4, hold: 0.1, zoom: 0.58 * ZK, focus: [0, 7, 0], labels: ['Sinus membrane'] },
+    { dur: 2.6, hold: 0.4, set: { lift: 1 }, labels: ['Sinus membrane'] },
+    Object.assign({ dur: 1.4, hold: 1.6, labels: ['Sinus membrane', 'Side window'], key: true }, HERO)] },
   { label: 'Graft', caption: 'Bone graft granules fill the new space under the membrane.', beats: [
-    { dur: 2.6, hold: 0.2, set: { fill: 1 }, labels: ['Bone graft'] },
-    { dur: 0.8, hold: 1.4, labels: ['Bone graft', 'Sinus membrane'], key: true }] },
+    { dur: 1.2, hold: 0.1, zoom: 0.58 * ZK, focus: [0, 7, 0], labels: [] },
+    { dur: 2.6, hold: 0.3, set: { fill: 1 }, labels: ['Bone graft'] },
+    Object.assign({ dur: 1.4, hold: 1.6, labels: ['Bone graft', 'Sinus membrane'], key: true }, HERO)] },
   { label: 'Implant', caption: 'An implant of normal length now fits, at once or after the graft heals.', beats: [
-    { dur: 0.8, hold: 0.1, set: { win: 0 }, zoom: 0.8, focus: [0, 10, 0], labels: [] },
+    { dur: 1.2, hold: 0.1, set: { win: 0 }, zoom: 0.6 * ZK, focus: [0, 6, 0], labels: [] },
     { dur: 2.8, hold: 0.3, set: { implant: 1 }, labels: ['Implant'] },
-    { dur: 1.8, hold: 2.4, theta: CUTV.theta, phi: CUTV.phi, zoom: 1, focus: 'auto', labels: ['Implant', 'Bone graft', 'Sinus membrane', 'Sinus'], key: true }] }
+    Object.assign({ dur: 1.8, hold: 2.6, labels: ['Implant', 'Bone graft', 'Sinus membrane'], key: true }, HERO)] }
 ]);
 fig.start();

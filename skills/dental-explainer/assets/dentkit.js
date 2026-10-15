@@ -1046,6 +1046,61 @@
     const tmp = new T.Vector3();
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let last = performance.now(), frameHooks = [], frozen = false;
+
+    // ----- rotary tools: spin, and chips + water spray from the tip while it cuts -----
+    // A tool cuts while its tip moves (not straight up) inside the bounds of another visible part. Particles are a small
+    // pool of round sprites; seek() clears them so stills and screenshots stay deterministic.
+    let toolClock = 0;
+    const NP = 140, pPos = new Float32Array(NP * 3), pCol = new Float32Array(NP * 3), pVel = new Float32Array(NP * 3), pLife = new Float32Array(NP);
+    const pGeo = new T.BufferGeometry(); pGeo.setAttribute('position', new T.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new T.BufferAttribute(pCol, 3));
+    const dot = (() => { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), r = g.createRadialGradient(16, 16, 0, 16, 16, 16); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.55, 'rgba(255,255,255,.9)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 32, 32); return new T.CanvasTexture(c); })();
+    const pts = new T.Points(pGeo, new T.PointsMaterial({ size: 5 * pixelRatio, map: dot, vertexColors: true, transparent: true, depthWrite: false, depthTest: false, toneMapped: false, sizeAttenuation: false }));   // chips keep the same size on screen at any zoom
+    pts.frustumCulled = false; pts.renderOrder = 3; pts.visible = false; scene.add(pts);
+    for (let i = 0; i < NP; i++) pLife[i] = 0;
+    let pNext = 0; const chipCols = [DK.color(0xc9b48a), DK.color(0xb39f78), DK.color(0xe4dccb)], spray = DK.color(0x9fb3c4), tipW = new T.Vector3(), boxTmp = new T.Box3(), tipPrev = new WeakMap();
+    function emit(at, dir, n, rise) {   // rise: chips leave anywhere from the tip up to `rise` mm above it (the mouth of a deep hole)
+      for (let k = 0; k < n; k++) {   // mostly dentin- and enamel-coloured chips in a tight burst, some cool water spray
+        const i = pNext; pNext = (pNext + 1) % NP; const water = Math.random() < 0.3, sp = water ? 10 + Math.random() * 10 : 4 + Math.random() * 7;
+        const a = Math.random() * Math.PI * 2, up = 0.35 + Math.random() * 0.8;
+        pVel[i * 3] = Math.cos(a) * sp + dir.x * 6; pVel[i * 3 + 1] = up * sp; pVel[i * 3 + 2] = Math.sin(a) * sp + dir.z * 6;
+        pPos[i * 3] = at.x; pPos[i * 3 + 1] = at.y + (rise || 0) * Math.sqrt(Math.random()); pPos[i * 3 + 2] = at.z; pLife[i] = water ? 0.25 + Math.random() * 0.15 : 0.35 + Math.random() * 0.25;
+        const c = water ? spray : chipCols[(Math.random() * 3) | 0]; pCol[i * 3] = c.r; pCol[i * 3 + 1] = c.g; pCol[i * 3 + 2] = c.b;
+      }
+    }
+    // the top of the highest other part the tip is inside (chips come out of the hole there), or null when it cuts nothing
+    function cutTop(tool, w) {
+      let top = null;
+      for (const p of parts) {
+        if (p.inPlace || !p.obj.visible) continue;
+        let mine = false; for (let ob = tool; ob; ob = ob.parent) if (ob === p.obj) { mine = true; break; } if (mine) continue;
+        if (boxTmp.setFromObject(p.obj).expandByScalar(0.2).containsPoint(w)) top = Math.max(top ?? -1e9, boxTmp.max.y - 0.2);
+      }
+      return top;
+    }
+    function tickTools(dt) {
+      toolClock += dt; let live = false;
+      for (const t of TOOLS) {
+        let shown = t.visible; for (let ob = t.parent; ob && shown; ob = ob.parent) { if (!ob.visible) shown = false; if (ob === scene) break; }
+        let inScene = false; for (let ob = t; ob; ob = ob.parent) if (ob === scene) inScene = true;
+        if (!inScene || !shown) { tipPrev.delete(t); continue; }
+        if (t.userData.spin && !reduce) t.userData.spinner.rotation.y = toolClock * t.userData.spin * Math.PI * 2;
+        if (dt <= 0 || reduce || t.userData.debris === false) continue;
+        t.updateMatrixWorld(); tipW.set(0, t.userData.tipY || 0, 0).applyMatrix4(t.matrixWorld);
+        const prev = tipPrev.get(t); tipPrev.set(t, tipW.clone());
+        if (!prev) continue;
+        const d = tipW.clone().sub(prev), len = d.length();
+        const top = len > 0.004 && len < 3 && d.y < len * 0.5 ? cutTop(t, tipW) : null;
+        if (top !== null) emit(tipW, d.normalize(), Math.min(6, 1 + Math.round(len * 40)), Math.min(4, Math.max(0, top - tipW.y)));   // deep in a hole: up to its mouth
+      }
+      for (let i = 0; i < NP; i++) {
+        if (pLife[i] <= 0) { pPos[i * 3 + 1] = -1e5; continue; }
+        live = true; pLife[i] -= dt; pVel[i * 3 + 1] -= 45 * dt; const drag = Math.exp(-dt * 3.5);
+        for (let k = 0; k < 3; k++) { pVel[i * 3 + k] *= drag; pPos[i * 3 + k] += pVel[i * 3 + k] * dt; }
+      }
+      pts.visible = live; if (live) { pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true; }
+    }
+    function clearParticles() { pLife.fill(0); pts.visible = false; }
+
     function update(dt) {
       if (player) {
         player.t += dt;
@@ -1061,6 +1116,7 @@
       const e = ease(clamp(explodeT, 0, 1));
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
       frameHooks.forEach(f => f(dt, e));
+      tickTools(frozen ? 0 : dt);
       if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e).add(focusOff); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
       fitCenter.copy(orbit.target);
       placeCam();
@@ -1183,6 +1239,7 @@
       if (!story) { update(0); return; }
       const c = compile(story, startState);
       apply(stateAt(c, clamp(t, 0, c.total)));
+      clearParticles(); toolClock = t;   // stills: tools at a fixed turn, no flying chips
       if (proc) showStep(stepAtTime(clamp(t, 0, c.total)));
       // labels fade deterministically: simulate the fade from 0.15 s earlier
       parts.forEach(p => { p.alpha = 0; }); for (let i = 0; i < 6; i++) layoutLabels(ease(clamp(explodeT, 0, 1)), 1 / 40);
@@ -1359,6 +1416,8 @@
       },
       // test hook: restart the live loop after seek() (so a button pressed at a procedure moment renders)
       thaw() { frozen = false; },
+      // test hook: how many chips / spray drops are in the air right now
+      get particles() { let n = 0; for (let i = 0; i < NP; i++) if (pLife[i] > 0) n++; return n; },
       // test hook: jump state instantly (used by verification screenshots)
       setState(s) {
         player = null; introOff = true; frozen = false; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
@@ -1410,14 +1469,21 @@
   };
   // Surgical twist drill: fluted cutting part from y = 0 down to the tip at y = -length, shank above y = 0.
   // Place it with the tip at depth d below the crest: drill.position.y = crestY - d + length.
+  // Rotary tools (burs, implant drills) spin while visible, and throw chips and spray from the tip while it moves through a
+  // part of the figure (the figure loop does both; nothing to call). `root` is what the figure positions and tilts; the
+  // returned inner group turns about its own +y axis, so the example's rotation of `root` is untouched.
+  // root.userData.spin = 0 stops a tool; root.userData.debris = false keeps it clean (a tool that only probes).
+  const TOOLS = [];
+  function spinning(root, rps) { const inner = new T.Group(); inner.name = 'spin'; root.add(inner); root.userData.spin = rps; root.userData.spinner = inner; TOOLS.push(root); return inner; }
   DK.drill = function (o) {
     o = Object.assign({ diameter: 2.0, length: 14, shank: 12, bands: [8, 10, 12] }, o);
-    const r = o.diameter / 2, grp = new T.Group(); grp.name = 'Drill';
+    const r = o.diameter / 2, root = new T.Group(); root.name = 'Drill';
     const steel = DK.mat('steel', { cap: 0x9ea4aa }), dark = DK.mat('titaniumDark');
+    const grp = spinning(root, 1.6);   // the drill turns while it is in view (its flutes show the rotation)
     grp.add(new T.Mesh(DK.threaded({ length: o.length, coreRadius: r * 0.72, threadDepth: r * 0.28, pitch: Math.max(1.6, o.diameter * 1.4), collar: 0, apexTaper: 0.08, starts: 2, cols: 48 }), steel));
     grp.add(DK.lathe([[r, 0], [r, 1.2], [1.2, 2.4], [1.2, o.shank]], 32, steel));
     o.bands.filter(b => b < o.length).forEach(b => { const ring = new T.Mesh(new T.CylinderGeometry(r * 1.01, r * 1.01, 0.25, 32, 1, true), dark); ring.position.y = -o.length + b; grp.add(ring); }); // depth marks from the tip
-    grp.userData.spec = o; return grp;
+    root.userData.spec = o; root.userData.tipY = -o.length; return root;
   };
   // Prepared implant bed: a closed cylinder (top at y = 0) to put in a section group after the bone, so the cut
   // face shows the hole. osteotomy.set(radius, depth) resizes it; depth 0 hides it.
@@ -1468,7 +1534,8 @@
   // (football: lingual concavity of anteriors), 'flame' (finishing), 'round'. Sizes in mm (head ~8 mm, FG shank Ø1.6).
   DK.bur = function (o) {
     o = Object.assign({ shape: 'taper', diameter: 1.2, head: 8, length: 19 }, o);
-    const r = o.diameter / 2, grp = new T.Group(); let H = o.head; grp.name = 'Diamond bur';
+    const r = o.diameter / 2, root = new T.Group(); let H = o.head; root.name = 'Diamond bur';
+    const grp = spinning(root, 2.4);   // turns while in view; the grit bands make the rotation visible
     const grit = DK.mat('steel', { color: 0x9c9d99, roughness: 0.75, metalness: 0.6, bump: 'pores', bumpScale: 0.04 }), steel = DK.mat('steel');
     const arc = (cy, rr, a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => { const a = lerp(a0, a1, i / n); return [Math.max(0, rr * Math.cos(a)), cy + rr * Math.sin(a)]; });
     let head;
@@ -1478,9 +1545,14 @@
     else if (o.shape === 'flat') { head = [[0, 0], [r * 0.8, 0], [r * 0.82, 0.1], [r, H]]; }
     else { const rt = r * 0.72; head = arc(rt, rt, -Math.PI / 2, 0, 8).concat([[r, H]]); }
     const hTop = head[head.length - 1][1];
-    grp.add(DK.lathe(head.concat([[Math.min(r, 0.7) * 0.6, hTop + 0.01]]), 40, grit));
+    const headMesh = DK.lathe(head.concat([[Math.min(r, 0.7) * 0.6, hTop + 0.01]]), 40, grit); grp.add(headMesh);
+    { // three darker spiral bands in the grit: a turning bur reads as turning
+      const pa = headMesh.geometry.attributes.position, col = [];
+      for (let i = 0; i < pa.count; i++) { const a = Math.atan2(pa.getZ(i), pa.getX(i)) / (Math.PI * 2) + 0.5, f = ((a * 3 + pa.getY(i) / Math.max(hTop, 1) * 0.6) % 1 + 1) % 1, k = f < 0.2 ? 0.62 : 1; col.push(k, k, k); }
+      headMesh.geometry.setAttribute('color', new T.Float32BufferAttribute(col, 3)); grit.vertexColors = true;
+    }
     grp.add(DK.lathe([[Math.min(r, 0.7) * 0.6, hTop], [0.45, hTop + 1.5], [0.8, hTop + 2.6], [0.8, o.length], [0.5, o.length + 0.2], [0, o.length + 0.2]], 32, steel));
-    grp.userData.spec = o; return grp;
+    root.userData.spec = o; root.userData.tipY = 0; return root;
   };
   // Crown restoration shaped like that tooth's crown. hollow:true (default) makes a shell whose inside matches DK.prep with the same reductions,
   // so in section the crown shows as a shell over the prep / core. CEJ / margin at y = 0.
@@ -1983,6 +2055,15 @@
       return grp;
     }
     grp.set = set;
+    // where the cutting tool is right now (tooth-local, on the floor): the leading edge of the occlusal step, or the
+    // gingival floor of the box. Put the bur tip here while kStep / kBox grow and the bur cuts the cavity it opens.
+    grp.front = (which, r) => {
+      r = r ?? 0.5; const kS = grp.userData.kStep ?? 1, kB = grp.userData.kBox ?? 1;
+      if (which === 'box' && bx) { const yG = lerp(topAt(bx.xA + sg * 1.0, 0) - 0.6, bx.yG, kB), xA = lerp(bx.xs(yG, 0) - sg * 0.35, bx.xA, kB); return [(xA + bx.xs(yG, 0)) / 2, yG, 0]; }
+      const e = Math.pow(kS, 0.6), fy = lerp(ysurf(cx, cz) - 0.35, floorY, kS), hw = lerp(0.25, 1, e) * len / 2;
+      const lead = cls === 2 && bx ? lerp(cx + sg * 0.3, bx.xA + sg * lerp(0.3, 1.0, kB), e) : cx + hw;
+      return [lead - (cls === 2 ? sg : 1) * r, fy, cz];
+    };
     // for fillings: clamp the solid between two heights (increments rise from the floor; a liner is a thin bottom slice)
     grp.slice = (from, to) => { grp.traverse(m => { if (!m.isMesh || m.userData.isStencil) return; const p = m.geometry.attributes.position; if (!m.userData.orig) m.userData.orig = p.array.slice(); const a = m.userData.orig; for (let i = 0; i < p.count; i++) p.setY(i, clamp(a[i * 3 + 1], from ?? -1e9, to ?? 1e9)); p.needsUpdate = true; m.geometry.computeVertexNormals(); }); return grp; };
     set(1, 1); return grp;
@@ -2021,6 +2102,23 @@
     const m = new T.Mesh(g, DK.mat('steel', { side: T.DoubleSide, cap: 0x9ea4aa })); m.name = 'Matrix band'; m.renderOrder = 2; return m;
   };
   // Interproximal wedge (triangular prism, base gingival, apex occlusal), axis along z (inserted from the buccal), tip at −z.
+  // LED curing light: the bent light guide of a pen-style unit, TIP at the origin pointing −y (place it ~1–2 mm over the
+  // increment). The guide bends away toward −z, so with the camera on +z it recedes instead of filling the frame.
+  // light.set(k) glows 0..1: the tip and a soft cone of blue light (the real light is blue too).
+  DK.curingLight = function (o) {
+    o = Object.assign({ tip: 5, color: 0x5A8FB8 }, o);
+    const grp = new T.Group(); grp.name = 'Curing light';
+    const body = DK.mat(0xdedad2, { roughness: 0.35 }), guide = DK.mat(0xa29f98, { roughness: 0.25, metalness: 0.2 });
+    const R = o.tip / 2, bend = new T.CatmullRomCurve3([new T.Vector3(0, 0, 0), new T.Vector3(0, 5, 0), new T.Vector3(0, 9, -3), new T.Vector3(0, 11, -9), new T.Vector3(0, 12, -24)]);
+    grp.add(new T.Mesh(new T.TubeGeometry(bend, 48, R * 0.95, 32, false), guide));
+    const handle = DK.lathe([[R * 1.1, 0], [R * 1.6, 6], [R * 1.7, 40], [0, 41]], 32, body); handle.position.set(0, 12, -24); handle.rotation.x = -Math.PI / 2; grp.add(handle);
+    const glowMat = new T.MeshBasicMaterial({ color: DK.color(o.color), toneMapped: false, transparent: true, opacity: 0 });
+    const lens = new T.Mesh(new T.CircleGeometry(R * 0.92, 40), glowMat); lens.rotation.x = Math.PI / 2; lens.position.y = -0.02; grp.add(lens);
+    const coneMat = new T.MeshBasicMaterial({ color: DK.color(o.color), toneMapped: false, transparent: true, opacity: 0, depthWrite: false, side: T.DoubleSide });
+    const cone = new T.Mesh(new T.CylinderGeometry(R * 0.92, R * 1.2, 2.2, 40, 1, true), coneMat); cone.position.y = -1.1; grp.add(cone);
+    grp.set = k => { k = clamp(k, 0, 1); glowMat.opacity = k; coneMat.opacity = 0.3 * k; lens.visible = cone.visible = k > 0.01; return grp; };
+    grp.set(0); return grp;
+  };
   DK.wedge = function (o) {
     o = Object.assign({ length: 9, height: 2.2, width: 1.6, taper: 0.45 }, o);
     const tri = [[0, o.height], [-o.width / 2, 0], [o.width / 2, 0]];

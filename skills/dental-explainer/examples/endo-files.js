@@ -4,6 +4,7 @@
 const SIZES = [10, 15, 20, 25, 30, 35, 40], GAP = 4.2, LENGTH = 25, FLUTES = 16;
 const TAPERS = [0.04, 0.06];                       // rotary tapers shown beside the 25/.02 hand file
 const fig = DK.figure({
+  fov: 26,
   title: 'ISO files: size, colour, taper',
   subtitle: `K-files 10–40 (.02), then 25/.02 beside 25/.04 and 25/.06 rotary files. ${LENGTH} mm files.`,
   view: { theta: 0.15, phi: 1.5, margin: 0.95 }

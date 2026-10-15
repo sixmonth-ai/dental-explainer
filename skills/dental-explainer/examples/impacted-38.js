@@ -3,6 +3,7 @@
 // depth (occlusal surface vs the occlusal plane and cervical line of 37); the buttons re-pose it live and the readout names the class.
 // Left quadrant: the group is mirrored (scale.x = −1) so mesial points to the viewer's left, as seen from the patient's left.
 const fig = DK.figure({
+  fov: 26,
   title: 'Impacted lower third molar',
   subtitle: 'FDI 38 (Universal 17) in a mesio-distal cut. Third molars vary; this is one typical pose.',
   view: { theta: 0, phi: 1.45 }

@@ -8,6 +8,7 @@ const D = { margin: -1.0, baseM: -6.5, baseD: -3.6, horizontal: 3.0, defect: 6.0
 const GAP = 18;                            // centre-to-centre spacing of the two sets (~1.6 × MD width)
 
 const fig = DK.figure({
+  fov: 26,
   title: 'Healthy periodontium vs periodontitis',
   subtitle: 'FDI 36 (Universal 19), mesio-distal cut. Furcation involvement on the right.',
   view: { theta: 0.28, phi: 1.36, margin: 1.0 }   // a little looser than default, so neither block is cropped
@@ -56,7 +57,7 @@ fig.part(calcSub, { inPlace: true, name: 'Calculus', sub: 'subgingival', anchor:
 // ---------- section: one plane cuts both sets. Gingiva first so the bone, painted after it, fills what it still has.
 fig.enableSection([0, 0, 1], [
   { objects: [gumH], color: DK.COLORS.gingivaCap },
-  { objects: [gumD], color: 0xb8847f },   // inflamed: a touch redder on the cut too
+  { objects: [gumD], color: DK.COLORS.gingivaInflamedCap },   // inflamed: a touch redder on the cut too
   { objects: [boneH.userData.layers.cortical, boneD.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [boneH.userData.layers.cancellous], color: 0xffffff, texture: boneH.userData.layers.cancellous.userData.capTexture },
   { objects: [boneD.userData.layers.cancellous], color: 0xffffff, texture: boneD.userData.layers.cancellous.userData.capTexture },

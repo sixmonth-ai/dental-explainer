@@ -58,6 +58,17 @@ def main():
     if not scripts:
         sys.exit(f"no examples match {a.only!r}")
 
+    # the kit must parse: --fast builds pages without loading them, so a syntax error would otherwise pass
+    import shutil
+    if shutil.which("node"):
+        code, log = run(["node", "--check", str(SKILL / "assets" / "dentkit.js")])
+        if code != 0:
+            fail(f"dentkit.js does not parse:\n{log}")
+        for js in sorted(EX.glob("*.js")):
+            code, log = run(["node", "--check", str(js)])
+            if code != 0:
+                fail(f"{js.name} does not parse:\n{log}")
+
     # video stays switched off until it ships
     kit = (SKILL / "assets" / "dentkit.js").read_text()
     if "!window.DK_ENABLE_VIDEO" not in kit:

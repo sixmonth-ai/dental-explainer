@@ -9,7 +9,7 @@ You make one figure per request: a 3D model built from real millimetre dimension
 
 Files in this skill:
 - `assets/dentkit.js`: the drawing kit (three.js r128). API: `references/kit-api.md`.
-- `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read §1–14 every time, plus the section for your topic (§15–20, see Topics below).
+- `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read §1–14 every time, plus the section for your topic (§15–21, see Topics below).
 - `examples/*.js`: finished figures. Copy their structure (topic examples are named in the topic files, see Topics below):
   - `mb2-16.js`: axial cut at the canal orifices, a story that ends on the teaching shot, view buttons, markers that follow the cut.
   - `implant-placement-36.js`: a **procedure**: pilot and final drills, osteotomy, implant threading in, healing abutment, crown, driven by `fig.param` + `fig.procedure`.
@@ -48,13 +48,18 @@ Never ask about things you can decide yourself (colours, camera angles, which pr
 ## 2. Plan
 
 1. **Pin down the teaching point in one sentence.** "Why MB2 is missed", "how an abutment seats in an internal-hex implant". The figure must make it visible: through explode (assembly and sequence), a section (layers and inside), or a comparison (variation).
-2. **Get the numbers from `references/dental-facts.md`, not from memory.** Tooth number and system, crown and root lengths, root and canal counts, distances, crown-prep reductions (§14). If a value isn't in the file and you aren't sure of it, leave it out or label it "approximate". "Tooth 36" without a system means **FDI**. Universal stops at 32. **A tooth type without a number** ("a canine", "a molar"): don't ask; pick the maxillary right tooth (canine → 13, first molar → 16) unless the request says lower, and state the number in the subtitle.
-3. **Plan the geometry.**
+2. **Check coverage.** Find the kit builder and the example for the main subject: search `references/kit-api.md` and `references/topics/*.md` for the structure's name, and the Topics table below for the example. If one exists, build from it. If the main subject has **neither** (a structure the kit doesn't draw, a topic with no example):
+   - Say so in one line in your first message, before you build: the figure will be a schematic, because the kit has no model of that structure yet.
+   - If a more capable model than you is available in the user's model menu (your system prompt says which model you are; on Claude, Sonnet and Haiku are not the most capable), add one more line: "For a more detailed figure, switch to a more capable model (on Claude: Opus or above) in the model menu and ask again." Leave out the part in brackets on other platforms, and leave out the whole line if you are already the most capable model or don't know. Say it only in this case, and only once per conversation.
+   - Build the anatomy from real outlines: `DK.sweepGeometry` with a true cross-section, `DK.lathe`, or an extruded outline traced from the structure's real shape. A bent tube, a sphere or a box standing in for a bone or an organ reads as a toy; never ship one.
+   - Keep the subject a regular part so the camera frames it (an all-`inPlace` figure frames every visible mesh instead).
+3. **Get the numbers from `references/dental-facts.md`, not from memory.** Tooth number and system, crown and root lengths, root and canal counts, distances, crown-prep reductions (§14). If a value isn't in the file and you aren't sure of it, leave it out or label it "approximate". "Tooth 36" without a system means **FDI**. Universal stops at 32. **A tooth type without a number** ("a canine", "a molar"): don't ask; pick the maxillary right tooth (canine → 13, first molar → 16) unless the request says lower, and state the number in the subtitle.
+4. **Plan the geometry.**
    - **Assembly figures** (implants, restorations, ortho appliances): each part with its material, size in mm, position in the tooth frame (CEJ at y = 0, +x mesial, +z buccal), explode vector, and insertion order. Bone and gingiva drop away (−y) on explode.
    - **Section figures** (anatomy, endo, perio): the cut plane and range, the layers in section-group order, and what each label points at.
    - **Comparison figures**: two independent sets side by side, cut by one shared section.
-4. **Plan the story.** If the request is about *doing* something (placing an implant, shaping a canal, preparing a crown, bone loss over time), make it a **procedure**: 3–7 named clinical steps (see "Procedures" below). Otherwise every figure gets a `fig.story([...])`: 3–5 beats that end on **the teaching shot**, the single frame that answers the question. The same story is the intro of an interactive page and (its last frame) the image. See "Motion" below.
-5. **Review the text** (next section) before writing code.
+5. **Plan the story.** If the request is about *doing* something (placing an implant, shaping a canal, preparing a crown, bone loss over time), make it a **procedure**: 3–7 named clinical steps (see "Procedures" below). Otherwise every figure gets a `fig.story([...])`: 3–5 beats that end on **the teaching shot**, the single frame that answers the question. The same story is the intro of an interactive page and (its last frame) the image. See "Motion" below.
+6. **Review the text** (next section) before writing code.
 
 ## 3. Text review (every figure, before building)
 
@@ -81,7 +86,7 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - `fig.xrayToggle(...)` only if hidden parts matter and no view button already covers it.
 - No Labels toggle and no auto-rotate unless there's a reason.
 
-**Motion** (`fig.story`): shots of `{ dur, hold, theta, phi, zoom, focus, explode, section, offset, xray, labels }`. Unset keys carry over.
+**Motion** (`fig.story`): shots of `{ dur, hold, theta, phi, zoom, fov, focus, explode, section, offset, xray, labels }`. Unset keys carry over.
 - Direct it like a short film, 5–7 shots, 14–22 s: an **establishing shot** (whole figure, three-quarter view, `hold` ≥ 1.2 s), then purposeful moves — a slow orbit that reveals, the cut **sweeping** in (turn `section` on outside the figure in a `dur: 0` shot, then move `offset`), a **push-in** on the detail (`focus: [x,y,z]` + `zoom` 0.55–0.75), then an ease out to the **hero shot** that answers the question. Vary angle and framing per shot; moves take 1.8–2.6 s, holds 1.8–2.6 s where the point is made.
 - One idea per shot. Labels land as the camera settles, so give each shot only the labels it explains. Never cut hard between views; never move the camera and the explode and the cut all at once.
 - End on the teaching shot. For interactive pages the story plays once on load and stops at the first touch.
@@ -92,6 +97,7 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - Steps: `fig.procedure([{ label: 'Pilot drill', caption, beats: [...] }, …])`. Give each step a camera too: settle (`zoom`, `focus`, a few degrees of `theta`) on where the action is in its first beat, act in the middle beat, let the tool leave in the last. Labels are 1–2 words. Mark the beat that best shows each step with `key: true` (the storyboard panel uses it; default is the step's last beat). Tools leave between steps (move them back up and hide them), so each step starts clean.
 - One mode each: interactive shows a stepper (‹ 2/6 Pilot drill › ▶) and plays step 1 on load; image becomes a numbered storyboard of all steps. Step `caption`s are kept in the script (they are used when video ships) but are not shown today; the step `label` is what the viewer reads.
 - Clinical sequence and sizes come from the facts file. Anything system-specific (drill sizes, torque) is labelled as such, never presented as universal.
+- **Cutting and filling look live:** burs and implant drills spin and throw chips by themselves while they cut. Keep the tool on the edge that is growing (for a cavity, lerp the bur tip onto `prep.front(...)` while `set` opens it), so the hole never grows away from the bur. Build composite as visible increments, each cured with a `DK.curingLight` pulse (`examples/class-ii-composite-25.js`).
 - **Preparations** (crown, onlay, veneer): copy `examples/crown-prep-13.js`. `DK.prepMorph` does the reduction as two params (incisal/occlusal, then axial), `DK.bur` is the tool (tip at its origin), a translucent ghost of `DK.crownGeometry(spec)` shows what was removed, and `DK.restorationCrown(spec, material, sameNumbers)` seats on the prep exactly.
 - **Framing:** the camera fits regular parts only. Keep the subject (the tooth) a regular part and give context blocks `fit: false`; never put every object in `fig.world`.
 
@@ -104,6 +110,7 @@ One look per build; every check below takes seconds on a machine with a GPU.
 - **Interactive:** `python3 scripts/check.py <name>.html --out shots` (add `--state 'name={"section":true,"offset":-2.6,"theta":0.3,"phi":0.5,"dist":0.8}'` for a view your figure is about, `--step i` / `--seek t` for a moment of a procedure). It must print `OK`. **Look at `shots/sheet.png`** (all shots in one image). Fix overlaps, labels that don't point at their part, parts poking through other parts, and empty framing.
 - **Image:** render the PNG (below) and look at it; `render.py` also fails on any JS error, so no separate `check.py` run is needed.
 - If a script prints `SKIP` (no Playwright, or no access to cdnjs), skip the visual check and go through these instead, because nobody will look before the user does:
+  - walk through the final frame of the story in your head: the subject fills a good part of the stage (not a small object in an empty frame), no label covers the part it names, nothing opaque hides the subject (context surfaces translucent or `xray`), and the last frame shows the teaching point with its labels;
   - the subject is a regular part (not `inPlace`), so the camera has something to frame; context blocks have `fit: false`;
   - every label's anchor is in the part's own frame and on its surface, not inside another part;
   - each step sets what it changes and moves its tool back out (tools hidden when parked);
@@ -130,6 +137,7 @@ When the figure is about one of these, read its topic file (what to copy, what t
 | bone loss, pockets, probing and staging, furcations, recession, calculus | `references/topics/perio.md` | §17 |
 | bridges and pontics, veneers, inlays and onlays | `references/topics/prosth.md` | §18 |
 | brackets, archwires, aligners, attachments, tooth movement in the PDL | `references/topics/ortho.md` | §19 |
+| jaw movement, working / non-working condyle, lateral excursion, Bennett movement, protrusion, opening, TMJ and eminence | `references/topics/occlusion.md` | §21 |
 | root canal treatment, access, files, shaping, obturation, apical lesions | `references/topics/endo.md` | §20 |
 
 ## Accuracy checklist (every figure)
@@ -153,10 +161,11 @@ When the figure is about one of these, read its topic file (what to copy, what t
   - Mesio-distal for crown and pulp anatomy, furcations and restorations: `removeToward [0,0,1]`.
   - Axial (horizontal) for canal orifices, access outlines and root cross-sections: `removeToward [0,1,0]`, viewed from above at a slight tilt (`phi ≈ 0.4–0.6`) so the roots below give depth.
   - Ordering in `enableSection` is outermost → innermost (bone, cancellous, gingiva, PDL, enamel, dentin, pulp). For restorations: crown, then own tooth, then core, then root filling, then post.
+- **Perspective:** use `fov: 32–38` for arches, jaws and exploded three-quarter views; ease toward `fov: 24–28` for sections and measurement views (default 32°, auto-fit follows the lens).
 - **Orientation:** a single maxillary tooth is shown crown up (extracted-tooth / model convention), **also with bone and gingiva around it** for a procedure; say "crown up" in the subtitle. Mirror into the jaw (`scale.y = -1`, crown down) only when the jaw itself is the point (sinus, palate, a whole arch).
 - **Context, but quiet.** Bone and gingiva frame the subject; the X-ray state (`xray` in a story beat, or a toggle) lets the viewer see through them.
 - **Markers and outlines** that must keep an exact colour (orifices, access outlines, arrows) use `MeshBasicMaterial({ color: DK.color(hex), toneMapped: false })`; always wrap custom colours in `DK.color()`. Use flat ribbons, not `THREE.Line`: WebGL lines are always 1 px. Lift markers ~0.1 mm above a cut face so it doesn't cover them.
-- **Colours** come from `DK.COLORS` / `DK.mat` so every figure looks like one family. The page uses Sixmonth's palette; light and dark themes are automatic. Highlight the one thing that matters (e.g. MB2) with a warm accent (`0xC2410C`) and keep the rest in ink blue (`0x0E3A5C`).
+- **Colours** come from `DK.COLORS` / `DK.mat` so every figure looks like one family. The page uses Sixmonth's palette; light and dark themes are automatic. Highlight the one thing that matters (e.g. MB2) with `fig.accent` (`#0E3A5C` light / `#5A8FB8` dark); keep supporting markers in muted ink or tissue tones.
 - **Mobile:** the page is responsive. ≤ 6 labels per frame keeps the 390 px view readable.
 
 ## What the kit can't do (say so instead of faking it)
@@ -167,6 +176,7 @@ When the figure is about one of these, read its topic file (what to copy, what t
 - Instrument mishaps and tissue at cell level. Files follow the canal centre line but don't cut, bind or deform it (no ledges, transportation, perforations or separated files); caries zones, PDL hyalinisation, bleeding, plaque biofilm and tooth mobility are schematic or text only.
 - Patient arches and malocclusion. `DK.arch` is a population arch form: no crowding, rotations, spacing or Angle classes. Developing teeth are complete crowns on short roots; an impaction shows angulation and depth, not the ramus relation.
 - A periodontal diagnosis from one tooth. Staging and grading are whole-mouth: label a single tooth "consistent with Stage III". Furcation involvement is a bone-height dip that reads in section, not a carved tunnel.
+- Patient-specific jaw motion and TMJ disorders. `DK.mandible` is one average adult jaw and `DK.jawPose` an idealised rigid motion (average eminence, ~0.75 mm side shift): no cusp-by-cusp contact analysis or recorded (pantographic / axiographic) path. `DK.articularDisc` is an average disc that always stays on its condyle: no disc displacement (with or without reduction), perforation, clicking or locking, and the lateral pterygoid is a schematic option. The upper jaw (`DK.maxilla`) is a cropped facial skeleton cut flat below the orbits: no sinuses, orbits or cranium, and no patient-specific fossa shape. Give guidance angles and the Bennett angle as "about".
 - Exact proprietary implant geometries. Draw a generic implant of the stated diameter, length and connection, and don't use brand names on it.
 
 ## Platform notes

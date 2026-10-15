@@ -5,6 +5,7 @@ const FDI = 36;
 const CAV = { isthmus: 2.5, depth: 1.8, boxes: ['mesial', 'distal'], boxFloor: 1.0, cusps: ['buccal'], reduction: 1.5 };   // ceramic partial-crown rules (dental-facts.md §18)
 
 const fig = DK.figure({
+  fov: 32,
   title: 'Onlay on a lower first molar',
   subtitle: 'FDI 36 (Universal 19). MOD cavity, buccal cusps covered. Lithium disilicate.',
   view: { theta: 0.55, phi: 1.2 }
@@ -30,14 +31,14 @@ fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [onlay], color: 0xe4e0d6 },
+  { objects: [onlay], color: DK.COLORS.ceramicCap },
   { objects: [prep.enamel], color: DK.COLORS.enamelCap },
   { objects: [prep.dentin, roots.layers.root], color: DK.COLORS.dentinCap },
   { objects: [roots.layers.pulp], color: DK.COLORS.pulpCap }
 ]);
 const CUT = -0.6;   // just distal of the lingual developmental groove, so the cut runs through the cusps, not along a groove
 fig.standardControls({ section: { label: 'Cut', range: [-5, 5], offset: CUT } });
-fig.view('Occlusal', { theta: 0.3, phi: 0.35, zoom: 0.85, explode: 1, section: false });
+fig.view('Occlusal', { fov: 26, theta: 0.3, phi: 0.35, zoom: 0.85, explode: 1, section: false });
 
 // story (a short film): the restored molar → the onlay lifts off → from above, the cavity outline → reseat and turn to the
 // buccal side as the cut sweeps in → push in on the isthmus, box and cusp coverage
@@ -45,7 +46,7 @@ fig.story([
   { dur: 0, hold: 1.4, theta: 0.55, phi: 1.2, zoom: 1.05, labels: [], caption: 'A lower first molar restored with a ceramic onlay.' },
   { dur: 2.4, hold: 1.8, theta: 0.5, phi: 0.95, explode: 1, labels: ['Onlay', 'Prepared tooth'], caption: 'The onlay lifts off: it fills the cavity and covers the buccal cusps.' },
   { dur: 2.0, hold: 2.0, theta: 0.3, phi: 0.35, zoom: 0.8, focus: [0, 4, 0], labels: ['Prepared tooth', 'Proximal box'], caption: 'From above: the MOD outline, isthmus and boxes.' },
-  { dur: 2.2, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.5, phi: 1.4, explode: 0, labels: [] },
+  { fov: 26, dur: 2.2, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.5, phi: 1.4, explode: 0, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 8 },
   { dur: 2.2, hold: 1.8, offset: CUT, labels: ['Onlay', 'Dentin', 'Pulp'], caption: 'Cut through the central fossa: the isthmus is 1.8 mm deep, in dentin.' },
   { dur: 1.8, hold: 2.6, zoom: 0.72, focus: [0, 3.2, 0], theta: 1.35, explode: 0, labels: ['Onlay', 'Prepared tooth', 'Pulp'], caption: 'The buccal cusp is covered by 1.5 mm of ceramic; the lingual cusp keeps its enamel.' }

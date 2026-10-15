@@ -14,6 +14,7 @@ const STAGES = {
   IV:         { margin: -2.0, base: -8.0, bone: 1.00, inflamed: 0.8 }       // PD 6, CAL 8 (+ tooth loss, mobility: not shown)
 };
 const fig = DK.figure({
+  fov: 26,
   title: 'Probing a periodontal pocket',
   subtitle: 'FDI 36 (Universal 19), mesio-distal cut, UNC-15 probe at the mesial site.',
   view: { theta: 0.12, phi: 1.42 }
@@ -76,7 +77,7 @@ fig.param('bone', 0, k => {                                                   //
   const deepest = Math.min(crestMesial(), CREST + bone.crestAt(0, 0), CREST + bone.crestAt(-mesial, 0));
   gum.set({ crest: deepest - 0.4 }); pdl.set(r => CREST + Math.min(bone.crestAt(r.x + r.ra + 0.2, 0), bone.crestAt(r.x - r.ra - 0.2, 0)) + 0.2);
 });
-fig.param('inflamed', 0, v => { P.inflamed = v; gum.set({ inflamed: v }); fig.section.caps[0].material.uniforms.uColor.value.copy(DK.color(0xc39692)).lerp(DK.color(0xb8847f), v); });
+fig.param('inflamed', 0, v => { P.inflamed = v; gum.set({ inflamed: v }); fig.section.caps[0].material.uniforms.uColor.value.copy(DK.color(DK.COLORS.gingivaCap)).lerp(DK.color(DK.COLORS.gingivaInflamedCap), v); });
 const secChanged = fig.section.onChange; fig.section.onChange = () => { secChanged(); place(); };
 
 // --- readout: computed from the same numbers that place the geometry

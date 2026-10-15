@@ -11,6 +11,7 @@ const GUM = { width: 36, height: 3.4, depth: 11.6, crest: 1.4 };
 const ridgeY = z => GUM_Y + dip(XP) - GUM.crest * (1 - Math.sqrt(Math.max(0, 1 - Math.pow(z / (GUM.depth * 0.45), 2)))) - 0.15;   // ridge top under the pontic (0.15 mm of tissue pressure)
 
 const fig = DK.figure({
+  fov: 30,
   title: 'Three-unit bridge replacing 46',
   subtitle: 'FDI 46 (Universal 30) on abutments 45 and 47. Monolithic zirconia.',
   view: { theta: 0.75, phi: 1.22 }
@@ -19,7 +20,7 @@ const fig = DK.figure({
 // --- context: resorbed ridge, gingiva, abutment roots
 const bone = DK.bone({ width: 36, height: 13, depth: 11, cortical: 1.2, crest: 1.6, scallop: (x, z) => dip(x - 1) });
 bone.position.set(-1, CREST, 0);
-const gum = DK.gingiva(Object.assign({ scallop: (x, z) => dip(x - 1), around: [{ x: X45 + 1, z: 0, md: t45s.mdC - 2 * PREP.margin, bl: t45s.blC - 2 * PREP.margin, rise: 0.8 }, { x: X47 + 1, z: 0, md: t47s.mdC - 2 * PREP.margin, bl: t47s.blC - 2 * PREP.margin, rise: 0.8 }] }, GUM));   // the cuff hugs the prepared margin
+const gum = DK.gingiva(Object.assign({ material: 'mucosa', scallop: (x, z) => dip(x - 1), around: [{ x: X45 + 1, z: 0, md: t45s.mdC - 2 * PREP.margin, bl: t45s.blC - 2 * PREP.margin, rise: 0.8 }, { x: X47 + 1, z: 0, md: t47s.mdC - 2 * PREP.margin, bl: t47s.blC - 2 * PREP.margin, rise: 0.8 }] }, GUM));   // the cuff hugs the prepared margin
 gum.position.set(-1, GUM_Y, 0);
 const r45 = DK.tooth(t45s, { omit: ['enamel', 'dentin'] }), r47 = DK.tooth(t47s, { omit: ['enamel', 'dentin'] });
 const p45 = DK.prep(r45.spec, PREP), p47 = DK.prep(r47.spec, PREP);
@@ -49,8 +50,8 @@ fig.part(conn, { inPlace: true, name: 'Connector', sub: `${CS.h} × ${CS.w} mm �
 fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
-  { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [bridge], color: 0xe4e0d6 },
+  { objects: [gum], color: DK.COLORS.mucosaCap },
+  { objects: [bridge], color: DK.COLORS.zirconiaCap },
   { objects: [r45.layers.root, r47.layers.root, p45, p47], color: DK.COLORS.dentinCap },
   { objects: [r45.layers.pulp, r47.layers.pulp], color: DK.COLORS.pulpCap }
 ]);
@@ -58,7 +59,7 @@ fig.standardControls({ section: { label: 'Cut', range: [-6, 14], offset: XP } })
 const btns = {};
 Object.keys(pontics).forEach(k => { btns[k] = fig.button(k, () => { Object.keys(pontics).forEach(n => { pontics[n].visible = n === k; btns[n].setAttribute('aria-pressed', n === k); }); fig.parts.find(p => p.name === 'Pontic').obj = pontics[k]; }); });
 btns['Modified ridge lap'].setAttribute('aria-pressed', 'true');
-fig.view('Pontic section', { section: true, offset: XP, theta: 1.3, phi: 1.32, zoom: 0.8, focus: [XP - 2, 2, 0], explode: 0.3 });
+fig.view('Pontic section', { fov: 26, section: true, offset: XP, theta: 1.3, phi: 1.32, zoom: 0.8, focus: [XP - 2, 2, 0], explode: 0.3 });
 fig.xrayToggle([bone, gum], 'X-ray', false);
 
 // story (a short film): the bridge in place → it lifts off its abutments → push in on a connector → reseat and turn to the
@@ -67,10 +68,10 @@ fig.story([
   { dur: 0, hold: 1.4, theta: 0.75, phi: 1.22, zoom: 1.05, labels: [], caption: 'A three-unit bridge replacing the lower right first molar.' },
   { dur: 2.4, hold: 2.2, theta: 1.0, phi: 1.15, explode: 0.8, labels: ['Retainer', 'Pontic', 'Connector', 'Abutment 45'], caption: 'Two retainers on the prepared teeth carry the pontic.' },
   { dur: 1.8, hold: 2.0, zoom: 0.5, focus: [CX, CY + 9.6, 0], labels: ['Connector'], caption: `The connector: ${CS.area} mm² of zirconia.` },
-  { dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.45, phi: 1.3, explode: 0, labels: [] },
+  { fov: 26, dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.45, phi: 1.3, explode: 0, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 14 },
   { dur: 2.2, hold: 2.2, offset: XP, zoom: 0.8, focus: [XP - 2, 2, 0], explode: 0.3, labels: ['Pontic', 'Ridge'], caption: 'Cut through the pontic: modified ridge lap, buccal contact only, clear of the ridge lingually.' },
   { dur: 0.1, hold: 0, offset: 14, labels: [] },
-  { dur: 2.4, hold: 2.6, section: false, zoom: 1, focus: 'auto', theta: 0.62, phi: 1.22, explode: 0.42, labels: ['Abutment 45', 'Pontic', 'Connector', 'Ridge'], caption: 'One piece on two prepared teeth: retainer, connector, pontic, connector, retainer.' }
+  { fov: 30, dur: 2.4, hold: 2.6, section: false, zoom: 1, focus: 'auto', theta: 0.62, phi: 1.22, explode: 0.42, labels: ['Abutment 45', 'Pontic', 'Connector', 'Ridge'], caption: 'One piece on two prepared teeth: retainer, connector, pontic, connector, retainer.' }
 ]);
 fig.start();

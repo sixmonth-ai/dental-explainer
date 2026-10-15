@@ -3,6 +3,7 @@
 const FDI = 45, FERRULE = 2.0, POST_IN_ROOT = 8, GP_SEAL_MIN = 4;
 const spec = DK.toothPreset(FDI);
 const fig = DK.figure({
+  fov: 32,
   title: 'Root filling, post, core, crown',
   subtitle: 'FDI 45 (Universal 29), lower right second premolar.',
   view: { theta: 0.5, phi: 1.3 }
@@ -12,7 +13,7 @@ const tooth = DK.tooth(spec, { omit: ['enamel', 'dentin', 'pulp'] });   // root 
 const s = tooth.spec;
 const ferrule = DK.prep(s, { maxY: FERRULE });                            // own dentin collar above the margin
 const core = DK.prep(s, { material: 'composite', minY: FERRULE });
-core.material.color.copy(DK.color(0xc9d2d8));   // composite tinted grey-blue for contrast (say so in the hover text)
+// The shared composite preset distinguishes the core from own dentin and the crown.
 const workingLen = s.rootL - 0.5;
 const gpTop = -POST_IN_ROOT - 0.2;
 const gp = DK.guttaPercha(s, 0, { from: gpTop });
@@ -34,11 +35,11 @@ fig.enableSection([0, 0, 1], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [crown], color: 0xf7f4ec },
+  { objects: [crown], color: DK.COLORS.zirconiaCap },
   { objects: [tooth.layers.root, ferrule], color: DK.COLORS.dentinCap },
-  { objects: [core], color: 0xbfc8ce },
+  { objects: [core], color: DK.COLORS.compositeCap },
   { objects: [gp], color: DK.COLORS.gutta },
-  { objects: [post], color: 0xbfb9a6 }
+  { objects: [post], color: DK.COLORS.fiberCap }
 ]);
 fig.standardControls({ section: { label: 'Cut', range: [-2.5, 2.5], offset: 0 } });
 
@@ -54,9 +55,10 @@ fig.story([
   { dur: 0, hold: 1.4, theta: 0.5, phi: 1.3, zoom: 1.05, labels: [], caption: 'A root-filled premolar, rebuilt with a post, a core and a crown.' },
   { dur: 2.4, hold: 2.2, theta: 0.85, phi: 1.2, explode: 0.8, labels: ['Crown', 'Core', 'Fibre post', 'Root filling'], caption: 'Four layers, lifted in the order they go in.' },
   { dur: 1.8, hold: 2.0, zoom: 0.55, focus: [0, 8, 0], labels: ['Fibre post', 'Core'], caption: 'The post only retains the core; it does not strengthen the root.' },
-  { dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 0.05, phi: 1.45, explode: 0, labels: [] },
+  { fov: 26, dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 0.05, phi: 1.45, explode: 0, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 6 },
   { dur: 2.0, hold: 2.2, offset: 0, labels: ['Ferrule', 'Fibre post', 'Root filling'], caption: 'The 2 mm ferrule of own dentin, not the post, resists fracture.' },
-  { dur: 1.8, hold: 2.6, zoom: 0.6, focus: [0, -10, 0], labels: ['Root filling'], caption: `${DK.mm(seal)} of root filling stays apically to keep the seal.` }
+  { dur: 1.8, hold: 2.6, zoom: 0.6, focus: [0, -10, 0], labels: ['Root filling'], caption: `${DK.mm(seal)} of root filling stays apically to keep the seal.` },
+  { dur: 2.0, hold: 2.4, zoom: 1, focus: 'auto', labels: ['Crown', 'Core', 'Fibre post', 'Ferrule', 'Root filling'], caption: 'Each layer in place: crown, core, post, ferrule, seal.' }   // teaching shot: the whole restored tooth
 ]);
 fig.start();

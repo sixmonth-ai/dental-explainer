@@ -58,10 +58,14 @@ Why does MB2 get missed in upper first molars? Cut through the tooth
 Healthy lower molar vs periodontitis, with furcation involvement
 Root-filled premolar with fibre post, core and crown, for patients
 How does a cavity reach the nerve? For a patient, as an image
+Class II composite on 15, step by step
+Working vs non-working condyle when the jaw moves to the right
 Mixed dentition of an 8-year-old, lower left
 ```
 
-**What it covers.** Permanent and primary teeth (every FDI position, real third molars, impactions), numbering charts (FDI, Universal, Palmer) and arches, tooth anatomy in section, implants, crown preparations, bridges, veneers, inlays and onlays, posts and cores, caries and fillings, periodontal disease and probing, root canal treatment and endodontic instruments, braces, aligners and tooth movement.
+**What it covers.** Permanent and primary teeth (every FDI position, real third molars, impactions), numbering charts (FDI, Universal, Palmer) and arches, tooth anatomy in section, implants, crown preparations, bridges, veneers, inlays and onlays, posts and cores, caries, cavity preparations and fillings placed and cured in increments, periodontal disease and probing, root canal treatment and endodontic instruments, braces, aligners and tooth movement, and jaw movement with the TMJ (upper and lower jaws, condyles, articular disc, eminence, Bennett movement).
+
+**Works on every screen.** Interactive pages run in Claude on the web, desktop and mobile apps, and in any browser, including iPhone and Safari. Burs and drills spin and throw chips while they cut, so procedures read as they happen.
 
 <br>
 
@@ -110,6 +114,16 @@ Every figure below was made by the skill, shown here in image mode. The same scr
       <br><b>How decay reaches the pulp</b><br><sub>ICDAS stages from white spot to pulp exposure; selective removal leaves the firm, affected dentin.</sub>
     </td>
   </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-composite-dark.png"><img alt="Seven-step storyboard of a Class II composite: lesion, occlusal step, proximal box, caries removal, matrix, increments with curing light, finished" src=".github/assets/fig-composite-light.png"></picture>
+      <br><b>Class II composite, step by step</b><br><sub>The bur cuts the step and the box, firm dentin stays over the pulp, and the composite goes in as cured increments behind a matrix band.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <picture><source media="(prefers-color-scheme: dark)" srcset=".github/assets/fig-jaw-dark.png"><img alt="Five-step storyboard of the jaw moving to the patient's right: working condyle pivots, non-working condyle and disc slide down the eminence" src=".github/assets/fig-jaw-light.png"></picture>
+      <br><b>Working vs non-working condyle</b><br><sub>Upper and lower jaws with the articular disc. The right condyle pivots; the left one rides its disc down the eminence. Travel and Bennett angle come from the motion.</sub>
+    </td>
+  </tr>
 </table>
 
 <br>
@@ -126,6 +140,7 @@ AI models are fluent about dentistry and often wrong about it. `dental-explainer
 | give the upper first molar three canals | MB2 is present in about 57–74% of upper first molars |
 | say enamel grows back | enamel is acellular; only early lesions remineralise |
 | quote one torque for all implants | torque is manufacturer-specific |
+| swap the working and non-working sides | the working side is the side the jaw moves toward: that condyle pivots, the other travels forward, down and medially |
 
 Values carry their sources. Anything not yet checked against a source is tagged **[U]**.
 
@@ -137,8 +152,8 @@ Values carry their sources. Anything not yet checked against a source is tagged 
 2. **Teaching point.** The agent pins down the one idea the figure must show.
 3. **Facts.** It looks up the numbers in the facts file instead of guessing.
 4. **Plan.** Parts with real sizes in millimetres, the cut planes, and a short story of camera moves that ends on the shot that answers the question. Every piece of text has to earn its place. Procedures (placing an implant, shaping a canal) become named clinical steps: a stepper on the page or a numbered storyboard image.
-5. **Build.** A short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position (primary teeth too), implants, crowns, bridges, veneers, fillings, posts, endodontic files, brackets, aligners, bone, gingiva and periodontal defects.
-6. **Verify and deliver.** Where a browser is available, it renders the PNG (or screenshots the page), looks at it, and fixes what's wrong.
+5. **Build.** A short script against the bundled three.js drawing kit, with ready-made teeth for every FDI position (primary teeth too), implants, crowns, bridges, veneers, fillings, posts, endodontic files, brackets, aligners, bone, gingiva and periodontal defects, burs, drills and curing lights, and upper and lower jaws with the TMJ and articular disc.
+6. **Verify and deliver.** Where a browser is available, it renders the PNG (or screenshots the page on desktop, phone and an emulated iPhone), looks at it, and fixes what's wrong. Where there is none (Claude on the web), it walks through a stricter checklist instead. On a topic the kit has no model for, it says up front that the figure will be a schematic.
 
 ```
 dental-explainer/
@@ -150,10 +165,10 @@ dental-explainer/
     ├── references/
     │   ├── dental-facts.md      verified values and sources: the correction layer
     │   ├── kit-api.md           drawing-kit reference
-    │   └── topics/              one guide per topic: perio, endo, caries, prosthetics, ortho, primary teeth and arches
+    │   └── topics/              one guide per topic: perio, endo, caries, prosthetics, ortho, primary teeth and arches, jaw and TMJ
     ├── assets/dentkit.js        3D kit (loads three.js r128 from cdnjs)
     ├── examples/                finished figures across every topic, .js source and .html pages
-    └── scripts/                 build.py (assemble a page) · render.py (PNG, GPU when available) · check.py (screenshot and error check)
+    └── scripts/                 build.py (assemble a page) · render.py (PNG, GPU when available) · check.py (screenshots incl. iPhone, error and stretch check)
 ```
 
 <br>
@@ -163,6 +178,8 @@ dental-explainer/
 - **Video is coming soon.** Today the skill makes images and interactive pages; interactive pages play the same walkthrough on load.
 - Figures use population-average anatomy. They are not patient-specific: no CBCT or STL import.
 - Implants are generic (correct diameter, length and connection type). No brand geometry.
+- Jaw motion is an idealised average: no disc displacement, clicking or recorded jaw tracings, and the upper jaw is cropped (no sinus or orbit).
+- Best results with the most capable model (Opus on Claude). Smaller models do well on topics with a ready-made example and are told when a figure has to be a schematic.
 - For education and communication only, not for diagnosis or treatment planning.
 
 <br>

@@ -58,6 +58,7 @@ fig.story([
   { fov: 26, dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 0.05, phi: 1.45, explode: 0, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 6 },
   { dur: 2.0, hold: 2.2, offset: 0, labels: ['Ferrule', 'Fibre post', 'Root filling'], caption: 'The 2 mm ferrule of own dentin, not the post, resists fracture.' },
-  { dur: 1.8, hold: 2.6, zoom: 0.6, focus: [0, -10, 0], labels: ['Root filling'], caption: `${DK.mm(seal)} of root filling stays apically to keep the seal.` }
+  { dur: 1.8, hold: 2.6, zoom: 0.6, focus: [0, -10, 0], labels: ['Root filling'], caption: `${DK.mm(seal)} of root filling stays apically to keep the seal.` },
+  { dur: 2.0, hold: 2.4, zoom: 1, focus: 'auto', labels: ['Crown', 'Core', 'Fibre post', 'Ferrule', 'Root filling'], caption: 'Each layer in place: crown, core, post, ferrule, seal.' }   // teaching shot: the whole restored tooth
 ]);
 fig.start();

@@ -64,8 +64,8 @@ const TOP = s.crownL, LAB = s.bl / 2, park = { burY: 40 };
 fig.procedure([
   { label: 'Incisor', caption: 'The upper central incisor before preparation.', beats: [
     { fov: 34, dur: 0, hold: 0.8, theta: 1.1, phi: 1.3, zoom: 1, section: false, labels: ['Central incisor 11'] },
-    { fov: 26, dur: 0, hold: 0, section: true, offset: 6 },
-    { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.68, focus: [0, 4.2, 0], offset: 0, labels: ['Central incisor 11', 'Dentin'], key: true }] },
+    { dur: 0, hold: 0, section: true, offset: 6 },
+    { fov: 26, dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.68, focus: [0, 4.2, 0], offset: 0, labels: ['Central incisor 11', 'Dentin'], key: true }] },
   { label: 'Labial reduction', caption: `Labial face reduced ${V.cervical}–${V.incisal} mm, staying in enamel.`, beats: [
     { dur: 1.2, hold: 0.1, set: { burX: 3, burY: TOP - 1, burZ: LAB + 0.9, burTilt: -0.35 }, labels: ['Diamond bur'] },
     { dur: 2.2, hold: 0.2, set: { fac: 1, ghost: 1, burX: -3, burY: 0.6, burZ: LAB - 0.1, burTilt: 0.05 }, labels: ['Diamond bur'] },

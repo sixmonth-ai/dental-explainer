@@ -68,8 +68,8 @@ const park = { burY: 40 };
 fig.procedure([
   { label: 'Canine', caption: 'The upper canine before preparation.', beats: [
     { fov: 34, dur: 0, hold: 0.8, theta: 1.15, phi: 1.3, zoom: 1, section: false, labels: ['Canine 13'] },
-    { fov: 26, dur: 0, hold: 0, section: true, offset: 6 },
-    { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.7, focus: [0, 4, 0], offset: 0, labels: ['Canine 13', 'Pulp'], key: true }] },
+    { dur: 0, hold: 0, section: true, offset: 6 },
+    { fov: 26, dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.7, focus: [0, 4, 0], offset: 0, labels: ['Canine 13', 'Pulp'], key: true }] },
   { label: 'Incisal', caption: `Incisal edge lowered about ${PREP.occlusal} mm.`, beats: [
     { dur: 1.2, hold: 0.1, zoom: 0.55, focus: [0, TOP - 2, 0], set: { burX: 3, burY: TOP + 0.6, burZ: 0.6, burTilt: -0.9 }, labels: ['Diamond bur'] },
     { dur: 2.0, hold: 0.2, set: { inc: 1, ghost: 1, burX: -3, burY: TOP - PREP.occlusal + 0.2 }, labels: ['Diamond bur'] },

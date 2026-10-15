@@ -3207,6 +3207,357 @@
   DK.capColor = (section, index, hex) => { const c = section && section.caps[index]; if (c) c.material.uniforms.uColor.value.copy(DK.color(hex)); };
   /* ==== end topic: endo ==== */
 
+  /* ==== topic: occlusion (Occlusion, mandibular movement and the TMJ) ==== */
+  // An average adult mandible, the glenoid fossa / articular eminence as a quiet see-through context surface, and a rigid-body
+  // pose of the jaw (lateral excursion with Bennett movement, protrusion, opening = rotation then translation).
+  // FRAME = the DK.arch frame of the lower teeth: origin at the contact of the lower central incisors at CEJ level, +x = the
+  // patient's LEFT (−x = patient's right), +y up, +z anterior; the horizontal (xz) plane is the kit's occlusal plane. A camera
+  // in front (theta 0) sees the patient's right on the viewer's LEFT. Units mm, population averages (dental-facts §21).
+  // The bone is ONE smooth surface: a signed-distance model (body swept along the arch, rami with coronoid and sigmoid notch,
+  // condylar necks, ellipsoidal condyles, chin) meshed with surface nets, projected onto the exact surface and shaded with its
+  // exact normals, then split into named pieces (body, rami, condyles) that share their seams.
+
+  // Surface nets over a signed-distance function f(x, y, z) (< 0 inside), box [[x0,y0,z0],[x1,y1,z1]], cell size h (mm).
+  // Calls f column by column (x and z fixed while y runs), so f may cache work that depends on x and z only.
+  function jawSurfaceNets(f, box, h) {
+    const a = box[0], b = box[1], nx = Math.ceil((b[0] - a[0]) / h) + 1, ny = Math.ceil((b[1] - a[1]) / h) + 1, nz = Math.ceil((b[2] - a[2]) / h) + 1;
+    const V = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
+    for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) { const x = a[0] + i * h, z = a[2] + k * h; for (let j = 0; j < ny; j++) V[id(i, j, k)] = f(x, a[1] + j * h, z); }
+    const cx = nx - 1, cy = ny - 1, cell = new Int32Array(cx * cy * (nz - 1)).fill(-1), cid = (i, j, k) => i + cx * (j + cy * k);
+    const pos = [], cv = new Float32Array(8);
+    const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];   // corner c = dx + 2·dy + 4·dz
+    for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      let inside = 0;
+      for (let c = 0; c < 8; c++) { const v = V[id(i + (c & 1), j + ((c >> 1) & 1), k + (c >> 2))]; cv[c] = v; if (v < 0) inside++; }
+      if (inside === 0 || inside === 8) continue;
+      let sx = 0, sy = 0, sz = 0, n = 0;
+      for (let e = 0; e < 12; e++) {
+        const p = E[e][0], q = E[e][1], vp = cv[p], vq = cv[q]; if ((vp < 0) === (vq < 0)) continue;
+        const t = vp / (vp - vq); sx += (p & 1) + t * ((q & 1) - (p & 1)); sy += ((p >> 1) & 1) + t * (((q >> 1) & 1) - ((p >> 1) & 1)); sz += (p >> 2) + t * ((q >> 2) - (p >> 2)); n++;
+      }
+      cell[cid(i, j, k)] = pos.length / 3; pos.push(a[0] + (i + sx / n) * h, a[1] + (j + sy / n) * h, a[2] + (k + sz / n) * h);
+    }
+    // one quad per grid edge with a sign change, joining the four cells around it; wound so its normal points out of the solid
+    const idx = [];
+    const quad = (c0, c1, c2, c3, flip) => { if (c0 < 0 || c1 < 0 || c2 < 0 || c3 < 0) return; if (flip) idx.push(c0, c2, c1, c0, c3, c2); else idx.push(c0, c1, c2, c0, c2, c3); };
+    for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+      const v0 = V[id(i, j, k)], in0 = v0 < 0;
+      if (in0 !== (V[id(i + 1, j, k)] < 0)) quad(cell[cid(i, j - 1, k - 1)], cell[cid(i, j, k - 1)], cell[cid(i, j, k)], cell[cid(i, j - 1, k)], !in0);
+      if (in0 !== (V[id(i, j + 1, k)] < 0)) quad(cell[cid(i - 1, j, k - 1)], cell[cid(i - 1, j, k)], cell[cid(i, j, k)], cell[cid(i, j, k - 1)], !in0);
+      if (in0 !== (V[id(i, j, k + 1)] < 0)) quad(cell[cid(i - 1, j - 1, k)], cell[cid(i, j - 1, k)], cell[cid(i, j, k)], cell[cid(i - 1, j, k)], !in0);
+    }
+    // project every vertex onto the exact surface (Newton steps along the gradient); keep the exact normal for smooth shading
+    const P = new Float32Array(pos), N = new Float32Array(P.length), eps = 0.03;
+    for (let v = 0; v < P.length; v += 3) {
+      let x = P[v], y = P[v + 1], z = P[v + 2], gx = 0, gy = 0, gz = 1;
+      for (let it = 0; it < 2; it++) {
+        const d = f(x, y, z); gx = f(x + eps, y, z) - d; gy = f(x, y + eps, z) - d; gz = f(x, y, z + eps) - d;
+        const g2 = (gx * gx + gy * gy + gz * gz) / (eps * eps) || 1, s = clamp(d / g2, -h, h) / eps;
+        x -= gx * s; y -= gy * s; z -= gz * s;
+      }
+      const gl = Math.hypot(gx, gy, gz) || 1; P[v] = x; P[v + 1] = y; P[v + 2] = z; N[v] = gx / gl; N[v + 1] = gy / gl; N[v + 2] = gz / gl;
+    }
+    return { pos: P, normal: N, index: idx };
+  }
+  // A geometry from part of a surface-nets mesh: the triangles `tris` (indices into mesh.index / 3), vertices compacted.
+  // UVs are one oblique linear projection (~15 mm per tile): seamless, so the bone's pore bump has no seams to sparkle at.
+  function jawPiece(mesh, tris) {
+    const map = new Map(), pos = [], nor = [], uv = [], idx = [], I = mesh.index, P = mesh.pos, N = mesh.normal;
+    tris.forEach(t => { for (let c = 0; c < 3; c++) { const v = I[t * 3 + c]; let k = map.get(v);
+      if (k === undefined) { k = pos.length / 3; map.set(v, k); const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
+        pos.push(x, y, z); nor.push(N[v * 3], N[v * 3 + 1], N[v * 3 + 2]); uv.push((x - 0.6 * z) / 15, (y + 0.35 * z + 0.2 * x) / 15); }
+      idx.push(k); } });
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new T.Float32BufferAttribute(nor, 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere(); return g;
+  }
+  // intersection of two half-spaces (distances a, b) with the edge between them rounded at radius r
+  const jawRound = (a, b, r) => Math.hypot(Math.max(a + r, 0), Math.max(b + r, 0)) + Math.min(Math.max(a + r, b + r), 0) - r;
+  const jawSmin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+  const jawTable = (rows, s) => { // piecewise-linear lookup: rows [[s, a, b, …]] → [a, b, …] at s
+    if (s <= rows[0][0]) return rows[0].slice(1); const L = rows[rows.length - 1]; if (s >= L[0]) return L.slice(1);
+    let i = 1; while (rows[i][0] < s) i++; const A = rows[i - 1], B = rows[i], t = (s - A[0]) / (B[0] - A[0]); return A.slice(1).map((v, k) => v + (B[k + 1] - v) * t);
+  };
+  const jawChaikin = (P, n) => { for (let k = 0; k < n; k++) P = P.flatMap((p, i) => { const q = P[(i + 1) % P.length]; return [[0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]], [0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]]]; }); return P; };
+  function jawSdPolygon(P, u, v) { // signed distance to a closed 2-D polygon [[u, v]…] (negative inside)
+    let d = Infinity, s = 1;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      const ex = P[j][0] - P[i][0], ey = P[j][1] - P[i][1], wx = u - P[i][0], wy = v - P[i][1], t = clamp((wx * ex + wy * ey) / (ex * ex + ey * ey), 0, 1);
+      const dx = wx - ex * t, dy = wy - ey * t; d = Math.min(d, dx * dx + dy * dy);
+      const c1 = v >= P[i][1], c2 = v < P[j][1], c3 = ex * wy > ey * wx; if ((c1 && c2 && c3) || (!c1 && !c2 && !c3)) s = -s;
+    }
+    return s * Math.sqrt(d);
+  }
+
+  // Body cross-section along the arch, by arc length s (mm) from the midline along the tooth centre line: crest y, inferior border
+  // y, then the outer (buccal / labial) and inner (lingual) half-widths at the crest and at the inferior border. 0 = symphysis,
+  // 14 = canine, 28 = second premolar, 37 = first molar, 53 = distal of the second molar; past the teeth the body runs into the
+  // ramus. Symphysis ~31 mm tall, molar body ~25 mm crest to inferior border (dental-facts §21); the lower border rises toward the angle.
+  const JAW_BODY = [
+    [0, -2.0, -33.0, 3.3, 3.9, 4.6, 8.4], [8, -2.0, -32.6, 3.6, 4.0, 4.8, 7.4], [14, -2.0, -32.0, 4.0, 4.4, 5.2, 6.4],
+    [24, -2.0, -30.6, 4.4, 4.4, 5.8, 5.6], [37, -2.0, -27.6, 5.6, 5.0, 7.4, 5.6], [50, -2.0, -25.6, 6.2, 5.2, 7.2, 5.4],
+    [60, -3.6, -23.8, 6.0, 4.8, 6.6, 4.6], [68, -7.5, -22.6, 4.6, 4.0, 5.0, 4.0], [78, -11.5, -20.6, 3.4, 3.2, 3.6, 3.2], [92, -14.5, -17.8, 2.4, 2.4, 2.4, 2.4]];
+  // Ramus outline in its own plane (u forward from the posterior border at the condyle, v = y): posterior border, gonial angle,
+  // lower border, (a corner hidden in the body), the concave anterior border, coronoid process, sigmoid notch, condylar neck.
+  // Minimum ramus breadth ~30 mm, sigmoid notch ~15 mm below the condyle top, coronoid tip a little below the condyle.
+  const JAW_RAMUS = [[-2.4, 23], [-1.6, 13], [-0.4, 3], [1.2, -5], [3.2, -11.5], [6.5, -16], [11, -18.6], [18, -20.3], [24, -19.6], [32, -17], [42, -14], [52, -14], [48, -8.5], [42.5, -3], [37, 3.5], [33, 10.5], [30.8, 17.5], [29.4, 24], [28.6, 29.8], [26.6, 30.2], [22.6, 24], [18.4, 18.4],
+    [13.6, 16], [8.8, 17.6], [4.8, 21.6], [2.4, 25]];
+
+  /* ---- DK.mandible(opts): an anatomical lower jaw in the arch frame ----
+     opts: { teeth: true | false | [fdi…] (lower teeth from DK.arch, seated in the alveolar crest), upper: false (true: the upper crowns
+             in occlusion as static context), detail: 1 (mm per cell of the bone surface; 0.8 finer, 1.4 faster), eminence: { inclination: 35
+             (°, steepest slope of the condylar path to the occlusal plane), height: 7 (mm, fossa roof to eminence crest) },
+             sideShift: 0.75 (mm, immediate side shift used by DK.jawPose) }
+     Returns m = { group (static frame: add it with fig.part; fossae and the upper teeth live here), jaw (the moving part, posed by
+     DK.jawPose), body, rami: {left, right}, condyles: {left, right} (meshes; geometry in frame coordinates, so an anchor is a frame
+     point at rest), bone: [the five meshes], teeth (DK.arch result or null), upper (DK.arch result or null), centres: {left, right}
+     (condyle centres at rest, Vector3), now: {left, right} (current centres), axes: {left, right} (condyle long axes, unit, pointing
+     laterally; the medial pole is posterior), head: {ml, ap, si} (mm), incisal (lower incisal point at rest), eminence: {inclination,
+     height, length, drop(a)} (the condylar path: drop in mm after `a` mm of forward travel), pose(o) = DK.jawPose(m, o) } */
+  DK.mandible = function (o) {
+    o = Object.assign({ teeth: true, upper: false, detail: 1, sideShift: 0.75 }, o || {});
+    const em = Object.assign({ inclination: 35, height: 7 }, o.eminence || {});
+    // the arch curve of the lower teeth (the body's spine runs through the tooth centres): DK.arch without building teeth
+    const ref = DK.arch({ jaw: 'mandible', build: () => ({ group: new T.Group() }) });
+    const ctrl = [];
+    for (let i = 0; i <= 40; i++) { const c = ref.curve(ref.width / 2 * Math.sin(Math.PI / 2 * i / 40)); ctrl.push(new T.Vector3(c[0], 0, c[1])); }
+    [[28.4, -46.5], [31.2, -52], [35.2, -57.5], [39.3, -63], [42.4, -69], [44.6, -74.5]].forEach(p => ctrl.push(new T.Vector3(p[0], 0, p[1])));   // on under the ramus to the angle
+    // a smooth, densely sampled spine: the arc-length parameter must not jump on the concave side of a bend (it would crease the bone)
+    const spine = new T.CatmullRomCurve3(ctrl, false, 'centripetal').getSpacedPoints(90).map(v => [v.x, v.z]);
+    const seg = []; let S = 0;
+    for (let i = 1; i < spine.length; i++) { const [x0, z0] = spine[i - 1], [x1, z1] = spine[i], L = Math.hypot(x1 - x0, z1 - z0); seg.push({ x0, z0, tx: (x1 - x0) / L, tz: (z1 - z0) / L, L, s0: S }); S += L; }
+    // condyles and rami (left side; the right is the mirror image): ramus plane through the posterior border, rotated ~20° so the
+    // rami diverge posteriorly; condyle centre ~48 mm from the midline (intercondylar ~96 mm), long axis rotated 14° (medial pole back)
+    const RP = [48.5, -84], RA = [-0.342, 0.94], RN = [0.94, 0.342], HEAD = { ml: 20, ap: 9.2, si: 10.8 };
+    const CEN = [RP[0] + RA[0] * 0.6 - RN[0] * 1.6, 30.5, RP[1] + RA[1] * 0.6 - RN[1] * 1.6], GAM = 14 * Math.PI / 180;
+    const AX = [Math.cos(GAM), 0, Math.sin(GAM)], AZ = [-Math.sin(GAM), 0, Math.cos(GAM)];
+    const NECK0 = [RP[0] + RA[0] * 2.2, 21.5, RP[1] + RA[1] * 2.2];
+    let memo = { x: NaN, z: NaN };
+    const SD = new Float64Array(seg.length), SS = new Float64Array(seg.length);
+    const near = (x, z) => { // closest point on the spine: arc length s, signed lateral offset d (outward +), signed distance past the end (a cap plane)
+      if (x === memo.x && z === memo.z) return memo;
+      let best = Infinity, r = null;
+      for (let i = 0; i < seg.length; i++) { const g = seg[i], wx = x - g.x0, wz = z - g.z0, t = clamp(wx * g.tx + wz * g.tz, 0, g.L), dx = wx - g.tx * t, dz = wz - g.tz * t, d = Math.sqrt(dx * dx + dz * dz);
+        SD[i] = d; SS[i] = g.s0 + t; if (d < best) { best = d; r = { g, sg: Math.sign(dx * g.tz - dz * g.tx), along: wx * g.tx + wz * g.tz }; } }
+      // s blended over the segments that are nearly as close: on the concave side of a bend the nearest segment switches and a
+      // plain nearest-point s would jump (a crease in the bone)
+      let sw = 0, ws = 0; for (let i = 0; i < seg.length; i++) { const k = 1 - (SD[i] - best) / 1.5; if (k > 0) { sw += k * k * SS[i]; ws += k * k; } }
+      const last = seg[seg.length - 1];
+      memo = { x, z, s: sw / ws, d: -r.sg * best, cap: r.g === last ? r.along - last.L : -1e9 }; memo.row = jawTable(JAW_BODY, memo.s);
+      return memo;
+    };
+    const body = (x, y, z) => {
+      const n = near(x, z), [yT, yB, oT, iT, oB, iB] = n.row, H = yT - yB, t = clamp((y - yB) / H, 0, 1);
+      // widths ease from the inferior border to the crest; a thick, round inferior border (corner radius ~4 mm), a crest rounded at 1.4 mm
+      const e = Math.pow(t, 1.25), chin = 2.4 * Math.exp(-n.s * n.s / 90) * Math.exp(-Math.pow((t - 0.2) / 0.16, 2));   // mental protuberance
+      const wo = oB + (oT - oB) * e + chin, wi = iB + (iT - iB) * e, fs = Math.max(n.d - wo, -wi - n.d);
+      return Math.max(jawRound(fs, y - yT, 1.4), jawRound(fs, yB - y, clamp(Math.min(oB, iB) * 0.8, 1.5, 4.5)), n.cap);
+    };
+    const OUTLINE = jawChaikin(JAW_RAMUS, 2);   // corners softened (the coronoid tip and the gonial angle stay recognisable)
+    const ramus = (x, y, z) => {
+      const px = x - RP[0], pz = z - RP[1], u = px * RA[0] + pz * RA[1], w = px * RN[0] + pz * RN[1];
+      const th = 2.2 + 1.5 * Math.exp(-(u * u) / 22) + 1.1 * Math.exp(-((y + 19) * (y + 19)) / 14), r = th * 0.8;   // borders rounded almost fully
+      if (Math.abs(w) > 16 || u < -16 || u > 70) return Math.max(Math.abs(w) - th, -u - 4, u - 54);   // far away: a lower bound is enough
+      return jawRound(jawSdPolygon(OUTLINE, u, y), Math.abs(w) - th, r);
+    };
+    const neck = (x, y, z) => { // capsule from the top of the ramus to the head, flattened antero-posteriorly
+      const bx = CEN[0] - NECK0[0], by = CEN[1] - NECK0[1], bz = CEN[2] - NECK0[2], px = x - NECK0[0], py = y - NECK0[1], pz = z - NECK0[2];
+      const t = clamp((px * bx + py * by + pz * bz) / (bx * bx + by * by + bz * bz), 0, 1), dx = px - bx * t, dy = py - by * t, dz = pz - bz * t;
+      const a = dx * AX[0] + dz * AX[2], c = dx * AZ[0] + dz * AZ[2];
+      const rml = 4.2 + 2.6 * t * t, rap = 3.4 + 0.8 * t;   // widens mediolaterally toward the head
+      return (Math.hypot(a / rml, dy / rap, c / rap) - 1) * rap;
+    };
+    const head = (x, y, z) => { // ellipsoid ~20 × 9 × 11 mm (ML × AP × SI), long axis along AX
+      const px = x - CEN[0], py = y - CEN[1], pz = z - CEN[2], a = (px * AX[0] + pz * AX[2]) / (HEAD.ml / 2), b = py / (HEAD.si / 2), c = (px * AZ[0] + pz * AZ[2]) / (HEAD.ap / 2);
+      const k0 = Math.hypot(a, b, c), k1 = Math.hypot(a / (HEAD.ml / 2), b / (HEAD.si / 2), c / (HEAD.ap / 2));
+      return k0 * (k0 - 1) / (k1 || 1e-6);
+    };
+    const parts = (x, y, z) => { x = Math.abs(x); const B = body(x, y, z), R = jawSmin(ramus(x, y, z), neck(x, y, z), 3), H = head(x, y, z); return [B, R, H]; };
+    const sdf = (x, y, z) => { const [B, R, H] = parts(x, y, z); return jawSmin(B, jawSmin(R, H, 3.2), 9); };
+    const mesh = jawSurfaceNets(sdf, [[-63, -38, -97], [63, 41, 11]], o.detail);
+    // split into named pieces by the nearest component at each triangle's centre (they share vertices, so no seams show)
+    const buckets = { body: [], ramusL: [], ramusR: [], condyleL: [], condyleR: [] }, I = mesh.index, Pp = mesh.pos;
+    for (let t = 0; t < I.length / 3; t++) {
+      let x = 0, y = 0, z = 0; for (let c = 0; c < 3; c++) { const v = I[t * 3 + c] * 3; x += Pp[v] / 3; y += Pp[v + 1] / 3; z += Pp[v + 2] / 3; }
+      const [B, R, H] = parts(x, y, z), side = x >= 0 ? 'L' : 'R';
+      buckets[H < R + 0.4 && H < B ? 'condyle' + side : B < R ? 'body' : 'ramus' + side].push(t);
+    }
+    const boneMat = DK.mat('bone');
+    const piece = (name, key) => { const me = new T.Mesh(jawPiece(mesh, buckets[key]), boneMat); me.name = name; return me; };
+    const m = { group: new T.Group(), jaw: new T.Group() };
+    m.group.name = 'Mandible'; m.jaw.name = 'Mandible (moving)'; m.group.add(m.jaw);
+    m.body = piece('Mandibular body', 'body');
+    m.rami = { left: piece('Left ramus', 'ramusL'), right: piece('Right ramus', 'ramusR') };
+    m.condyles = { left: piece('Left condyle', 'condyleL'), right: piece('Right condyle', 'condyleR') };
+    m.bone = [m.body, m.rami.left, m.rami.right, m.condyles.left, m.condyles.right];
+    m.jaw.add(...m.bone);
+    m.centres = { left: v3(CEN), right: v3([-CEN[0], CEN[1], CEN[2]]) };
+    m.now = { left: m.centres.left.clone(), right: m.centres.right.clone() };
+    m.axes = { left: v3(AX), right: v3([-AX[0], 0, AX[2]]) };
+    m.head = HEAD; m.sideShift = o.sideShift;
+    const L = em.height * Math.PI / (2 * Math.tan(em.inclination * Math.PI / 180));
+    m.eminence = { inclination: em.inclination, height: em.height, length: L, drop: a => a <= 0 ? 0 : a >= L ? em.height : em.height * (1 - Math.cos(Math.PI * a / L)) / 2 };
+    m.teeth = null; m.upper = null;
+    if (o.teeth) {
+      m.teeth = DK.arch(Array.isArray(o.teeth) ? { jaw: 'mandible', teeth: o.teeth } : { jaw: 'mandible' });
+      m.teeth.group.name = 'Lower teeth'; m.jaw.add(m.teeth.group);
+      // roots sit just under the bone surface: they must not cast shadows through it
+      m.teeth.teeth.forEach(t => ['root', 'dentin', 'pulp'].forEach(k => { const l = t.tooth.layers[k]; if (l) l.traverse(o => { o.userData.noShadow = true; }); }));
+    }
+    const t31 = DK.toothPreset(31);
+    m.incisal = new T.Vector3(0, t31.crownL, ref.curve(0)[1] + 0.4);
+    if (o.upper) { // upper crowns in occlusion: ~2.5 mm overbite at the incisors, a slight curve so the molars meet
+      // closed crowns on 1 mm root stubs (no maxilla is drawn, and hollow enamel shells would show from above)
+      const up = DK.arch({ jaw: 'maxilla', placement: 'jaw', build: (fdi, spec) => { spec.roots = spec.roots.map(r => Object.assign({}, r, { len: Math.min(r.len, 1.0) })); return DK.tooth(spec, { omit: ['pulp'] }); } }), hold = new T.Group();
+      hold.name = 'Upper teeth'; hold.add(up.group); hold.position.set(0, t31.crownL - 2.5 + DK.toothPreset(11).crownL, 2.6); hold.rotation.x = -0.05;
+      m.group.add(hold); m.upper = up; m.upper.holder = hold;
+    }
+    m.solve = p => jawSolve(m, p);
+    m.pose = p => DK.jawPose(m, p);
+    m.pose({});
+    return m;
+  };
+
+  /* ---- the pose: rigid motion of the jaw driven by where the two condyles go ----
+     Each condyle travels `a` mm forward and drops eminence.drop(a) down its eminence. Lateral excursion to `side`: the working
+     (same-side) condyle stays put except for the immediate side shift (`shift`, lateral, complete in the first ~2 mm); the
+     non-working condyle travels forward, down and medially, the medial part set by the rigid jaw (side shift + the arc about the
+     working condyle), so the Bennett angle comes out of the geometry. The jaw then hinges about the line through both condyles
+     for the opening. Opening: pure rotation up to ~22 mm at the incisors, then both condyles translate down the eminences. */
+  function jawSolve(m, p) {
+    p = Object.assign({ lateral: 0, side: 'right', protrusion: 0, open: 0, shift: m.sideShift, disclude: null }, p || {});
+    const ws = p.side === 'left' ? 'left' : 'right', ns = ws === 'left' ? 'right' : 'left', dir = ws === 'right' ? -1 : 1, lat = new T.Vector3(dir, 0, 0);
+    const W0 = m.centres[ws], N0 = m.centres[ns], D0 = W0.distanceTo(N0), drop = m.eminence.drop, I0 = m.incisal;
+    const ROT = 22, MAX = 52, aOpen = p.open > ROT ? m.eminence.length * clamp((p.open - ROT) / (MAX - ROT), 0, 1.15) : 0;
+    const dis = p.disclude ?? Math.min(3.5, 0.4 * Math.abs(p.lateral) + 0.35 * Math.max(0, p.protrusion));   // canine / incisal guidance lifts the teeth apart
+    const target = p.open + dis, Y = new T.Vector3(0, 1, 0);
+    const make = (aLat, phi) => {
+      const aW = p.protrusion + aOpen, aN = aW + aLat, s = aLat > 0 ? p.shift * smooth(0, 2, aLat) : 0;
+      const W1 = W0.clone().addScaledVector(lat, s).add(new T.Vector3(0, -drop(aW), aW));
+      const e2 = Math.pow(drop(aW) - drop(aN), 2) + aLat * aLat, med = s + D0 - Math.sqrt(Math.max(0, D0 * D0 - e2));
+      const N1 = N0.clone().addScaledVector(lat, med).add(new T.Vector3(0, -drop(aN), aN));
+      const v0 = N0.clone().sub(W0).normalize(), v1 = N1.clone().sub(W1).normalize();
+      const axis = v1.x >= 0 ? v1.clone() : v1.clone().negate();
+      const q = new T.Quaternion().setFromAxisAngle(axis, phi).multiply(new T.Quaternion().setFromUnitVectors(v0, v1));
+      const t = W1.clone().sub(W0.clone().applyQuaternion(q)), at = v => v.clone().applyQuaternion(q).add(t);
+      return { q, t, at, W1, N1, aW, aN, s, med, inc: at(I0) };
+    };
+    const hinge = aLat => { // opening rotation so the incisal point drops `target` mm (never closes past the condyle drop)
+      let lo = 0, hi = 1.2; if (I0.y - make(aLat, 0).inc.y >= target) return 0;
+      for (let i = 0; i < 26; i++) { const mid = (lo + hi) / 2; (I0.y - make(aLat, mid).inc.y < target ? (lo = mid) : (hi = mid)); }
+      return (lo + hi) / 2;
+    };
+    let aLat = 0;
+    if (Math.abs(p.lateral) > 1e-4) { // forward travel of the non-working condyle that shifts the incisal point `lateral` mm
+      let lo = 0, hi = 30;
+      for (let i = 0; i < 26; i++) { const mid = (lo + hi) / 2, r = make(mid, hinge(mid)); ((r.inc.x - I0.x) * dir < Math.abs(p.lateral) ? (lo = mid) : (hi = mid)); }
+      aLat = (lo + hi) / 2;
+    }
+    const r = make(aLat, hinge(aLat)), out = (rest, now) => ({ rest: rest.clone(), now: now.clone(), forward: now.z - rest.z, down: rest.y - now.y, travel: rest.distanceTo(now) });
+    const W = Object.assign(out(W0, r.W1), { side: ws, lateral: (r.W1.x - W0.x) * dir }), N = Object.assign(out(N0, r.N1), { side: ns, medial: (r.N1.x - N0.x) * dir });
+    const yaw = Math.atan2(r.N1.z - r.W1.z, (r.N1.x - r.W1.x) * -dir) * 180 / Math.PI;
+    return {
+      quaternion: r.q, position: r.t, apply: r.at, side: ws,
+      working: W, nonWorking: N, condyles: { [ws]: W, [ns]: N },
+      bennett: aLat > 0.05 ? Math.atan2(N.medial, N.forward) * 180 / Math.PI : 0,   // non-working path vs the sagittal plane, seen from above
+      rotation: yaw,   // rotation of the jaw about a vertical axis (°)
+      incisal: { rest: I0.clone(), now: r.inc, lateral: (r.inc.x - I0.x) * dir, drop: I0.y - r.inc.y, forward: r.inc.z - I0.z }
+    };
+  }
+  /* DK.jawPose(m, {lateral, side, protrusion, open, shift, disclude}) poses m.jaw and returns the condyle displacements:
+     lateral: mm the lower incisal point moves toward `side` ('right' | 'left' = the PATIENT's side, which is the working side);
+     protrusion: mm both condyles travel forward; open: mm the incisal point drops (rotation, then translation past ~22 mm);
+     shift: immediate side shift (mm, default m.sideShift); disclude: extra incisal drop in mm (default: grows with lateral and
+     protrusion up to 3.5 mm, so the cusps clear as canine guidance would separate them).
+     Returns { working: {side, rest, now, lateral, forward, down, travel}, nonWorking: {side, rest, now, forward, down, medial,
+     travel}, condyles: {left, right} (the same two records), bennett (°), rotation (° about a vertical axis), incisal: {rest, now,
+     lateral, drop, forward}, quaternion, position, apply(v) (frame point at rest → posed) }. All in the frame (m.group) coordinates. */
+  DK.jawPose = function (m, p) {
+    const r = jawSolve(m, p);
+    m.jaw.position.copy(r.position); m.jaw.quaternion.copy(r.quaternion); m.jaw.updateMatrix();
+    m.now.left.copy(r.condyles.left.now); m.now.right.copy(r.condyles.right.now); m.state = r;
+    return r;
+  };
+  // Condyle and incisal paths from rest to a pose (each numeric option scaled 0 → 1): { left, right, incisal: [[x,y,z]…] }.
+  // Draw one with DK.tube (radius ~0.35) in fig.accent: the non-working condyle's path is the usual thing to point at.
+  DK.condylePath = function (m, p, n) {
+    n = n || 24; const out = { left: [], right: [], incisal: [] };
+    for (let i = 0; i <= n; i++) {
+      const f = i / n, q = Object.assign({}, p); ['lateral', 'protrusion', 'open', 'disclude'].forEach(k => { if (typeof q[k] === 'number') q[k] *= f; });
+      const r = jawSolve(m, q); out.left.push(r.condyles.left.now.toArray()); out.right.push(r.condyles.right.now.toArray()); out.incisal.push(r.incisal.now.toArray());
+    }
+    return out;
+  };
+
+  /* ---- DK.tmj(m, side, opts): glenoid fossa + articular eminence over one condyle, as quiet see-through context ----
+     A thin curved plate of temporal bone (opacity 0.3, no depth write, no shadow, so the condyle always shows through it) whose
+     under-surface keeps a constant joint space (`gap`, ~2.4 mm: where the disc sits) over the condyle at rest and all the way down
+     the posterior slope of the eminence, so a condyle posed by DK.jawPose rides along it. Profile (sagittal): the postglenoid
+     process behind, the fossa roof above the condyle, the eminence slope (m.eminence) and its crest in front; swept along the
+     condyle's long axis, `width` mm wide. An ink line traces the profile on its lateral edge. Static: it is added to m.group.
+     Returns the group (children: plate, line) with userData.anchors { roof, slope, crest, postglenoid } (frame points, for labels). */
+  DK.tmj = function (m, side, o) {
+    o = Object.assign({ width: 25, thickness: 1.3, gap: 2.4, opacity: 0.3, line: 0x8a857c }, o || {});
+    const C = m.centres[side], AXv = m.axes[side], E = m.eminence, ra = m.head.ap / 2, rs = m.head.si / 2, L = E.length;
+    // under-surface profile [u (forward, +z), y, nu, ny] relative to the condyle centre: the support point of the head's sagittal
+    // ellipse along the outward normal (nu, ny), plus the joint space; first around the back of the head, then down the eminence
+    const sup = (nu, ny) => { const hs = Math.hypot(ra * nu, rs * ny); return [ra * ra * nu / hs + o.gap * nu, rs * rs * ny / hs + o.gap * ny, nu, ny]; };
+    // past the crest the surface rises again (the eminence's anterior slope), so the eminence reads as a rounded ridge
+    const drop = a => a <= L ? E.drop(a) : E.height - 0.09 * (a - L) * (a - L);
+    const along = a => { const s = (drop(a + 0.01) - drop(a - 0.01)) / 0.02, nl = Math.hypot(s, 1), q = sup(s / nl, 1 / nl); q[0] += a; q[1] -= drop(a); return q; };
+    const prof = [];
+    for (let i = 0; i <= 14; i++) { const th = (115 - 115 * i / 14) * Math.PI / 180; prof.push(sup(-Math.sin(th), Math.cos(th))); }
+    for (let i = 1; i <= 26; i++) prof.push(along((L + 7) * i / 26));
+    const nu = prof.length - 1, nv = 8, W = o.width;
+    // a sheared sweep: the sagittal profile slid along the condyle's long axis, so a condyle moving straight forward keeps its gap
+    const pt = (q, w, off) => [C.x + AXv.x * w, C.y + q[1] + q[3] * off, C.z + AXv.z * w + q[0] + q[2] * off];
+    const g = slabGeometry(nu, nv, (i, j) => [pt(prof[i], (j / nv - 0.5) * W, 0), pt(prof[i], (j / nv - 0.5) * W, o.thickness)]);
+    const mat = DK.mat('bone', { opacity: o.opacity }); mat.transparent = true; mat.depthWrite = false; mat.side = T.DoubleSide;
+    const plate = new T.Mesh(g, mat); plate.name = 'Articular fossa'; plate.renderOrder = 3; plate.userData.noShadow = true;
+    const line = DK.tube(prof.map(q => pt(q, W / 2, o.thickness / 2)), 0.24, new T.MeshBasicMaterial({ color: DK.color(o.line), toneMapped: false }), { caps: false, segments: 140, radial: 8 });
+    line.name = 'Eminence profile'; line.userData.noShadow = true; line.renderOrder = 4;
+    const grp = new T.Group(); grp.name = (side === 'left' ? 'Left' : 'Right') + ' TMJ'; grp.add(plate, line);
+    const lab = W * 0.3;   // anchors sit on the lateral half, on the plate's upper face
+    grp.userData.anchors = { roof: pt(sup(0, 1), lab, o.thickness), slope: pt(along(L * 0.5), lab, o.thickness), crest: pt(along(L), lab, o.thickness), postglenoid: pt(prof[2], lab, o.thickness) };
+    grp.userData.plate = plate; grp.userData.line = line;
+    m.group.add(grp); return grp;
+  };
+  /* ==== end topic: occlusion ==== */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // Distance helper for readouts
   DK.mm = v => (Math.round(v * 10) / 10).toFixed(1) + ' mm';
 

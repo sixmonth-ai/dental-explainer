@@ -796,6 +796,78 @@ Goals: remove the whole chamber roof (no pulp horns left), find every orifice, s
 
 ---
 
+<!-- topic: occlusion -->
+## 21. Occlusion, mandibular movement and the TMJ
+Sides are always the **patient's** right and left. Values are adult averages with wide individual variation; most come from textbook teaching (Okeson, *Management of Temporomandibular Disorders and Occlusion*; Wheeler's; the *Glossary of Prosthodontic Terms*) that could not be checked against a reachable copy, so they are tagged [U]: draw them, but say "about" / "approximate".
+
+### Working and non-working sides [V for the definitions, GPT; U for the wording]
+- **Working side** (laterotrusive side) = the side **toward which** the mandible moves. Moving to the patient's right: the right side works. Its condyle is the **working / rotating / pivoting condyle**.
+- **Non-working side** (mediotrusive or balancing side) = the side the mandible moves **away from**. Its condyle is the **non-working / orbiting condyle**.
+- Laterotrusion = movement away from the midline (the working condyle and lower teeth on that side); mediotrusion = movement toward the midline (the non-working condyle).
+
+### What each condyle does in a lateral excursion [U, standard teaching]
+- **Working condyle:** mainly **rotates about a near-vertical axis** in its fossa. It is **not perfectly still**: it shifts a little laterally (laterotrusion, the Bennett movement), and that shift can carry small upward, downward, forward or backward components (laterosurtrusion, laterodetrusion, lateroprotrusion, lateroretrusion).
+- **Non-working condyle:** travels **forward, downward (along the posterior slope of the articular eminence) and medially**. Seen from above its path leaves the sagittal plane at the **Bennett angle**; seen from the side it descends at the **sagittal condylar guidance** angle.
+- The jaw is one rigid bone: what one condyle does fixes what the other can do (the kit's `DK.jawPose` computes the non-working path from the working condyle's side shift and the rigid jaw).
+
+### Bennett movement, side shift and Bennett angle
+- **Bennett movement** = the bodily lateral shift of the whole mandible toward the working side during a lateral excursion (current term: mandibular lateral translation, side shift) [U, GPT wording].
+- **Immediate side shift** (ISS): the part that happens at the very start, the non-working condyle moving almost straight medially before it travels forward; **progressive side shift** follows. Its size is disputed: from **0 mm** in some samples to **about 0.8–1.7 mm** mean in others (Iraqi stereographic study 2014: 0.80 mm women, 1.68 mm men) [V, the two studies in Sources]; say "usually about 0–2 mm". The kit uses 0.75 mm.
+- **Bennett angle** (progressive lateral condylar guidance): the angle, seen from above, between the non-working condyle's path and the sagittal plane. **About 8°** on average (Croatian ultrasound study) [V]; textbook range roughly **7–15°** [U]. Articulators commonly default to 15° [U]; Hanau's formula **L = H/8 + 12** (L lateral, H sagittal condylar guidance, degrees) [U].
+
+### Sagittal condylar guidance and the eminence
+- **Sagittal condylar guidance** (the angle at which the condyle descends on protrusion, referenced to Frankfort horizontal): about **30–40°** with protrusive records, panoramic or CBCT tracings (30° vs 35–39° in one 20-patient study); motion-tracking definitions give higher values (~57°) [V, both studies]. It varies widely between people and between methods: name the method or say "about 30–40°, approximate".
+- The **articular eminence** is the convex bony ridge in front of the glenoid fossa; its posterior slope is what the condyle–disc complex slides down. Its height (fossa roof to crest) is a few millimetres, roughly **5–10 mm** [U]. The kit draws 7 mm with a steepest slope of 35° to its occlusal plane (approximate).
+
+### Dimensions and ranges [U unless noted]
+- **Condylar head:** about **15–20 mm mediolaterally** and **8–10 mm anteroposteriorly** (Okeson) [U]; ellipsoidal, its long axis angled so the medial pole lies posterior (the two long axes meet behind the jaw, near the anterior border of the foramen magnum, at roughly 145–160°) [U].
+- **Intercondylar distance** (condyle centre to centre): about **95–105 mm** in adults [U]; Bonwill's triangle (incisal point to each condyle) has 4 in (~10 cm) sides [U, classic]. The kit puts the condyle centres ~94 mm apart.
+- **Maximum lateral excursion:** about **8–12 mm** at the incisors; **≥ 8 mm** is a common minimum normal value [V, study-aid source; U as a population figure]. The ratio of maximum opening to lateral movement is about 4.4:1 in normal subjects [V, JCDA 2003].
+- **Maximum opening** (interincisal): normal is **> 40 mm** (> 35 mm in women by some cutoffs), most adults **about 40–55 mm**; reported normal ranges are as wide as 32–62 mm [V, JCDA 2003 and the study aid].
+- **Condylar translation at full opening:** the condyle moves forward roughly to (or slightly past) the eminence crest, about **10–20 mm** (one study: 17.5 mm horizontal, 3.8 mm vertical at 47 mm opening) [V, one Korean study; U as a general value].
+
+### Opening: rotation, then translation [U, standard teaching]
+- The TMJ is a **ginglymoarthrodial** joint with two compartments separated by the articular disc. **Rotation** (hinge) happens in the **lower joint space** (condyle against the disc's under-surface); **translation** happens in the **upper joint space** (disc–condyle complex sliding against the fossa and eminence).
+- Early opening is mostly **pure rotation**, up to about **20–25 mm** between the incisors; beyond that the condyles **translate** forward and down the eminences while rotation continues. During pure rotation the incisal point moves down **and back**.
+- In **protrusion** both condyles translate forward and down along their eminences; the incisors slide down the lingual surfaces of the upper incisors (incisal guidance).
+
+### The articular disc [U, standard teaching]
+- Biconcave fibrous disc with a **thin intermediate zone** (~1 mm) between a **thicker posterior band** (~3 mm) and an anterior band (~2 mm); the condyle normally articulates on the intermediate zone in all positions. Behind it the **retrodiscal tissue** (bilaminar zone) attaches to the fossa and the condylar neck; in front the superior head of the lateral pterygoid attaches. It is not vascularised or innervated in its central part.
+- The kit shows the disc only as the joint space (`gap`, ~2.4 mm) between the condyle and the fossa; draw it as a schematic band if the disc is the point.
+
+### Guidance in lateral excursion [U, standard teaching]
+- **Canine guidance (canine protected occlusion):** in a lateral excursion only the working-side canines touch, so all other teeth separate (disocclude).
+- **Group function:** several working-side teeth (canine, premolars, sometimes the mesiobuccal cusp of the first molar) share the contact.
+- **Non-working-side (balancing) contacts** in natural teeth are generally considered **interferences**; in complete dentures, bilateral balanced occlusion is deliberate.
+
+### Common AI mistakes (occlusion and the TMJ)
+1. **Swapping working and non-working.** The working side is the side the jaw moves **toward**; its condyle pivots. The other condyle orbits forward, down and in.
+2. **Using the viewer's right.** "Moves to the right" means the patient's right. In a front view the patient's right is on the **viewer's left**; say which in the subtitle.
+3. **"The working condyle stays perfectly still."** It rotates and usually shifts a little laterally (Bennett movement, about 0–2 mm); it is a pivot, not a fixed pin.
+4. **Drawing the jaw as a bent tube with discs or balls for condyles.** The mandible has a body with a chin, gonial angles, flat rami, coronoid processes, a sigmoid notch and ellipsoidal condyles wider mediolaterally (15–20 mm) than front to back (8–10 mm). Use `DK.mandible`.
+5. **The non-working condyle moving straight forward on a flat path.** It goes down the eminence (it drops several mm) and medially.
+6. **Opening as pure rotation to full gape, or pure sliding from the start.** Rotation first (to ~20–25 mm), then translation.
+7. **Hiding the condyle inside an opaque fossa block.** The fossa and eminence are context: draw them see-through or as a profile.
+8. **Condyles side by side on one transverse axis with no angulation**, or as large as the ramus is wide. The long axes converge posteriorly and medially.
+9. **Quoting one exact Bennett angle or condylar guidance as universal.** They vary widely and with the recording method; say "about".
+10. **Calling non-working contacts "balancing" as if they were desirable** in natural teeth. In natural dentitions they are interferences; balanced occlusion is a complete-denture concept.
+
+### Sources (§21)
+- *The Glossary of Prosthodontic Terms*, 9th ed. (J Prosthet Dent 2017;117(5S):e1–e105): working side, non-working side, laterotrusion, mediotrusion, Bennett movement / mandibular lateral translation, immediate side shift, Hanau's formula. https://www.thejpd.org/article/S0022-3913(16)30839-X/fulltext
+- Okeson JP, *Management of Temporomandibular Disorders and Occlusion*, 8th ed. (Elsevier 2019): joint anatomy, condyle dimensions, disc zones, rotation then translation, guidance concepts. Print only.
+- Nelson SJ, *Wheeler's Dental Anatomy, Physiology and Occlusion*, 10th ed. (Elsevier 2015), occlusion chapters. Print only.
+- Immediate side shift in Iraqi rehabilitation patients (J Baghdad Coll Dent 2014; 0.80 / 1.68 mm means): https://jbcd.uobaghdad.edu.iq/index.php/jbcd/article/view/591
+- Ultrasound study of mandibular movements (University of Zagreb repository; Bennett angle ~8°, ISS 0 mm in that sample): https://repozitorij.sfzg.unizg.hr/en/islandora/object/sfzg:250
+- Bennett angle and ISS by dentition status (Saudi Dent J 2022): https://doaj.org/article/49d34cf3fb374a8c8b7364403e8e697c
+- Sagittal condylar guidance by protrusive record, panoramic and CBCT (PMC4837772): https://pmc.ncbi.nlm.nih.gov/articles/PMC4837772
+- Sagittal condylar inclination with CBCT and motion tracking (Applied Sciences 2025): https://www.mdpi.com/2076-3417/15/11/5993
+- Mouth opening and lateral movement in normal subjects (JCDA 2003;69(11):737): https://jcda.ca/sites/default/files/back_issues_fr/vol-69/issue-11/737.pdf
+- Minimum normal opening and lateral excursion (study aid, used only to corroborate): https://brainscape.com/flashcards/chapter-6-mandibular-dynamics-12496373/packs/21156502
+- Condylar translation at maximum opening (Korean study, 17.5 mm horizontal at 47 mm opening): https://www.newnonmun.com/article=20432358
+<!-- end topic: occlusion -->
+
+---
+
 ## Sources
 Links checked Oct 2026. PubMed records are given where a paper is cited; the abstract carries the quoted numbers unless noted.
 

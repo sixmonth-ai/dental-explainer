@@ -1,8 +1,8 @@
 // Biologic width (supracrestal tissue attachment) on the upper right central incisor (FDI 11 = Universal 8), crown up, labio-
+// poster: end
 // lingual cut: above the bone crest the gum is attached to the tooth by connective tissue (~1.07 mm) and junctional epithelium
 // (~0.97 mm), about 2 mm together, with the sulcus (~0.69 mm) above them (Gargiulo 1961; dental-facts.md §6, §13, §14).
 // The story then seats a crown whose margin sits inside that attachment, 0.8 mm above the bone, and the gum turns inflamed.
-// poster: end
 // Frame: +x = mesial, +z = labial, y up, CEJ at y = 0. The cut removes the mesial half (+x); the camera on +x sees it, labial left.
 const { smooth, lerp } = DK.util;
 const SULCUS = 0.69, JE = 0.97, CT = 1.07;          // Gargiulo, Wentz & Orban 1961 means (mm)
@@ -55,12 +55,12 @@ const ct = band(CREST + 0.05, CT_TOP, () => 0.6, 0xc58f87);
 [sulcus, je, ct].forEach(b => fig.world.add(b));
 
 // a bracket on the cut face, labial to the gum, spanning the attachment (CT + JE): the one accent
-const zLab = DK.toothSurfaceAt(s, 0, Math.PI / 2).z, zBr = zLab + 2.7;
+const zLab = DK.toothSurfaceAt(s, 0, Math.PI / 2).z, zLin = DK.toothSurfaceAt(s, 0, -Math.PI / 2).z, zBr = zLin - 2.6;   // bracket on the palatal side
 const bracket = new THREE.Group();
 const bar = (w, h, x, y, z) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), accentMat); m.rotation.y = Math.PI / 2; m.position.set(x, y, z); bracket.add(m); };
 bar(0.14, JE_TOP - CREST, 0, (JE_TOP + CREST) / 2, zBr);
-bar(0.7, 0.14, 0, JE_TOP, zBr - 0.35);
-bar(0.7, 0.14, 0, CREST, zBr - 0.35);
+bar(0.7, 0.14, 0, JE_TOP, zBr + 0.35);
+bar(0.7, 0.14, 0, CREST, zBr + 0.35);
 fig.world.add(bracket);
 
 // ---------- parts
@@ -71,11 +71,11 @@ fig.part(gum, { name: 'Gum', label: false, fit: false, info: 'Gingiva: in health
 const onCut = (e, sec) => sec.enabled;
 const cx = () => (fig.section && fig.section.enabled ? fig.section.offset : 0) + 0.12;
 const zAt = (y, out) => DK.toothSurfaceAt(s, y, Math.PI / 2).z + out;
-fig.part(sulcus, { inPlace: true, name: 'Sulcus', sub: `about ${SULCUS} mm`, anchor: () => [cx(), (MARGIN + JE_TOP) / 2, zAt((MARGIN + JE_TOP) / 2, 0.08)], labelOffset: [-150, -50], when: onCut, dim: false, info: 'The shallow groove between gum and tooth. Not part of the attachment; a probe reads it as 1 to 3 mm in health.' });
-fig.part(je, { inPlace: true, name: 'Junctional epithelium', sub: `about ${JE.toFixed(2)} mm`, anchor: () => [cx(), (JE_TOP + CT_TOP) / 2, zAt((JE_TOP + CT_TOP) / 2, 0.2)], labelOffset: [-170, -10], when: onCut, dim: false, info: 'A collar of epithelium that seals the gum onto the tooth surface (Gargiulo 1961 mean 0.97 mm).' });
-fig.part(ct, { inPlace: true, name: 'Connective tissue', sub: `about ${CT.toFixed(2)} mm`, anchor: () => [cx(), (CT_TOP + CREST) / 2, zAt((CT_TOP + CREST) / 2, 0.25)], labelOffset: [-170, 40], when: onCut, dim: false, info: 'Collagen fibres running from the root cementum into the gum, just above the bone (Gargiulo 1961 mean 1.07 mm). The least variable layer.' });
-fig.part(bracket, { inPlace: true, name: 'Supracrestal attachment', sub: `about ${(JE + CT).toFixed(1)} mm`, anchor: [0, (JE_TOP + CREST) / 2, zBr], labelOffset: [-150, 0], accent: true, when: onCut, dim: false, info: 'Junctional epithelium plus connective tissue, about 2 mm above the bone (2.04 mm in Gargiulo 1961). The 2017 classification renamed "biologic width" to supracrestal tissue attachment.' });
-fig.part(bone, { inPlace: true, name: 'Bone crest', anchor: () => [cx(), -0.5 - 0.1, zAt(CREST - 0.5, 0.45)], labelOffset: [-150, 60], when: onCut, dim: false, info: 'About 1.5 to 2 mm below the CEJ in health.' });
+fig.part(sulcus, { inPlace: true, name: 'Sulcus', sub: `mean ${SULCUS} mm`, anchor: () => [cx(), (MARGIN + JE_TOP) / 2, zAt((MARGIN + JE_TOP) / 2, 0.08)], labelOffset: [-150, -50], when: onCut, dim: false, info: 'The shallow groove between gum and tooth. Not part of the attachment; a probe reads it as 1 to 3 mm in health.' });
+fig.part(je, { inPlace: true, name: 'Junctional epithelium', sub: `mean ${JE.toFixed(2)} mm`, anchor: () => [cx(), (JE_TOP + CT_TOP) / 2, zAt((JE_TOP + CT_TOP) / 2, 0.2)], labelOffset: [-190, -10], when: onCut, dim: false, info: 'A collar of epithelium that seals the gum onto the tooth surface (Gargiulo 1961 mean 0.97 mm).' });
+fig.part(ct, { inPlace: true, name: 'Connective tissue', sub: `mean ${CT.toFixed(2)} mm`, anchor: () => [cx(), (CT_TOP + CREST) / 2, zAt((CT_TOP + CREST) / 2, 0.25)], labelOffset: [-190, 40], when: onCut, dim: false, info: 'Collagen fibres running from the root cementum into the gum, just above the bone (Gargiulo 1961 mean 1.07 mm). The least variable layer.' });
+fig.part(bracket, { inPlace: true, name: 'Supracrestal attachment', sub: `about ${(JE + CT).toFixed(1)} mm`, anchor: [0, (JE_TOP + CREST) / 2, zBr], labelOffset: [150, 0], accent: true, when: onCut, dim: false, info: 'Junctional epithelium plus connective tissue, about 2 mm above the bone (2.04 mm in Gargiulo 1961). The 2017 classification renamed "biologic width" to supracrestal tissue attachment.' });
+fig.part(bone, { inPlace: true, name: 'Bone crest', anchor: () => [cx(), -0.5 - 0.1, zAt(CREST - 0.5, 0.45)], labelOffset: [-170, 70], when: onCut, dim: false, info: 'About 1.5 to 2 mm below the CEJ in health.' });
 fig.part(crown, { inPlace: true, name: 'Crown edge', sub: `${DK.mm(EDGE - CREST)} above the bone`, anchor: [0, 0.15, DK.toothSurfaceAt(s, 0.15, Math.PI / 2).z], labelOffset: [-150, -40], dim: false, info: 'A crown or filling edge placed into the supracrestal attachment: the body keeps trying to re-form it, so the gum stays inflamed or the bone resorbs. A common guideline keeps about 3 mm from the edge to the bone.' });
 fig.part(gum, { inPlace: true, name: 'Inflamed gum', sub: 'red, swollen, bleeds', anchor: () => [cx(), MARGIN - 1.0 - gum.position.y, zAt(MARGIN - 1.0, 1.1)], labelOffset: [-140, -70], when: (e, sec) => sec.enabled && P.crown > 0.5, dim: false, info: 'Chronic inflammation next to a margin that invades the attachment. Over time the bone may recede or a pocket forms.' });
 
@@ -88,14 +88,16 @@ fig.enableSection([1, 0, 0], [
   { objects: [ct], color: 0xc58f87, kind: 'gingiva' },
   { objects: [je], color: 0xe6c9bd, kind: 'plain' },
   { objects: [sulcus], color: 0x4a403c },
-  { objects: [crown], color: DK.COLORS.ceramicCap },
   { objects: [tooth.layers.enamel], color: DK.COLORS.enamelCap },
-  { objects: [tooth.layers.root, tooth.layers.dentin, restored.layers.root, prep], color: DK.COLORS.dentinCap },
+  { objects: [tooth.layers.root, tooth.layers.dentin, restored.layers.root], color: DK.COLORS.dentinCap },
+  { objects: [prep], color: DK.COLORS.dentinCap, kind: 'dentin' },
+  { objects: [crown], color: DK.COLORS.ceramicCap },
   { objects: [tooth.layers.pulp, restored.layers.pulp], color: DK.COLORS.pulpCap }
 ]);
 accentMat.clippingPlanes = [];
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-3, 3], offset: 0 } });
-fig.onFrame(() => { bracket.position.x = cx(); bracket.visible = !!(fig.section && fig.section.enabled); });
+const placeBracket = () => { bracket.position.x = cx(); bracket.visible = !!fig.section.enabled; };
+const secChanged = fig.section.onChange; fig.section.onChange = () => { secChanged && secChanged(); placeBracket(); }; placeBracket();
 
 // ---------- param: 0 = natural tooth, 1 = crown with its edge inside the attachment, gum inflamed
 const P = { crown: 0 };
@@ -106,8 +108,8 @@ fig.param('crown', 0, k => {
   gCrown.position.y = EDGE + (1 - Math.min(1, k * 1.6)) * 8;
   const inf = smooth(0.6, 1, k); gum.set({ inflamed: inf }); capTint(inf);
 });
-fig.view('Attachment', { section: true, offset: 0, theta: Math.PI / 2 - 0.1, phi: 1.45, zoom: 0.28, focus: [0, -0.4, zLab + 0.9], set: { crown: 0 }, labels: ['Sulcus', 'Junctional epithelium', 'Connective tissue', 'Supracrestal attachment'] });
-fig.view('Deep crown edge', { section: true, offset: 0, theta: Math.PI / 2 - 0.1, phi: 1.45, zoom: 0.34, focus: [0, -0.2, zLab + 0.9], set: { crown: 1 }, labels: ['Crown edge', 'Supracrestal attachment', 'Inflamed gum'] });
+fig.view('Attachment', { section: true, offset: 0, theta: Math.PI / 2 - 0.1, phi: 1.45, zoom: 0.36, focus: [0, -0.4, 0.6], set: { crown: 0 }, labels: ['Sulcus', 'Junctional epithelium', 'Connective tissue', 'Supracrestal attachment'] });
+fig.view('Deep crown edge', { section: true, offset: 0, theta: Math.PI / 2 - 0.1, phi: 1.45, zoom: 0.38, focus: [0, -0.4, 0.6], set: { crown: 1 }, labels: ['Crown edge', 'Supracrestal attachment', 'Inflamed gum'] });
 
 // ---------- story: the incisor → the cut → push in on the layers → the ~2 mm bracket → a crown edge pushed into it → inflamed
 const SIDE = { theta: Math.PI / 2 - 0.1, phi: 1.45 };
@@ -116,10 +118,10 @@ fig.story([
   Object.assign({ dur: 2.2, hold: 0.2, labels: [] }, SIDE),
   { dur: 0, hold: 0, section: true, offset: 6 },
   { dur: 2.0, hold: 0.8, offset: 0, labels: ['Bone crest'], caption: 'A cut from lip side to palate.' },
-  { dur: 2.2, hold: 2.2, zoom: 0.26, focus: [0, -0.4, zLab + 0.9], labels: ['Sulcus', 'Junctional epithelium', 'Connective tissue'], caption: 'Above the bone, the gum is attached to the tooth in two layers.' },
-  { dur: 1.2, hold: 2.0, zoom: 0.3, labels: ['Supracrestal attachment', 'Bone crest'], caption: 'Together they are about 2 mm: the biologic width.' },
+  { dur: 2.2, hold: 2.2, zoom: 0.44, focus: [0, -0.4, 0.6], labels: ['Sulcus', 'Junctional epithelium', 'Connective tissue'], caption: 'Above the bone, the gum is attached to the tooth in two layers.' },
+  { dur: 1.2, hold: 2.0, zoom: 0.48, labels: ['Supracrestal attachment', 'Bone crest'], caption: 'Together they are about 2 mm: the biologic width.' },
   { dur: 1.6, hold: 0.2, zoom: 0.62, focus: [0, 1.5, zLab], labels: [] },
   { dur: 2.4, hold: 0.6, set: { crown: 1 }, labels: ['Crown edge'], caption: 'A crown whose edge reaches into that attachment...' },
-  { dur: 2.0, hold: 2.8, zoom: 0.34, focus: [0, -0.2, zLab + 0.9], labels: ['Crown edge', 'Supracrestal attachment', 'Inflamed gum'], caption: '...keeps the gum inflamed.' }
+  { dur: 2.0, hold: 2.8, zoom: 0.5, focus: [0, 2.6, 0.6], labels: ['Crown edge', 'Supracrestal attachment', 'Inflamed gum'], caption: '...keeps the gum inflamed.' }
 ]);
 fig.start();

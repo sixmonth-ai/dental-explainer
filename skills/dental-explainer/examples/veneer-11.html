@@ -836,16 +836,35 @@
     let introOff = false;
     function interrupt() { player = null; introOff = true; orbit.auto = false; if (caption) caption.style.opacity = 0; }
     if (!still) {
-      stage.addEventListener('pointerdown', e => { interrupt(); drag = { x: e.clientX, y: e.clientY, th: orbit.theta, ph: orbit.phi, t: performance.now() }; vel = { th: 0, ph: 0 }; stage.setPointerCapture(e.pointerId); stage.classList.add('drag'); });
+      // touch: one finger orbits, two fingers pinch-zoom, a tap names the part under it (hover does that for a mouse)
+      const touches = new Map(); let pinch = null, tap = null;
+      const spread = () => { const [a, b] = [...touches.values()]; return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
+      stage.addEventListener('pointerdown', e => {
+        interrupt(); stage.setPointerCapture(e.pointerId);
+        touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (touches.size === 2) { drag = null; tap = null; pinch = { d: spread(), z: zoomTarget, dist: orbit.dist }; return; }
+        if (touches.size > 2) return;
+        tap = e.pointerType !== 'mouse' ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+        drag = { x: e.clientX, y: e.clientY, th: orbit.theta, ph: orbit.phi, t: performance.now() }; vel = { th: 0, ph: 0 }; stage.classList.add('drag');
+      });
       stage.addEventListener('pointermove', e => {
+        if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pinch && touches.size === 2) { const k = pinch.d / spread(); if (fits) zoomTarget = orbit.zoom = clamp(pinch.z * k, 0.3, 3); else orbit.dist = clamp(pinch.dist * k, 15, 400); return; }
+        if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 6) tap = null;
         if (drag) {
           const th = drag.th - (e.clientX - drag.x) * 0.008, ph = clamp(drag.ph - (e.clientY - drag.y) * 0.008, 0.06, Math.PI - 0.06), now = performance.now(), dt = Math.max(1, now - drag.t) / 1000;
           vel = { th: (th - orbit.theta) / dt, ph: (ph - orbit.phi) / dt }; drag.t = now; orbit.theta = th; orbit.phi = ph;
-        } else hover(e);
+        } else if (e.pointerType === 'mouse') hover(e);
       });
-      const end = () => { if (drag) { drag = null; stage.classList.remove('drag'); } };
+      const end = e => {
+        touches.delete(e.pointerId);
+        if (touches.size < 2) pinch = null;
+        if (tap && e.type === 'pointerup' && performance.now() - tap.t < 400) { vel = { th: 0, ph: 0 }; hover(e); }   // the name stays up until the next tap
+        tap = null;
+        if (drag && !touches.size) { drag = null; stage.classList.remove('drag'); }
+      };
       stage.addEventListener('pointerup', end); stage.addEventListener('pointercancel', end);
-      stage.addEventListener('pointerleave', () => { setHover(null); });
+      stage.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') setHover(null); });
       stage.addEventListener('wheel', e => { e.preventDefault(); interrupt(); const k = Math.exp(Math.sign(e.deltaY) * 0.08); if (fits) zoomTarget = clamp(zoomTarget * k, 0.3, 3); else orbit.dist = clamp(orbit.dist * k, 15, 400); }, { passive: false });
       stage.addEventListener('dblclick', () => fig.goTo(Object.assign(homeState(), { zoom: 1 }), 0.8));
     }

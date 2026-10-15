@@ -1,8 +1,8 @@
 // Crown lengthening on a broken lower right second premolar (FDI 45 = Universal 29), bucco-lingual cut (CBCT-style slice): the
+// poster: step 4
 // tooth is broken below the gum, so a crown edge on sound tooth would sit almost on the bone. A flap is opened, bone is removed
 // around the root with a round bur until the planned crown edge is about 3 mm above the crest, the gum heals lower, and the
 // crown fits with its edge on sound tooth (dental-facts.md §6, §12, §13, §14).
-// poster: step 4
 // Frame: +x = mesial, +z = buccal, y up, CEJ at y = 0. The cut removes the mesial half (+x); the camera on the mesial side sees it.
 const { smooth, lerp, clamp } = DK.util;
 const CREST = -1.8;          // healthy crest, ~2 mm below the CEJ

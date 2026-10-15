@@ -1,7 +1,7 @@
 // Horizontal vs vertical bone loss on the lower right second premolar and first molar (FDI 45 and 46 = Universal 29 and 30),
+// poster: end
 // two sets side by side cut by one mesio-distal section: on the left the crest is lowered evenly across both teeth, on the right
 // it stays near its healthy level except for an angular (infrabony) defect along the mesial root of 46 (dental-facts.md §13, §17).
-// poster: end
 // Frame: +x = mesial (45 sits mesial of 46), +z = buccal, y up, CEJ at y = 0. Sizes in mm (Wheeler averages via DK.toothPreset).
 const CREST = -1.8;          // healthy crest, ~2 mm below the CEJ
 const HORIZ = 3.5;           // horizontal set: crest lowered 3.5 mm everywhere

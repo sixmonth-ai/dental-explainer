@@ -24,7 +24,7 @@ The catalog entry (`library/catalog.json`) gives the slug, title, the teeth, the
    .venv/bin/python skills/dental-explainer/scripts/render.py library/build/<slug>/<slug>-image.html -o library/build/<slug>/<slug>.png
    .venv/bin/python skills/dental-explainer/scripts/render.py library/build/<slug>/<slug>-image.html -o library/build/<slug>/<slug>-dark.png --dark
    ```
-   Add `--no-webkit` to check.py: Playwright's WebKit segfaults on this machine (known, logged in KIT-GAPS.md). check.py must print `OK`. **Look at `shots/sheet.png` and both PNGs** with the Read tool. Fix and re-check until a demanding clinician would put it in a lecture: no labels off their part, no parts poking through others, no empty or cropped framing, nothing that reads as a toy (a bent tube for a bone, a sphere for an organ), light and dark both readable, the 390 px mobile shot readable.
+   check.py must print `OK`, including its WebKit (iPhone) pass. WebKit works again with the venv's Playwright 1.60; do not pass `--no-webkit`. **Look at `shots/sheet.png` and both PNGs** with the Read tool. Fix and re-check until a demanding clinician would put it in a lecture: no labels off their part, no parts poking through others, no empty or cropped framing, nothing that reads as a toy (a bent tube for a bone, a sphere for an organ), light and dark both readable, the 390 px mobile shot readable.
 4. Run the SKILL.md accuracy checklist against the figure and fix what fails. Tooth numbers in the subtitle state their system (FDI, with Universal in brackets when it helps patients).
 
 ## Storytelling and visuals (the owner's bar)

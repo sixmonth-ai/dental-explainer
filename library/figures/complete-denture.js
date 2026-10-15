@@ -12,7 +12,7 @@ const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; retu
 const table = (rows, s) => { if (s <= rows[0][0]) return rows[0].slice(1); const L = rows[rows.length - 1]; if (s >= L[0]) return L.slice(1);
   let i = 1; while (rows[i][0] < s) i++; const A = rows[i - 1], B = rows[i], t = (s - A[0]) / (B[0] - A[0]); return A.slice(1).map((v, k) => v + (B[k + 1] - v) * t); };
 // Surface nets over f(x, y, z) (< 0 inside) in box [[x0,y0,z0],[x1,y1,z1]] with cell h; f is called column by column (x, z fixed).
-function nets(f, box, h) {
+function nets(f, box, h, iters) {
   const a = box[0], b = box[1], nx = Math.ceil((b[0] - a[0]) / h) + 1, ny = Math.ceil((b[1] - a[1]) / h) + 1, nz = Math.ceil((b[2] - a[2]) / h) + 1;
   const V = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
   for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) { const x = a[0] + i * h, z = a[2] + k * h; for (let j = 0; j < ny; j++) V[id(i, j, k)] = f(x, a[1] + j * h, z); }
@@ -37,7 +37,7 @@ function nets(f, box, h) {
   const P = new Float32Array(pos), N = new Float32Array(P.length), uv = new Float32Array(P.length / 3 * 2), eps = 0.03;
   for (let v = 0; v < P.length; v += 3) {   // project onto the exact surface; keep the exact normal
     let x = P[v], y = P[v + 1], z = P[v + 2], gx = 0, gy = 0, gz = 1;
-    for (let it = 0; it < 2; it++) { const d = f(x, y, z); gx = f(x + eps, y, z) - d; gy = f(x, y + eps, z) - d; gz = f(x, y, z + eps) - d;
+    for (let it = 0; it < (iters ?? 2); it++) { const d = f(x, y, z); gx = f(x + eps, y, z) - d; gy = f(x, y + eps, z) - d; gz = f(x, y, z + eps) - d;
       const g2 = (gx * gx + gy * gy + gz * gz) / (eps * eps) || 1, s = clamp(d / g2, -h, h) / eps; x -= gx * s; y -= gy * s; z -= gz * s; }
     const gl = Math.hypot(gx, gy, gz) || 1; P[v] = x; P[v + 1] = y; P[v + 2] = z; N[v] = gx / gl; N[v + 1] = gy / gl; N[v + 2] = gz / gl;
     uv[v / 3 * 2] = (x - 0.6 * z) / 15; uv[v / 3 * 2 + 1] = (y + 0.35 * z + 0.2 * x) / 15;
@@ -60,12 +60,17 @@ function archSpine(arch, lastFdi, extend) {
   for (let k = 1; k <= 4; k++) pts.push([end[0] - sl.t[0] * extend * k / 4, end[1] - sl.t[1] * extend * k / 4]);
   const seg = []; let S = 0, sEnd = 0;
   pts.slice(1).forEach((q, i) => { const p = pts[i], l = Math.hypot(q[0] - p[0], q[1] - p[1]); seg.push({ x0: p[0], z0: p[1], tx: (q[0] - p[0]) / l, tz: (q[1] - p[1]) / l, l, s0: S }); S += l; if (i === 39) sEnd = S; });
+  const E = pts[pts.length - 1], LS = seg[seg.length - 1], ET = [LS.tx, LS.tz];
   let memo = { x: NaN, z: NaN };
   const near = (x, z) => {
     if (x === memo.x && z === memo.z) return memo;
     const ax = Math.abs(x); let best = Infinity, r = null;
     seg.forEach((g, i) => { const wx = ax - g.x0, wz = z - g.z0, t = clamp(wx * g.tx + wz * g.tz, 0, g.l), dx = wx - g.tx * t, dz = wz - g.tz * t, dd = dx * dx + dz * dz;
-      if (dd < best) { best = dd; r = { s: g.s0 + t, d: dx * -g.tz + dz * g.tx, past: g.s0 + t - S + (i === seg.length - 1 ? Math.max(0, wx * g.tx + wz * g.tz - g.l) : 0) }; } });   // signed arc length past the end: continuous, so cuts across the end are clean planes
+      if (dd < best) { best = dd; r = { s: g.s0 + t, d: dx * -g.tz + dz * g.tx }; } });
+    // distances past planes square to the arch (behind the last molar, past the end of the ridge): plain planes, so lingual
+    // points on the concave side of the bend never jump the way a nearest-point arc length does
+    r.behind = (ax - end[0]) * -sl.t[0] + (z - end[1]) * -sl.t[1];
+    r.past = (ax - E[0]) * ET[0] + (z - E[1]) * ET[1];
     return (memo = Object.assign({ x, z }, r));
   };
   return { near, end, sEnd, S, pts };
@@ -81,8 +86,8 @@ function edentulous(cfg) {
     slots.forEach(sl => { const dx = x - sl.c[0], dz = z - sl.c[1], mes = dx * sl.t[0] + dz * sl.t[1], nr = dx * sl.n[0] + dz * sl.n[1];
       if (Math.abs(mes) > sl.md * 1.4 || Math.abs(nr) > 14) return;
       k = Math.max(k, Math.exp(-mes * mes / (sl.md * sl.md * 0.085))); const ww = Math.exp(-mes * mes / (sl.md * sl.md * 0.25)); w += ww; hb += ww * sl.spec.blC / 2; });
-    const behind = Math.max(0, n.s - sp.sEnd);
-    gumMemo.x = x; gumMemo.z = z; gumMemo.y = 2.1 - 1.8 * k - 1.3 * behind; gumMemo.hw = (w > 1e-3 ? hb / w : 4.6) + 0.55; return gumMemo;
+    const behind = Math.max(0, n.behind);
+    gumMemo.x = x; gumMemo.z = z; gumMemo.y = 2.1 - 1.8 * k - 0.9 * behind; gumMemo.behind = behind; gumMemo.hw = (hb + 0.002 * 5.0) / (w + 0.002) + 0.55; return gumMemo;
   };
   const rowAt = s => table(cfg.rows, s);
   const sh = cfg.ridgeShift || 0;
@@ -123,22 +128,25 @@ function edentulous(cfg) {
     if (cfg.upper) m -= rugae(x, z) * smooth(-2.5, -4.5, n.d);
     return Math.max(m, cfg.upper ? -1e3 : n.past + 0.35);   // lower: ends just short of the bone's crop face
   };
-  const notch = (n, side) => side * (2.8 * Math.exp(-n.s * n.s / 3.5) + 2.2 * Math.exp(-Math.pow(n.s - 22, 2) / 5)) + (1 - side) * (cfg.upper ? 0 : 3.2 * Math.exp(-n.s * n.s / 3.5));
+  const notch = (n, side) => side * (1.6 * Math.exp(-n.s * n.s / 8) + 0.9 * Math.exp(-Math.pow(n.s - 22, 2) / 14)) + (1 - side) * (cfg.upper ? 0 : 1.8 * Math.exp(-n.s * n.s / 8));   // frenum notches: shallow, wide, rounded
   const postZ = sp.end[1] - 6.6;   // upper: posterior border across the palate, through the hamular notches
   const base = (x, y, z) => {
     const n = near(x, z), yT = rowAt(n.s)[0], m = mucosa(x, y, z);
     if (m > 9) return m - 6;
-    const g = gum(x, z, n), hw = g.hw + 0.42 * Math.max(0, g.y - y);
+    const g = gum(x, z, n), hw = Math.max(0.5, g.hw + 0.42 * Math.max(0, g.y - y) - 1.1 * g.behind);   // the gum festoon tapers away behind the last molar
     const saddle = rnd(Math.abs(n.d) - hw, y - g.y, 0.9);
     const env = smin(m - cfg.base, saddle, 2.0);
     const side = smooth(-1.5, 1.5, n.d), sul = yT - lerp(cfg.sulL, cfg.sulB, side);
-    let border = (sul + 1.0 + notch(n, side)) - y;
+    let border = (sul + 2.2 + notch(n, side)) - y;   // ends where the mucosa wall is still steep, so the cut meets the shell square-on
     if (cfg.upper && n.d < -1.5) border = -20;   // the upper base covers the whole palate: no lingual border (the switch lies inside the base, under the ridge crest)
     let b = rnd(env, border, 0.8);   // edge radii stay under half the base thickness: a rolled border, never a feathered sliver
-    if (cfg.upper) b = rnd(b, postZ - z, 0.75); else b = rnd(b, n.past + 3.5, 0.75);
+    // where the ridge flattens into a shelf (lower molars, tuberosities) a level border would graze the shell and fray: there the
+    // flange ends at a set distance out from the ridge line instead, cut square to the shell
+    b = rnd(b, cfg.upper ? n.d - 10.2 : Math.max(n.d - 10.2, -n.d - 9.6), 0.8);
+    if (cfg.upper) b = rnd(b, lerp(n.past - 1.5, postZ - z, smooth(-3, -9, n.d)), 1.0);   // back edge: square across the flanges behind the tuberosities, straight across the palate else b = rnd(b, n.past + 3.5, 0.75);
     // the fitting surface is the mucosa itself (0.04 mm relief); the upper one carries the posterior palatal seal bead into the soft tissue
     let fit = 0.04 - m;
-    fit = Math.max(fit, cfg.th - 0.5 - bone(x, y, z));   // never inside the bone (where the mucosa layer was cropped)
+    fit = Math.max(fit, 0.3 - bone(x, y, z));   // never inside the bone (where the mucosa layer was cropped)
     if (cfg.upper && n.d < -1) fit = Math.max(fit, vaultAt(x, z, n) + 0.5 - y);   // nor on the nasal side of the palate
     return rnd(b, fit, 0.5);   // the border meets the fitting surface in a rounded roll, not a knife edge
   };
@@ -157,7 +165,19 @@ function buildJaw(J, box, name) {
   const muc = meshOf(nets(J.mucosa, box, 0.7), DK.mat('mucosa'), name + ' mucosa');
   return { bone, canc, muc };
 }
-function buildBase(J, box, name) { return meshOf(nets(J.base, box, 0.32), acrylicMat(), name); }
+// Taubin smoothing (shrink-free): surface nets leave a fine stair-step wherever a cut plane meets the shell at a shallow angle;
+// a few passes turn those borders into the smooth rolled edge of polished acrylic
+function taubin(g, passes) {
+  const P = g.attributes.position.array, I = g.index.array, n = P.length / 3, nb = Array.from({ length: n }, () => new Set());
+  for (let t = 0; t < I.length; t += 3) for (let k = 0; k < 3; k++) { const a = I[t + k], b = I[t + (k + 1) % 3]; nb[a].add(b); nb[b].add(a); }
+  const L = nb.map(s => Array.from(s)), tmp = new Float32Array(P.length);
+  const pass = f => { for (let v = 0; v < n; v++) { const l = L[v]; if (!l.length) continue; let x = 0, y = 0, z = 0; l.forEach(u => { x += P[u * 3]; y += P[u * 3 + 1]; z += P[u * 3 + 2]; });
+      const m = l.length; tmp[v * 3] = P[v * 3] + f * (x / m - P[v * 3]); tmp[v * 3 + 1] = P[v * 3 + 1] + f * (y / m - P[v * 3 + 1]); tmp[v * 3 + 2] = P[v * 3 + 2] + f * (z / m - P[v * 3 + 2]); }
+    P.set(tmp); };
+  for (let i = 0; i < passes; i++) { pass(0.5); pass(-0.53); }
+  g.attributes.position.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); return g;
+}
+function buildBase(J, box, name) { return meshOf(taubin(nets(J.base, box, 0.32, 0), 10), acrylicMat(), name); }   // no projection: at the base's corners the field's gradient points the wrong way and would tear the edge
 // fade a set of objects (story params): opacity, depth write and visibility together
 function fader(objs) {
   const list = []; objs.forEach(o => o.traverse(m => { if (m.isMesh && !m.userData.cutOnly) list.push(m); }));
@@ -183,10 +203,10 @@ const LOW = edentulous({ arch: lowArch, last: 37, extend: 13, upper: false, th: 
 const upArch = DK.arch({ jaw: 'maxilla', build: resinTooth });
 const UP = edentulous({ arch: upArch, last: 27, extend: 10, upper: true, th: 2.3, sulB: 8, sulL: 8, base: 2.0, height: 9.5, vault: 8.5, ridgeShift: -1.2,
   rows: [[0, -5.2, 3.0, 3.2], [16, -5.2, 3.6, 3.6], [30, -5.4, 4.6, 4.0], [46, -5.4, 5.4, 4.4], [62, -5.2, 6.2, 4.8]] });
-const lowBox = [[-38, -26, -60], [38, 3.2, 8]], upBox = [[-40, -17.6, -58], [40, 3.2, 8]];
+const lowBox = [[-38, -26, -72], [38, 3.2, 15]], upBox = [[-40, -17.6, -72], [40, 3.2, 15]];
 const lowJaw = buildJaw(LOW, lowBox, 'Lower'), upJaw = buildJaw(UP, upBox, 'Upper');
-const lowBase = buildBase(LOW, [[-38, -14, -58], [38, 2.6, 7]], 'Lower denture base');
-const upBase = buildBase(UP, [[-40, -16, -56], [40, 2.6, 7]], 'Upper denture base');
+const lowBase = buildBase(LOW, [[-38, -14, -72], [38, 2.6, 15]], 'Lower denture base');
+const upBase = buildBase(UP, [[-40, -16, -72], [40, 2.6, 15]], 'Upper denture base');
 
 const HOLD = { y: DK.toothPreset(31).crownL - 2.5 + DK.toothPreset(11).crownL, z: 2.6, rx: -0.05 };
 const holder = () => { const g = new THREE.Group(); g.position.set(0, HOLD.y, HOLD.z); g.rotation.x = HOLD.rx; return g; };
@@ -264,9 +284,9 @@ fig.story([
   Object.assign({ dur: 2.8, hold: 2.4, caption: 'Seen from above, the side that fits the mouth: the upper denture covers the whole palate, a large sealed surface for suction.' }, PALATE),
   Object.assign({ dur: 2.6, hold: 2.0, caption: 'The lower one is a horseshoe around the tongue, held mostly by the cheeks and tongue.' }, LOWER),
   { fov: 28, dur: 2.4, hold: 0.2, theta: 0.5, phi: 1.4, zoom: 1, focus: 'auto', explode: 0, set: ALL, labels: [] },
-  { dur: 0, hold: 0, section: true, offset: 10 },
+  { dur: 0, hold: 0, section: true, offset: 40 },
   { dur: 2.6, hold: 2.2, offset: zCut, theta: 0.42, phi: 1.36, zoom: 0.8, labels: ['Palate cover', 'Lower denture', 'Ridge', 'Bone'], caption: 'Cut across the molars: the bases sit on the mucosa, the upper one spans the palate.' },
-  { dur: 0.1, hold: 0, offset: 10, labels: [] },
+  { dur: 0.1, hold: 0, offset: 40, labels: [] },
   { fov: 34, dur: 2.6, hold: 3.0, section: false, explode: 0.5, set: { upJaw: 0, lowJaw: 0 }, theta: 0.6, phi: 1.32, zoom: 0.72, focus: 'auto', labels: ['Upper denture', 'Lower denture', 'Denture teeth'], caption: 'A pair of complete dentures: resin teeth on pink acrylic bases that rest on the gums.' }
 ]);
 fig.start();

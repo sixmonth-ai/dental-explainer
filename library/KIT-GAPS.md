@@ -9,7 +9,7 @@ which would also help the skill on topics with no example.
 - **Anterior cavity preps** (Class III, IV, V) and a chip/corner-fracture builder; layered anterior composite increments (black-classes, class-iv-composite-11).
 - **Masseter and temporalis** attached to `DK.mandible`/`DK.maxilla` that follow the pose; **tooth wear** (attrition facets with dentin islands) on `DK.tooth`/`DK.arch` (bruxism).
 - `DK.tube` makes a degenerate, invisible tube from repeated points, which `DK.condylePath` returns during pure rotation (tmj-anatomy).
-- Playwright WebKit (1.64, webkit-2370) segfaults on launch on this Mac, so the iPhone pass of check.py has not run for any library figure.
+- Fixed: Playwright 1.64 WebKit (webkit-2370) segfaults on this Mac (macOS 26); the venv pins Playwright 1.60 (webkit-2287), which works.
 - `DK.socket(spec, {gap})`: an empty extraction socket plus a graft with a fill level, and a particulate graft cap texture (socket-preservation).
 - `DK.sinus` or a sinus option on `DK.maxilla`, a liftable Schneiderian membrane, and a sweep-with-hole builder (sinus-lift).
 - The 11 preset crown outline is too rectangular (anteriorShape sampler); the distal incisal angle needs more rounding (class-iv-composite-11).
@@ -30,3 +30,4 @@ which would also help the skill on topics with no example.
 - Not in dental-facts.md: whitening mechanism (qualitative only, e.g. Joiner 2006).
 - **tmj-anatomy held back** after three passes: without a real temporal-bone section (fossa and eminence profile as a cut solid), the sagittal joint view reads as a translucent box. Needs `DK.temporalBone` / a fossa-eminence section builder before it can ship. Bruxism also lacks gingiva on `DK.mandible`/`DK.maxilla` arches (root necks show).
 - Not in dental-facts.md: night guard about 2 mm thick; luting cement film thickness; Aquilino & Caplan 2002 survival ratio for crowned root-filled teeth.
+- **maryland-bridge held back** after two passes: from the palate, the kit's anterior crowns read as slabs and cones, and hand-built wings read as thick blocks. Needs better anterior crown shapes (palatal concavity, cingulum, marginal ridges) and a draped `DK.bondedWing` before it can ship.

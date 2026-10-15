@@ -1,8 +1,9 @@
 // Example: lateral excursion of the mandible to the PATIENT'S RIGHT. The right condyle is the working (laterotrusive) condyle:
 // it pivots about a near-vertical axis with a small immediate side shift (Bennett movement). The left condyle is the non-working
 // (mediotrusive, orbiting) condyle: it travels forward, down the articular eminence and medially. DK.mandible builds the jaw
-// (body, rami, coronoid processes, condyles) with the lower teeth and the upper crowns in occlusion; DK.tmj adds a see-through
-// fossa and eminence over each condyle; DK.jawPose moves the jaw rigidly and returns where each condyle went, so the path, the
+// (body, rami, coronoid processes, condyles) with the lower teeth; `upper: 'bone'` adds DK.maxilla (the upper teeth on their roots in
+// the maxilla, the zygomatic arches and the temporal bone with the fossa and eminence carved into it, both articular discs riding on
+// their condyles); DK.jawPose moves the jaw rigidly and returns where each condyle went, so the path, the
 // readout and the labels all come from the same pose. Frame (DK.arch): +x = patient's LEFT, +z anterior, y up; a front camera
 // (theta 0) shows the patient's right on the viewer's LEFT. Values are population averages (dental-facts §21).
 const MAX = 8;                                   // mm the lower midline moves to the right (a normal lateral excursion is ~8 mm or more)
@@ -13,15 +14,24 @@ const fig = DK.figure({
   view: { theta: 0.5, phi: 1.22, margin: 0.86 }
 });
 
-// --- the jaw (moves), the upper teeth and both temporomandibular joints (static; the fossae are see-through)
-const m = DK.mandible({ teeth: true, upper: true });
-fig.part(m.group, { name: 'Jaw', label: false, info: 'Average adult mandible with its teeth, under the upper teeth and the two temporomandibular joints.' });
-const tmjR = DK.tmj(m, 'right'), tmjL = DK.tmj(m, 'left');
+// --- the jaw (moves) under the maxilla, zygomatic arches and temporal bone (static, see-through); both discs ride on their condyles
+const m = DK.mandible({ teeth: true, upper: 'bone' });
+const mx = m.maxilla, discs = m.discs, tmjR = mx.joints.right, tmjL = mx.joints.left;
+fig.part(m.group, { name: 'Jaw', label: false, info: 'Average adult mandible with its teeth, under the upper jaw and the two temporomandibular joints.' });
+fig.part(mx.maxilla, { inPlace: true, name: 'Maxilla', label: false, info: 'Upper jaw: alveolar process with every upper tooth on its roots in a socket, the hard palate, tuberosities and the anterior nasal spine; the zygomatic buttress rises over the first molar. Cut flat below the orbits.' });
+fig.part(mx.temporal.right, { inPlace: true, name: 'Right fossa', label: false, info: 'Glenoid fossa and articular eminence of the right temporal bone (drawn see-through).' });
+fig.part(mx.temporal.left, { inPlace: true, name: 'Articular eminence', sub: 'left', anchor: tmjL.userData.anchors.crest, labelOffset: [-75, -80],
+  info: 'The convex slope in front of the fossa, carved into the temporal bone. The non-working condyle slides down it with its disc, so that side of the jaw drops.' });
+fig.part(discs.left, { inPlace: true, name: 'Articular disc', sub: 'moves with the condyle', anchor: discs.left.userData.anchors.lateral, labelOffset: [80, -65], dim: false,
+  info: 'Biconcave fibrocartilage: a thick posterior band (about 3 mm) and an anterior band (about 2 mm) around a thin intermediate zone (about 1 mm). The condyle rotates beneath it (lower joint space); disc and condyle translate together down the eminence (upper joint space). Retrodiscal tissue behind.' });
 fig.part(m.body, { inPlace: true, name: 'Mandible', label: false, info: 'The mandible moves as one rigid bone, so what one condyle does fixes what the other can do.' });
 fig.part(m.upper.holder, { inPlace: true, name: 'Upper teeth', label: false, info: 'Maxillary teeth, fixed to the skull. The lower teeth slide across them; the canines guide the jaw apart.' });
-fig.part(tmjR.userData.plate, { inPlace: true, name: 'Right fossa', label: false, info: 'Glenoid fossa and articular eminence of the right temporal bone (drawn see-through).' });
-fig.part(tmjL.userData.plate, { inPlace: true, name: 'Articular eminence', sub: 'left', anchor: tmjL.userData.anchors.crest, labelOffset: [-70, -60],
-  info: 'The convex slope in front of the fossa. The non-working condyle (with its disc) slides down it, so that side of the jaw drops.' });
+fig.enableSection([1, 0, 0], [
+  { objects: m.bone, color: 0xD7D1C5, kind: 'cortical' },
+  { objects: mx.bone, color: 0xE2DCCF, kind: 'cortical' },
+  { objects: [discs.left.userData.disc, discs.right.userData.disc], color: 0xC2ADA7, kind: 'plain' },
+  { objects: [...discs.left.userData.laminae, ...discs.right.userData.laminae], color: 0xD3BDB7, kind: 'plain' }
+]);
 
 // the two condyles move with the jaw: their anchors are frame points at rest (the top of each head)
 const headTop = side => { const c = m.centres[side]; return [c.x, c.y + m.head.si / 2, c.z]; };
@@ -75,7 +85,8 @@ fig.param('lateral', 0, v => {
 });
 fig.param('guides', 0, v => { guideMat.opacity = 0.9 * v; sagittal.visible = axis.visible = turn.visible = v > 0.01; });
 [tmjR, tmjL].forEach(t => { t.userData.line.material.transparent = true; });
-fig.param('fossa', 0.3, v => [tmjR, tmjL].forEach(t => { t.userData.plate.material.opacity = v; t.userData.line.material.opacity = Math.min(1, v / 0.3); }));
+fig.param('context', 0.85, v => [mx.maxilla, mx.zygoma.left, mx.zygoma.right].forEach(b => DK.fadeMaterial(b.material, v)));
+fig.param('fossa', 0.3, v => { [mx.temporal.left, mx.temporal.right].forEach(b => DK.fadeMaterial(b.material, v)); [tmjR, tmjL].forEach(t => { t.userData.line.material.opacity = Math.min(1, v / 0.3); }); });
 fig.onFrame(() => {
   const N = pose.nonWorking, W = pose.working, key = N.travel.toFixed(1) + W.lateral.toFixed(2);
   if (key === shown) return; shown = key;
@@ -92,18 +103,23 @@ fig.onFrame(() => {
 const R = m.centres.right, L = m.centres.left;
 fig.procedure([
   { label: 'Closed', caption: 'Teeth together; both condyles seated in their fossae.', beats: [
-    { dur: 0, hold: 1.4, theta: 0.5, phi: 1.22, zoom: 1, focus: 'auto', set: { lateral: 0, guides: 0, fossa: 0.3 }, labels: ['Right condyle', 'Left condyle'], key: true }] },
+    { dur: 0, hold: 1.4, theta: 0.5, phi: 1.22, zoom: 1, focus: 'auto', set: { lower: 1, lateral: 0, guides: 0, context: 0.85, fossa: 0.22 }, section: false, labels: ['Right condyle', 'Left condyle'], key: true }] },
   { label: 'Move right', caption: "The lower jaw slides toward the patient's right; the lower midline follows.", beats: [
     { dur: 1.4, hold: 0.2, theta: 0.1, phi: 1.36, zoom: 0.92, labels: ['Right condyle', 'Left condyle'] },
     { dur: 2.4, hold: 1.8, set: { lateral: MAX }, labels: ['Right condyle', 'Left condyle'], key: true }] },
   { label: 'Working side', caption: 'The right condyle turns in place and shifts slightly outward.', beats: [
-    { dur: 1.8, hold: 0.2, theta: -1.6, phi: 0.45, zoom: 0.45, focus: [R.x, R.y - 6, R.z + 6], set: { lateral: 0, guides: 1, fossa: 0.08 }, labels: ['Right condyle', 'Vertical axis'] },
+    { dur: 1.8, hold: 0.2, theta: -1.6, phi: 0.45, zoom: 0.45, focus: [R.x, R.y - 6, R.z + 6], set: { lower: 1, lateral: 0, guides: 1, context: 0.06, fossa: 0.05 }, labels: ['Right condyle', 'Vertical axis'] },
     { dur: 2.2, hold: 1.8, set: { lateral: MAX }, labels: ['Right condyle', 'Vertical axis'], key: true }] },
-  { label: 'Non-working side', caption: 'The left condyle orbits forward and down the eminence.', beats: [
-    { dur: 1.8, hold: 0.2, theta: Math.PI / 2 - 0.25, phi: 1.45, zoom: 0.36, focus: [L.x, L.y - 3, L.z + 7], set: { lateral: 0, guides: 0, fossa: 0.3 }, labels: ['Left condyle', 'Articular eminence'] },
-    { dur: 2.4, hold: 1.8, set: { lateral: MAX }, labels: ['Left condyle', 'Articular eminence', 'Condyle path'], key: true }] },
+  { label: 'Non-working side', caption: 'The left condyle and its disc slide forward and down the eminence; rotation occurs below the disc.', beats: [
+    { dur: 1.8, hold: 0.2, theta: Math.PI / 2 - 0.25, phi: 1.45, zoom: 0.26, focus: [L.x, L.y + 1, L.z + 5], set: { lower: 1, lateral: 0, guides: 0, context: 0.08, fossa: 0.12 }, labels: ['Articular disc', 'Articular eminence'] },
+    { dur: 2.4, hold: 1.8, set: { lateral: MAX }, labels: ['Articular disc', 'Articular eminence', 'Condyle path'], key: true }] },
   { label: 'From above', caption: 'Seen from above, the path also runs medially: the Bennett angle.', beats: [
-    { dur: 2.2, hold: 2.2, theta: 0.0, phi: 0.32, zoom: 0.92, focus: [0, R.y, R.z + 8], set: { guides: 1, fossa: 0.06 }, labels: ['Right condyle', 'Left condyle', 'Condyle path'], key: true }] }
+    { dur: 2.2, hold: 2.2, theta: 0.0, phi: 0.32, zoom: 0.92, focus: [0, R.y, R.z + 8], set: { guides: 1, context: 0.04, fossa: 0.04 }, labels: ['Right condyle', 'Left condyle', 'Condyle path'], key: true }] }
 ]);
-fig.view('Front', { theta: 0.1, phi: 1.36, zoom: 0.92, focus: 'auto', set: { fossa: 0.3 } });
+fig.view('Front', { theta: 0, phi: 1.5, zoom: 1, focus: 'auto', section: false, set: { lower: 1, context: 0.85, fossa: 0.22, guides: 0 }, labels: [] });
+fig.view('Side', { theta: Math.PI / 2, phi: 1.5, zoom: 1, focus: 'auto', section: false, set: { lower: 1, context: 0.85, fossa: 0.22, guides: 0 }, labels: [] });
+fig.view('Palate', { theta: 0.3, phi: 2.9, zoom: 0.8, focus: [0, 25, -45], section: false, set: { lateral: 0, context: 0.85, fossa: 0.3, guides: 0, lower: 0 }, labels: [] });
+fig.param('lower', 1, v => { m.jaw.visible = v > 0.5; });
+fig.view('Disc section', { theta: Math.PI / 2, phi: 1.5, zoom: 0.15, focus: [L.x, L.y + 1, L.z + 4], section: true, offset: L.x + 0.5,
+  set: { context: 0.3, fossa: 0.1, guides: 0, lower: 1 }, labels: ['Articular disc', 'Articular eminence'] });
 fig.start();

@@ -9,7 +9,7 @@ You make one figure per request: a 3D model built from real millimetre dimension
 
 Files in this skill:
 - `assets/dentkit.js`: the drawing kit (three.js r128). API: `references/kit-api.md`.
-- `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read §1–14 every time, plus the section for your topic (§15–20, see Topics below).
+- `references/dental-facts.md`: verified numbers, numbering systems, root and canal anatomy, implant rules, and a list of **common AI mistakes**. Read §1–14 every time, plus the section for your topic (§15–21, see Topics below).
 - `examples/*.js`: finished figures. Copy their structure (topic examples are named in the topic files, see Topics below):
   - `mb2-16.js`: axial cut at the canal orifices, a story that ends on the teaching shot, view buttons, markers that follow the cut.
   - `implant-placement-36.js`: a **procedure**: pilot and final drills, osteotomy, implant threading in, healing abutment, crown, driven by `fig.param` + `fig.procedure`.
@@ -137,6 +137,7 @@ When the figure is about one of these, read its topic file (what to copy, what t
 | bone loss, pockets, probing and staging, furcations, recession, calculus | `references/topics/perio.md` | §17 |
 | bridges and pontics, veneers, inlays and onlays | `references/topics/prosth.md` | §18 |
 | brackets, archwires, aligners, attachments, tooth movement in the PDL | `references/topics/ortho.md` | §19 |
+| jaw movement, working / non-working condyle, lateral excursion, Bennett movement, protrusion, opening, TMJ and eminence | `references/topics/occlusion.md` | §21 |
 | root canal treatment, access, files, shaping, obturation, apical lesions | `references/topics/endo.md` | §20 |
 
 ## Accuracy checklist (every figure)
@@ -174,6 +175,7 @@ When the figure is about one of these, read its topic file (what to copy, what t
 - Instrument mishaps and tissue at cell level. Files follow the canal centre line but don't cut, bind or deform it (no ledges, transportation, perforations or separated files); caries zones, PDL hyalinisation, bleeding, plaque biofilm and tooth mobility are schematic or text only.
 - Patient arches and malocclusion. `DK.arch` is a population arch form: no crowding, rotations, spacing or Angle classes. Developing teeth are complete crowns on short roots; an impaction shows angulation and depth, not the ramus relation.
 - A periodontal diagnosis from one tooth. Staging and grading are whole-mouth: label a single tooth "consistent with Stage III". Furcation involvement is a bone-height dip that reads in section, not a carved tunnel.
+- Patient-specific jaw motion and TMJ disorders. `DK.mandible` is one average adult jaw and `DK.jawPose` an idealised rigid motion (average eminence, ~0.75 mm side shift): no disc displacement, clicking, cusp-by-cusp contact analysis or recorded (pantographic / axiographic) path. Draw the disc schematically and say so; give guidance angles and the Bennett angle as "about".
 - Exact proprietary implant geometries. Draw a generic implant of the stated diameter, length and connection, and don't use brand names on it.
 
 ## Platform notes

@@ -821,7 +821,7 @@ Sides are always the **patient's** right and left. Values are adult averages wit
 
 ### Dimensions and ranges [U unless noted]
 - **Condylar head:** about **15–20 mm mediolaterally** and **8–10 mm anteroposteriorly** (Okeson) [U]; ellipsoidal, its long axis angled so the medial pole lies posterior (the two long axes meet behind the jaw, near the anterior border of the foramen magnum, at roughly 145–160°) [U].
-- **Intercondylar distance** (condyle centre to centre): about **95–105 mm** in adults [U]; Bonwill's triangle (incisal point to each condyle) has 4 in (~10 cm) sides [U, classic]. The kit puts the condyle centres ~94 mm apart.
+- **Intercondylar distance** (condyle centre to centre): about **90–105 mm** in adults [U]; Bonwill's triangle (incisal point to each condyle) has 4 in (~10 cm) sides [U, classic]. The kit puts the condyle centres ~94 mm apart.
 - **Maximum lateral excursion:** about **8–12 mm** at the incisors; **≥ 8 mm** is a common minimum normal value [V, study-aid source; U as a population figure]. The ratio of maximum opening to lateral movement is about 4.4:1 in normal subjects [V, JCDA 2003].
 - **Maximum opening** (interincisal): normal is **> 40 mm** (> 35 mm in women by some cutoffs), most adults **about 40–55 mm**; reported normal ranges are as wide as 32–62 mm [V, JCDA 2003 and the study aid].
 - **Condylar translation at full opening:** the condyle moves forward roughly to (or slightly past) the eminence crest, about **10–20 mm** (one study: 17.5 mm horizontal, 3.8 mm vertical at 47 mm opening) [V, one Korean study; U as a general value].

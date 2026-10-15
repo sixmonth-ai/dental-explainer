@@ -103,7 +103,7 @@ fig.procedure([
     { dur: 1.8, hold: 0.2, theta: Math.PI / 2 - 0.25, phi: 1.45, zoom: 0.36, focus: [L.x, L.y - 3, L.z + 7], set: { lateral: 0, guides: 0, fossa: 0.3 }, labels: ['Left condyle', 'Articular eminence'] },
     { dur: 2.4, hold: 1.8, set: { lateral: MAX }, labels: ['Left condyle', 'Articular eminence', 'Condyle path'], key: true }] },
   { label: 'From above', caption: 'Seen from above, the path also runs medially: the Bennett angle.', beats: [
-    { dur: 2.2, hold: 2.2, theta: 0.0, phi: 0.75, zoom: 0.74, focus: [16, R.y, R.z + 10], set: { guides: 1, fossa: 0.06 }, labels: ['Right condyle', 'Left condyle', 'Condyle path'], key: true }] }
+    { dur: 2.2, hold: 2.2, theta: 0.0, phi: 0.32, zoom: 0.92, focus: [0, R.y, R.z + 8], set: { guides: 1, fossa: 0.06 }, labels: ['Right condyle', 'Left condyle', 'Condyle path'], key: true }] }
 ]);
 fig.view('Front', { theta: 0.1, phi: 1.36, zoom: 0.92, focus: 'auto', set: { fossa: 0.3 } });
 fig.start();

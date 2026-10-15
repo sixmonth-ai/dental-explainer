@@ -1067,13 +1067,20 @@
         const c = water ? spray : chipCols[(Math.random() * 3) | 0]; pCol[i * 3] = c.r; pCol[i * 3 + 1] = c.g; pCol[i * 3 + 2] = c.b;
       }
     }
+    // bounds of what is drawn (Box3.setFromObject also counts hidden children, e.g. a parked matrix band)
+    const meshBox = new T.Box3();
+    function visibleBox(obj) {
+      boxTmp.makeEmpty(); obj.updateMatrixWorld();
+      obj.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); boxTmp.union(meshBox.copy(m.geometry.boundingBox).applyMatrix4(m.matrixWorld)); });
+      return boxTmp;
+    }
     // the top of the highest other part the tip is inside (chips come out of the hole there), or null when it cuts nothing
     function cutTop(tool, w) {
       let top = null;
       for (const p of parts) {
         if (p.inPlace || !p.obj.visible) continue;
         let mine = false; for (let ob = tool; ob; ob = ob.parent) if (ob === p.obj) { mine = true; break; } if (mine) continue;
-        if (boxTmp.setFromObject(p.obj).expandByScalar(0.2).containsPoint(w)) top = Math.max(top ?? -1e9, boxTmp.max.y - 0.2);
+        if (visibleBox(p.obj).expandByScalar(0.2).containsPoint(w)) top = Math.max(top ?? -1e9, boxTmp.max.y - 0.2);
       }
       return top;
     }
@@ -3430,7 +3437,7 @@
     const seg = []; let S = 0;
     for (let i = 1; i < spine.length; i++) { const [x0, z0] = spine[i - 1], [x1, z1] = spine[i], L = Math.hypot(x1 - x0, z1 - z0); seg.push({ x0, z0, tx: (x1 - x0) / L, tz: (z1 - z0) / L, L, s0: S }); S += L; }
     // condyles and rami (left side; the right is the mirror image): ramus plane through the posterior border, rotated ~20° so the
-    // rami diverge posteriorly; condyle centre ~48 mm from the midline (intercondylar ~96 mm), long axis rotated 14° (medial pole back)
+    // rami diverge posteriorly; condyle centre ~47 mm from the midline (intercondylar ~94 mm), long axis rotated 14° (medial pole back)
     const RP = [48.5, -84], RA = [-0.342, 0.94], RN = [0.94, 0.342], HEAD = { ml: 20, ap: 9.2, si: 10.8 };
     const CEN = [RP[0] + RA[0] * 0.6 - RN[0] * 1.6, 30.5, RP[1] + RA[1] * 0.6 - RN[1] * 1.6], GAM = 14 * Math.PI / 180;
     const AX = [Math.cos(GAM), 0, Math.sin(GAM)], AZ = [-Math.sin(GAM), 0, Math.cos(GAM)];
@@ -3600,7 +3607,7 @@
      condyle's long axis, `width` mm wide. An ink line traces the profile on its lateral edge. Static: it is added to m.group.
      Returns the group (children: plate, line) with userData.anchors { roof, slope, crest, postglenoid } (frame points, for labels). */
   DK.tmj = function (m, side, o) {
-    o = Object.assign({ width: 25, thickness: 1.3, gap: 2.4, opacity: 0.3, line: 0x8a857c }, o || {});
+    o = Object.assign({ width: 25, thickness: 1.3, gap: 2.4, opacity: 0.2, line: 0x8a857c }, o || {});
     const C = m.centres[side], AXv = m.axes[side], E = m.eminence, ra = m.head.ap / 2, rs = m.head.si / 2, L = E.length;
     // under-surface profile [u (forward, +z), y, nu, ny] relative to the condyle centre: the support point of the head's sagittal
     // ellipse along the outward normal (nu, ny), plus the joint space; first around the back of the head, then down the eminence

@@ -60,7 +60,7 @@ const air = new THREE.Mesh(new THREE.ShapeGeometry(shape(AIR)), new THREE.MeshSt
 air.position.z = -SLAB + 0.02;   // follows the cut (onFrame), so the slice reads flat like a CBCT image instead of a tunnel
 
 // ---- gum over the crest, around the necks (built crown-up in J like the teeth)
-const gum = DK.gingiva({ width: XA - XP - 4.4, height: 2.9, depth: 2 * SLAB + 1.2, crest: 1.1, round: 0.6,
+const gum = DK.gingiva({ width: XA - XP - 4.4, height: 2.9, depth: 2 * SLAB, crest: 1.1, round: 0.6,
   around: TEETH.map(t => ({ x: t.x - (XA + XP + 4.4) / 2, z: 0, md: t.tooth.spec.mdC, bl: t.tooth.spec.blC, rise: 0.8 })) });
 gum.position.set((XA + XP + 4.4) / 2, 0.9, 0); J.add(gum);
 
@@ -106,7 +106,7 @@ fig.enableSection([0, 0, 1], [
   { objects: L('pulp'), color: DK.COLORS.pulpCap }
 ]);
 air.material.clippingPlanes = [];
-fig.xray([bone, lining], false);
+fig.xray([bone, gum, lining], false);
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-4, SLAB + 0.5], offset: CUT } });
 fig.toggle('Sinusitis', false, v => fig.goTo({ set: { swell: v ? 1 : 0 } }, 1.2));
 

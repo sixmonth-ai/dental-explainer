@@ -87,7 +87,7 @@ const step = (label, caption, i, focus, extra) => ({ label, caption, beats: [
   Object.assign({ dur: 1.6, hold: 1.8, labels: [L[i][2]], key: true }, HOME)] });
 fig.procedure([
   step('About 6: first molars', 'The first molars come in behind the baby teeth, with the lower front teeth.', 0, [0, 2, 8], { fov: 28, theta: 0, phi: 0.22 }),
-  step('6 to 9: incisors', 'The front teeth are replaced, lower before upper.', 1, [0, 2, -6]),
+  step('7 to 9: incisors', 'The other front teeth are replaced, lower before upper.', 1, [0, 2, -6]),
   step('9 to 12: canines, premolars', 'Canines and premolars replace the baby canines and molars.', 2, [0, 2, 0]),
   step('11 to 13: second molars', 'The second molars come in behind the first molars.', 3, [0, 2, 0]),
   step('17 to 21: wisdom teeth', 'Third molars come last, if they come at all.', 4, [0, 2, 0])

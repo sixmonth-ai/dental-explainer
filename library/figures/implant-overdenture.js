@@ -10,7 +10,7 @@ const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; retu
 const table = (rows, s) => { if (s <= rows[0][0]) return rows[0].slice(1); const L = rows[rows.length - 1]; if (s >= L[0]) return L.slice(1);
   let i = 1; while (rows[i][0] < s) i++; const A = rows[i - 1], B = rows[i], t = (s - A[0]) / (B[0] - A[0]); return A.slice(1).map((v, k) => v + (B[k + 1] - v) * t); };
 // Surface nets over f(x, y, z) (< 0 inside) in box [[x0,y0,z0],[x1,y1,z1]] with cell h; f is called column by column (x, z fixed).
-function nets(f, box, h) {
+function nets(f, box, h, iters) {
   const a = box[0], b = box[1], nx = Math.ceil((b[0] - a[0]) / h) + 1, ny = Math.ceil((b[1] - a[1]) / h) + 1, nz = Math.ceil((b[2] - a[2]) / h) + 1;
   const V = new Float32Array(nx * ny * nz), id = (i, j, k) => i + nx * (j + ny * k);
   for (let k = 0; k < nz; k++) for (let i = 0; i < nx; i++) { const x = a[0] + i * h, z = a[2] + k * h; for (let j = 0; j < ny; j++) V[id(i, j, k)] = f(x, a[1] + j * h, z); }
@@ -35,7 +35,7 @@ function nets(f, box, h) {
   const P = new Float32Array(pos), N = new Float32Array(P.length), uv = new Float32Array(P.length / 3 * 2), eps = 0.03;
   for (let v = 0; v < P.length; v += 3) {   // project onto the exact surface; keep the exact normal
     let x = P[v], y = P[v + 1], z = P[v + 2], gx = 0, gy = 0, gz = 1;
-    for (let it = 0; it < 2; it++) { const d = f(x, y, z); gx = f(x + eps, y, z) - d; gy = f(x, y + eps, z) - d; gz = f(x, y, z + eps) - d;
+    for (let it = 0; it < (iters ?? 2); it++) { const d = f(x, y, z); gx = f(x + eps, y, z) - d; gy = f(x, y + eps, z) - d; gz = f(x, y, z + eps) - d;
       const g2 = (gx * gx + gy * gy + gz * gz) / (eps * eps) || 1, s = clamp(d / g2, -h, h) / eps; x -= gx * s; y -= gy * s; z -= gz * s; }
     const gl = Math.hypot(gx, gy, gz) || 1; P[v] = x; P[v + 1] = y; P[v + 2] = z; N[v] = gx / gl; N[v + 1] = gy / gl; N[v + 2] = gz / gl;
     uv[v / 3 * 2] = (x - 0.6 * z) / 15; uv[v / 3 * 2 + 1] = (y + 0.35 * z + 0.2 * x) / 15;
@@ -58,12 +58,14 @@ function archSpine(arch, lastFdi, extend) {
   for (let k = 1; k <= 4; k++) pts.push([end[0] - sl.t[0] * extend * k / 4, end[1] - sl.t[1] * extend * k / 4]);
   const seg = []; let S = 0, sEnd = 0;
   pts.slice(1).forEach((q, i) => { const p = pts[i], l = Math.hypot(q[0] - p[0], q[1] - p[1]); seg.push({ x0: p[0], z0: p[1], tx: (q[0] - p[0]) / l, tz: (q[1] - p[1]) / l, l, s0: S }); S += l; if (i === 39) sEnd = S; });
+  const E = pts[pts.length - 1], LS = seg[seg.length - 1], ET = [LS.tx, LS.tz];
   let memo = { x: NaN, z: NaN };
   const near = (x, z) => {
     if (x === memo.x && z === memo.z) return memo;
     const ax = Math.abs(x); let best = Infinity, r = null;
     seg.forEach((g, i) => { const wx = ax - g.x0, wz = z - g.z0, t = clamp(wx * g.tx + wz * g.tz, 0, g.l), dx = wx - g.tx * t, dz = wz - g.tz * t, dd = dx * dx + dz * dz;
-      if (dd < best) { best = dd; r = { s: g.s0 + t, d: dx * -g.tz + dz * g.tx, past: i === seg.length - 1 ? wx * g.tx + wz * g.tz - g.l : -1e3 }; } });
+      if (dd < best) { best = dd; r = { s: g.s0 + t, d: dx * -g.tz + dz * g.tx }; } });
+    r.past = (ax - E[0]) * ET[0] + (z - E[1]) * ET[1];   // distance past a plane square to the end of the ridge: a clean, continuous crop
     return (memo = Object.assign({ x, z }, r));
   };
   return { near, end, sEnd, S, pts };
@@ -133,7 +135,7 @@ function edentulous(cfg) {
     let border = (sul + 1.0 + notch(n, side)) - y;
     if (cfg.upper) border = lerp(-20, border, smooth(-3, 0, n.d));   // the upper base covers the whole palate: no lingual border
     let b = rnd(env, border, 1.0);
-    if (cfg.upper) b = rnd(b, postZ - z, 1.2); else b = rnd(b, n.past + 3.5, 1.6);
+    if (cfg.upper) b = rnd(b, postZ - z, 1.2); else b = rnd(b, n.past + 3.5, 1.0);
     // the fitting surface is the mucosa itself (0.04 mm relief); the upper one carries the posterior palatal seal bead into the soft tissue
     let fit = 0.04 - m;
     fit = Math.max(fit, cfg.th - 0.5 - bone(x, y, z));   // never inside the bone (where the mucosa layer was cropped)
@@ -154,6 +156,18 @@ function buildJaw(J, box, name) {
   const canc = cutOnly(nets((x, y, z) => J.bone(x, y, z) + 1.5, box, 0.9), name + ' cancellous bone');
   const muc = meshOf(nets(J.mucosa, box, 0.7), DK.mat('mucosa'), name + ' mucosa');
   return { bone, canc, muc };
+}
+// Taubin smoothing (shrink-free): surface nets leave a fine stair-step wherever a cut plane meets the shell at a shallow angle;
+// a few passes turn those borders into the smooth rolled edge of polished acrylic
+function taubin(g, passes) {
+  const P = g.attributes.position.array, I = g.index.array, n = P.length / 3, nb = Array.from({ length: n }, () => new Set());
+  for (let t = 0; t < I.length; t += 3) for (let k = 0; k < 3; k++) { const a = I[t + k], b = I[t + (k + 1) % 3]; nb[a].add(b); nb[b].add(a); }
+  const L = nb.map(s => Array.from(s)), tmp = new Float32Array(P.length);
+  const pass = f => { for (let v = 0; v < n; v++) { const l = L[v]; if (!l.length) continue; let x = 0, y = 0, z = 0; l.forEach(u => { x += P[u * 3]; y += P[u * 3 + 1]; z += P[u * 3 + 2]; });
+      const m = l.length; tmp[v * 3] = P[v * 3] + f * (x / m - P[v * 3]); tmp[v * 3 + 1] = P[v * 3 + 1] + f * (y / m - P[v * 3 + 1]); tmp[v * 3 + 2] = P[v * 3 + 2] + f * (z / m - P[v * 3 + 2]); }
+    P.set(tmp); };
+  for (let i = 0; i < passes; i++) { pass(0.5); pass(-0.53); }
+  g.attributes.position.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); return g;
 }
 function buildBase(J, box, name) { return meshOf(nets(J.base, box, 0.42), acrylicMat(), name); }
 // fade a set of objects (story params): opacity, depth write and visibility together
@@ -187,9 +201,9 @@ const HOUSE = { r: 2.75, ri: 2.05, h: 2.9 };
 const base = (x, y, z) => { let b = LOW.base(x, y, z);
   sites.forEach(s => { b = Math.max(b, -Math.max(Math.hypot(x - s.x, z - s.z) - HOUSE.r, y - (s.muc + 0.25 + HOUSE.h))); }); return b; };
 
-const lowBox = [[-38, -26, -60], [38, 3.2, 8]];
+const lowBox = [[-46, -26, -72], [46, 3.2, 15]];
 const lowJaw = buildJaw(LOW, lowBox, 'Lower');
-const lowBase = meshOf(nets(base, [[-38, -14, -58], [38, 2.6, 7]], 0.42), acrylicMat(), 'Denture base');
+const lowBase = meshOf(taubin(nets(base, [[-46, -15, -72], [46, 2.6, 15]], 0.32, 0), 10), acrylicMat(), 'Denture base');
 
 // inferior alveolar nerve in its canal, leaving the bone at the mental foramen below the premolars (both sides)
 const P = LOW.spine.pts, cum = [0]; for (let i = 1; i < P.length; i++) cum.push(cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));

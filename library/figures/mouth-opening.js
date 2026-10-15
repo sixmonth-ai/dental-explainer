@@ -16,21 +16,21 @@ const D2R = Math.PI / 180;
 // ---------- outlines (x anterior, y up) ----------
 const spline = (pts, n, closed) => new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], 0)), closed, 'centripetal').getSpacedPoints(n).map(v => V2(v.x, v.y));
 // the articular surface of the temporal bone, posterior → anterior: tympanic plate, postglenoid process, fossa roof, eminence, preglenoid plane
-const SURF = [[-40, -11], [-22, -10.5], [-15.5, -8.5], [-10.5, -5.2], [-8.2, -2.4], [-7.0, -0.2], [-6.2, 1.6], [-5.2, 4.4], [-3.4, 7.0], [-0.8, 8.3], [1.8, 8.0], [4.4, 6.2], [6.9, 3.4], [9.2, 1.2], [11.2, 0.3], [13.2, 0.8], [16, 2.4], [21, 4.0], [30, 5.0], [42, 5.6]];
+const SURF = [[-70, -12], [-40, -11], [-22, -10.5], [-15.5, -8.5], [-10.5, -5.2], [-8.2, -2.4], [-7.0, -0.2], [-6.2, 1.6], [-5.2, 4.4], [-3.4, 7.0], [-0.8, 8.3], [1.8, 8.0], [4.4, 6.2], [6.9, 3.4], [9.2, 1.2], [11.2, 0.3], [13.2, 0.8], [16, 2.4], [21, 4.0], [30, 5.0], [42, 5.6], [60, 6.2], [90, 6.6]];
 const surf = spline(SURF, 260, false);
 const S = x => {   // height of the articular surface at x (joint region, where it is a function of x)
   for (let i = 1; i < surf.length; i++) { const a = surf[i - 1], b = surf[i]; if (a.x <= x && b.x >= x && a.x > -6.5) return a.y + (b.y - a.y) * (x - a.x) / Math.max(1e-6, b.x - a.x); }
   return 50;
 };
 // the cerebral surface: the fossa roof is a thin plate (about 2 mm) under the middle cranial fossa; the eminence and the bone around the ear canal are thick
-const TOP = [[42, 9.6], [26, 10.0], [15, 11.2], [7.5, 10.9], [2.5, 10.3], [-2, 10.4], [-6.5, 11.8], [-11, 13.2], [-17, 15.6], [-26, 19], [-40, 22]];
+const TOP = [[90, 9.0], [60, 9.3], [42, 9.6], [26, 10.0], [15, 11.2], [7.5, 10.9], [2.5, 10.3], [-2, 10.4], [-6.5, 11.8], [-11, 13.2], [-17, 15.6], [-26, 19], [-40, 22], [-70, 26]];
 const temporalPts = surf.concat(spline(TOP, 120, false));
 const meatus = (cx, cy, rx, ry, n) => Array.from({ length: n }, (_, i) => { const a = -i / n * Math.PI * 2; return V2(cx + rx * Math.cos(a), cy + ry * Math.sin(a)); });
 const R = 4.5;                                      // radius of the condylar head in this section (about 9 mm front to back, facts §21)
 const condylePts = (() => {
   const head = []; for (let a = 8; a <= 172; a += 4) head.push([R * Math.cos(a * D2R), R * Math.sin(a * D2R)]);
-  const post = [[-4.55, -1.6], [-4.25, -5], [-4.6, -9], [-5.4, -15], [-6.6, -26], [-7.4, -46]];
-  const ant = [[27, -46], [28.5, -26], [29.8, -10], [29.2, -2.2], [27.4, 0.9], [25.2, -0.4], [21.5, -5.5], [17, -10.6], [13, -13.2], [8.4, -12], [5.4, -8.6], [4.1, -5.2], [3.7, -3.6], [4.5, -1.2]];   // ramus, coronoid process, sigmoid notch
+  const post = [[-4.55, -1.6], [-4.25, -5], [-4.6, -9], [-5.4, -15], [-6.6, -26], [-7.6, -46], [-8.6, -80]];
+  const ant = [[26, -80], [27, -46], [28.5, -26], [29.8, -10], [29.2, -2.2], [27.4, 0.9], [25.2, -0.4], [21.5, -5.5], [17, -10.6], [13, -13.2], [8.4, -12], [5.4, -8.6], [4.1, -5.2], [3.7, -3.6], [4.5, -1.2]];   // ramus, coronoid process, sigmoid notch
   return spline(head.concat(post, ant), 360, true);
 })();
 const offsetIn = (pts, d) => {   // a closed polygon moved inward by d (counter-clockwise outline)
@@ -122,8 +122,8 @@ const update = () => {
   };
   const M = (x, y) => V2(x - C0.x, y - C0.y);
   const fwd = (p, dx, dy) => V2(p.x + dx, p.y + dy);
-  supHead.set(band([aFront, fwd(aFront, 4, -1.4), M(Math.max(aFront.x + C0.x + 10, 19), -4.6), M(Math.max(aFront.x + C0.x + 22, 42), -6.5)], 0.7, 1.5), 10, 0.3);
-  infHead.set(band([fovea, fwd(fovea, 5, -2.6), M(Math.max(fovea.x + C0.x + 13, 21), -11.5), M(Math.max(fovea.x + C0.x + 26, 44), -13.5)], 1.2, 2.6), 12, 0.3);
+  supHead.set(band([aFront, fwd(aFront, 4, -1.4), M(Math.max(aFront.x + C0.x + 10, 19), -4.6), M(Math.max(aFront.x + C0.x + 22, 42), -6.5), M(90, -9)], 0.7, 1.5), 10, 0.3);
+  infHead.set(band([fovea, fwd(fovea, 5, -2.6), M(Math.max(fovea.x + C0.x + 13, 21), -11.5), M(Math.max(fovea.x + C0.x + 26, 44), -13.5), M(90, -17)], 1.2, 2.6), 12, 0.3);
 };
 // everything is placed relative to the rest centre: shift the static pieces so the condyle centre at rest is the origin
 [temporal, temporalIn].forEach(m => m.position.set(-C0.x, -C0.y, 0));
@@ -162,7 +162,7 @@ fig.param('turnArrow', 0, v => { accMat.opacity = 1; turn.visible = v > 0.5; });
 fig.param('ghost', 0, v => { showGhost = v > 0.5; render(); });
 
 // ---------- labels (anchors on the cut face; moving parts carry local anchors) ----------
-fig.part(temporal, { inPlace: true, name: 'Articular eminence', anchor: [12.6, 1.0, -0.12], labelOffset: [-60, -95], dim: false,
+fig.part(temporal, { inPlace: true, name: 'Articular eminence', anchor: [12.6, 1.0, -0.12], labelOffset: [-110, -50], dim: false,
   info: 'Convex ridge of the temporal bone in front of the fossa, about 7 mm high. On wide opening the condyle and its disc slide down its back slope.' });
 fig.part(temporal, { inPlace: true, name: 'Glenoid fossa', anchor: [0.4, 8.6, -0.12], labelOffset: [60, -70], dim: false,
   info: 'The socket in the temporal bone that houses the condyle and disc when the teeth are together, about 6 mm deep.' });
@@ -174,9 +174,9 @@ fig.part(disc, { inPlace: true, name: 'Disc', sub: 'rides on the condyle', ancho
   info: 'Biconcave fibrocartilage pad: posterior band about 3 mm, thin middle about 1 mm, anterior band about 2 mm. The head turns under it; disc and head slide down the eminence together.' });
 fig.part(turn, { inPlace: true, name: 'Turns in place', sub: 'first 20 to 25 mm', accent: true, anchor: [2.5 * Math.cos(95 * D2R), 2.5 * Math.sin(95 * D2R), -0.3], labelOffset: [-40, -110], dim: false, when: () => turn.visible,
   info: 'Early opening is a hinge movement: the condyle rotates under the disc (lower joint space) and stays in the fossa, up to about 20 to 25 mm between the incisors.' });
-const pathPart = fig.part(pathHead, { inPlace: true, name: 'Slides forward', sub: 'down the eminence', accent: true, anchor: () => { const c = centreAt(st.open); return [c.x - C0.x, c.y - C0.y, -0.3]; }, labelOffset: [-60, 90], dim: false, when: () => pathHead.visible,
+const pathPart = fig.part(pathHead, { inPlace: true, name: 'Slides forward', sub: 'down the eminence', accent: true, anchor: () => { const c = centreAt(st.open); return [c.x - C0.x, c.y - C0.y, -0.3]; }, labelOffset: [-150, 30], dim: false, when: () => pathHead.visible,
   info: 'Past about 20 to 25 mm the condyle and disc translate forward and down the back slope of the eminence (upper joint space), about 10 mm at a wide opening.' });
-fig.part(infHead, { inPlace: true, name: 'Lateral pterygoid', sub: 'pulls it forward', anchor: () => { const p = infHead.geometry.boundingBox; return p ? [Math.min(18, p.max.x - 4), (p.min.y + p.max.y) / 2, -0.12] : [15, -10, 0]; }, labelOffset: [-30, 85], dim: false,
+fig.part(infHead, { inPlace: true, name: 'Lateral pterygoid', sub: 'pulls it forward', anchor: () => { const p = infHead.geometry.boundingBox; return p ? [Math.min(18, p.max.x - 4), (p.min.y + p.max.y) / 2, -0.12] : [15, -10, 0]; }, labelOffset: [-20, 120], dim: false,
   info: 'The lateral pterygoid muscle pulls the condyle (lower head) and the disc (upper head) forward as the mouth opens wide.' });
 fig.part(restOutline, { inPlace: true, name: 'At rest', anchor: [R * Math.cos(150 * D2R), R * Math.sin(150 * D2R), -0.25], labelOffset: [80, -60], dim: false, when: () => restOutline.visible,
   info: 'Where the condyle sat with the teeth together.' });
@@ -217,7 +217,7 @@ fig.procedure([
     { dur: 2.6, hold: 1.8, set: { open: ROT_ONLY }, labels: ['Turns in place', 'Condyle'], key: true }] },
   { label: 'Slides', caption: 'Opening wider, the condyle and its disc slide forward and down the eminence.', beats: [
     { dur: 1.0, hold: 0, set: { turnArrow: 0, ghost: 1 }, labels: ['Condyle'] },
-    { dur: 3.0, hold: 1.6, set: { open: OPEN }, focus: [4, -2, 0], zoom: 1.0, labels: ['Slides forward', 'Lateral pterygoid', 'Articular eminence'], key: true }] },
+    { dur: 3.0, hold: 1.6, set: { open: OPEN }, focus: [4, -2, 0], zoom: 1.0, labels: ['Slides forward', 'Articular eminence', 'Disc'], key: true }] },
   { label: 'Wide open', caption: 'Wide open, about 45 mm: the condyle sits under the crest of the eminence.', beats: [
     Object.assign({ dur: 2.2, hold: 2.4, labels: ['Slides forward', 'At rest', 'Disc', 'Condyle'], key: true }, WIDE)] }
 ]);

@@ -17,21 +17,21 @@ const D2R = Math.PI / 180;
 // ---------- outlines (x anterior, y up) ----------
 const spline = (pts, n, closed) => new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], 0)), closed, 'centripetal').getSpacedPoints(n).map(v => V2(v.x, v.y));
 // the articular surface of the temporal bone, posterior → anterior: tympanic plate, postglenoid process, fossa roof, eminence, preglenoid plane
-const SURF = [[-40, -11], [-22, -10.5], [-15.5, -8.5], [-10.5, -5.2], [-8.2, -2.4], [-7.0, -0.2], [-6.2, 1.6], [-5.2, 4.4], [-3.4, 7.0], [-0.8, 8.3], [1.8, 8.0], [4.4, 6.2], [6.9, 3.4], [9.2, 1.2], [11.2, 0.3], [13.2, 0.8], [16, 2.4], [21, 4.0], [30, 5.0], [42, 5.6]];
+const SURF = [[-70, -12], [-40, -11], [-22, -10.5], [-15.5, -8.5], [-10.5, -5.2], [-8.2, -2.4], [-7.0, -0.2], [-6.2, 1.6], [-5.2, 4.4], [-3.4, 7.0], [-0.8, 8.3], [1.8, 8.0], [4.4, 6.2], [6.9, 3.4], [9.2, 1.2], [11.2, 0.3], [13.2, 0.8], [16, 2.4], [21, 4.0], [30, 5.0], [42, 5.6], [60, 6.2], [90, 6.6]];
 const surf = spline(SURF, 260, false);
 const S = x => {   // height of the articular surface at x (joint region, where it is a function of x)
   for (let i = 1; i < surf.length; i++) { const a = surf[i - 1], b = surf[i]; if (a.x <= x && b.x >= x && a.x > -6.5) return a.y + (b.y - a.y) * (x - a.x) / Math.max(1e-6, b.x - a.x); }
   return 50;
 };
 // the cerebral surface: the fossa roof is a thin plate (about 2 mm) under the middle cranial fossa; the eminence and the bone around the ear canal are thick
-const TOP = [[42, 9.6], [26, 10.0], [15, 11.2], [7.5, 10.9], [2.5, 10.3], [-2, 10.4], [-6.5, 11.8], [-11, 13.2], [-17, 15.6], [-26, 19], [-40, 22]];
+const TOP = [[90, 9.0], [60, 9.3], [42, 9.6], [26, 10.0], [15, 11.2], [7.5, 10.9], [2.5, 10.3], [-2, 10.4], [-6.5, 11.8], [-11, 13.2], [-17, 15.6], [-26, 19], [-40, 22], [-70, 26]];
 const temporalPts = surf.concat(spline(TOP, 120, false));
 const meatus = (cx, cy, rx, ry, n) => Array.from({ length: n }, (_, i) => { const a = -i / n * Math.PI * 2; return V2(cx + rx * Math.cos(a), cy + ry * Math.sin(a)); });
 const R = 4.5;                                      // radius of the condylar head in this section (about 9 mm front to back, facts §21)
 const condylePts = (() => {
   const head = []; for (let a = 8; a <= 172; a += 4) head.push([R * Math.cos(a * D2R), R * Math.sin(a * D2R)]);
-  const post = [[-4.55, -1.6], [-4.25, -5], [-4.6, -9], [-5.4, -15], [-6.6, -26], [-7.4, -46]];
-  const ant = [[36, -46], [36, -6], [26, -5.5], [19, -9.5], [13, -13.2], [8.4, -12], [5.4, -8.6], [4.1, -5.2], [3.7, -3.6], [4.5, -1.2]];
+  const post = [[-4.55, -1.6], [-4.25, -5], [-4.6, -9], [-5.4, -15], [-6.6, -26], [-7.6, -46], [-8.6, -80]];
+  const ant = [[36, -80], [36, -46], [36, -6], [26, -5.5], [19, -9.5], [13, -13.2], [8.4, -12], [5.4, -8.6], [4.1, -5.2], [3.7, -3.6], [4.5, -1.2]];
   return spline(head.concat(post, ant), 360, true);
 })();
 const offsetIn = (pts, d) => {   // a closed polygon moved inward by d (counter-clockwise outline)
@@ -136,8 +136,8 @@ const update = () => {
   };
   const M = (x, y) => V2(x - C0.x, y - C0.y);
   const fwd = (p, dx, dy) => V2(p.x + dx, p.y + dy);
-  supHead.set(band([aFront, fwd(aFront, 4, -1.4), M(Math.max(aFront.x + C0.x + 10, 19), -4.6), M(Math.max(aFront.x + C0.x + 22, 42), -6.5)], 0.7, 1.5), 10, 0.3);
-  infHead.set(band([fovea, fwd(fovea, 5, -2.6), M(Math.max(fovea.x + C0.x + 13, 21), -11.5), M(Math.max(fovea.x + C0.x + 26, 44), -13.5)], 1.2, 2.6), 12, 0.3);
+  supHead.set(band([aFront, fwd(aFront, 4, -1.4), M(Math.max(aFront.x + C0.x + 10, 19), -4.6), M(Math.max(aFront.x + C0.x + 22, 42), -6.5), M(90, -9)], 0.7, 1.5), 10, 0.3);
+  infHead.set(band([fovea, fwd(fovea, 5, -2.6), M(Math.max(fovea.x + C0.x + 13, 21), -11.5), M(Math.max(fovea.x + C0.x + 26, 44), -13.5), M(90, -17)], 1.2, 2.6), 12, 0.3);
 };
 // everything is placed relative to the rest centre: shift the static pieces so the condyle centre at rest is the origin
 [temporal, temporalIn].forEach(m => m.position.set(-C0.x, -C0.y, 0));

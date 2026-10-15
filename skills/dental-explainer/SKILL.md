@@ -86,7 +86,7 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - `fig.xrayToggle(...)` only if hidden parts matter and no view button already covers it.
 - No Labels toggle and no auto-rotate unless there's a reason.
 
-**Motion** (`fig.story`): shots of `{ dur, hold, theta, phi, zoom, focus, explode, section, offset, xray, labels }`. Unset keys carry over.
+**Motion** (`fig.story`): shots of `{ dur, hold, theta, phi, zoom, fov, focus, explode, section, offset, xray, labels }`. Unset keys carry over.
 - Direct it like a short film, 5–7 shots, 14–22 s: an **establishing shot** (whole figure, three-quarter view, `hold` ≥ 1.2 s), then purposeful moves — a slow orbit that reveals, the cut **sweeping** in (turn `section` on outside the figure in a `dur: 0` shot, then move `offset`), a **push-in** on the detail (`focus: [x,y,z]` + `zoom` 0.55–0.75), then an ease out to the **hero shot** that answers the question. Vary angle and framing per shot; moves take 1.8–2.6 s, holds 1.8–2.6 s where the point is made.
 - One idea per shot. Labels land as the camera settles, so give each shot only the labels it explains. Never cut hard between views; never move the camera and the explode and the cut all at once.
 - End on the teaching shot. For interactive pages the story plays once on load and stops at the first touch.
@@ -161,10 +161,11 @@ When the figure is about one of these, read its topic file (what to copy, what t
   - Mesio-distal for crown and pulp anatomy, furcations and restorations: `removeToward [0,0,1]`.
   - Axial (horizontal) for canal orifices, access outlines and root cross-sections: `removeToward [0,1,0]`, viewed from above at a slight tilt (`phi ≈ 0.4–0.6`) so the roots below give depth.
   - Ordering in `enableSection` is outermost → innermost (bone, cancellous, gingiva, PDL, enamel, dentin, pulp). For restorations: crown, then own tooth, then core, then root filling, then post.
+- **Perspective:** use `fov: 32–38` for arches, jaws and exploded three-quarter views; ease toward `fov: 24–28` for sections and measurement views (default 32°, auto-fit follows the lens).
 - **Orientation:** a single maxillary tooth is shown crown up (extracted-tooth / model convention), **also with bone and gingiva around it** for a procedure; say "crown up" in the subtitle. Mirror into the jaw (`scale.y = -1`, crown down) only when the jaw itself is the point (sinus, palate, a whole arch).
 - **Context, but quiet.** Bone and gingiva frame the subject; the X-ray state (`xray` in a story beat, or a toggle) lets the viewer see through them.
 - **Markers and outlines** that must keep an exact colour (orifices, access outlines, arrows) use `MeshBasicMaterial({ color: DK.color(hex), toneMapped: false })`; always wrap custom colours in `DK.color()`. Use flat ribbons, not `THREE.Line`: WebGL lines are always 1 px. Lift markers ~0.1 mm above a cut face so it doesn't cover them.
-- **Colours** come from `DK.COLORS` / `DK.mat` so every figure looks like one family. The page uses Sixmonth's palette; light and dark themes are automatic. Highlight the one thing that matters (e.g. MB2) with a warm accent (`0xC2410C`) and keep the rest in ink blue (`0x0E3A5C`).
+- **Colours** come from `DK.COLORS` / `DK.mat` so every figure looks like one family. The page uses Sixmonth's palette; light and dark themes are automatic. Highlight the one thing that matters (e.g. MB2) with `fig.accent` (`#0E3A5C` light / `#5A8FB8` dark); keep supporting markers in muted ink or tissue tones.
 - **Mobile:** the page is responsive. ≤ 6 labels per frame keeps the 390 px view readable.
 
 ## What the kit can't do (say so instead of faking it)

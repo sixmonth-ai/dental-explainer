@@ -6,6 +6,7 @@
 // attachment inside its bump. Patient's right on the viewer's left. Arch frame: +x = patient's left, +z = anterior, y up. Sizes in mm.
 const THICK = 0.5, HOME = { theta: 0.58, phi: 1.98 };
 const fig = DK.figure({
+  fov: 36,
   title: 'Clear aligner with attachments',
   subtitle: 'FDI 16–26 in the mouth. Shell ~0.5 mm; attachments are bonded composite.',
   view: Object.assign({ margin: 0.68 }, HOME)
@@ -52,11 +53,11 @@ fig.enableSection([1, 0, 0], [
   ...teeth.map(o => ({ objects: [o.t.layers.enamel], color: DK.COLORS.enamelCap })),
   ...teeth.filter(o => o.fdi === 21).map(o => ({ objects: [o.t.layers.dentin, o.t.layers.root], color: DK.COLORS.dentinCap })),
   ...teeth.filter(o => o.fdi === 21).map(o => ({ objects: [o.t.layers.pulp], color: DK.COLORS.pulpCap })),
-  { objects: teeth.filter(o => o.att).map(o => o.att), color: 0xe2dac8, kind: 'plain' },
+  { objects: teeth.filter(o => o.att).map(o => o.att), color: DK.COLORS.compositeCap, kind: 'plain' },
   { objects: [shell], color: 0xd9dee2, kind: 'plain' }
 ]);
 fig.standardControls({ explode: true, explodeLabel: 'Lift off', section: { label: 'Cut', on: false, range: [X21 - 3, X21 + 3], offset: X21 } });
-fig.view('Front', { theta: 0, phi: 1.66, zoom: 1, section: false });
+fig.view('Front', { fov: 36, theta: 0, phi: 1.66, zoom: 1, section: false });
 
 // --- story: the arch with its aligner → the aligner drops away as the camera turns → push in on the canine attachment →
 // seat it again → cut through the central incisor: the shell, the enamel and the attachment → ease out to the hero shot
@@ -66,9 +67,9 @@ fig.story([
   { dur: 0, hold: 1.4, theta: 0, phi: 1.66, zoom: 1, labels: ['Aligner'], caption: 'A clear aligner over the upper teeth.' },
   { dur: 2.4, hold: 1.8, theta: 0.6, phi: 1.5, explode: 1, labels: ['Aligner', 'Attachment'], caption: 'Lifted off: composite attachments stay on the teeth.' },
   { dur: 2.0, hold: 2.2, zoom: 0.22, theta: 0.7, phi: 1.55, focus: P23, labels: ['Attachment'], caption: 'Each attachment gives the plastic a ledge to push on.' },
-  { dur: 2.0, hold: 1.2, explode: 0, zoom: 0.3, theta: 0.4, focus: P21, labels: ['Aligner'], caption: 'Seated: the shell bulges over every attachment.' },
+  { fov: 26, dur: 2.0, hold: 1.2, explode: 0, zoom: 0.3, theta: 0.4, focus: P21, labels: ['Aligner'], caption: 'Seated: the shell bulges over every attachment.' },
   { dur: 0, hold: 0, section: true, offset: X21 + 7 },
   { dur: 2.2, hold: 2.6, theta: Math.PI / 2 - 0.15, phi: 1.5, zoom: 0.26, offset: X21, labels: ['Shell', 'Attachment'], caption: 'Cut through 21: 0.5 mm of plastic over the enamel, gripping the attachment.' },
-  { dur: 2.2, hold: 2.0, zoom: 1, focus: 'auto', theta: HOME.theta, phi: HOME.phi, section: false, labels: ['Aligner', 'Attachment'], caption: '' }
+  { fov: 36, dur: 2.2, hold: 2.0, zoom: 1, focus: 'auto', theta: HOME.theta, phi: HOME.phi, section: false, labels: ['Aligner', 'Attachment'], caption: '' }
 ]);
 fig.start();

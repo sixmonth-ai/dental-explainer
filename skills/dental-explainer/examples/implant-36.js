@@ -1,6 +1,7 @@
 // Example: single implant replacing the mandibular left first molar (FDI 36), with neighbours 35 and 37.
 // Frame: +x = mesial, +z = buccal, y up. Neighbour CEJs at y = 0. All sizes in mm.
 const fig = DK.figure({
+  fov: 34,
   title: 'Implant replacing tooth 36',
   subtitle: 'FDI 36 (Universal 19), lower left first molar.',
   view: { theta: 0.75, phi: 1.22 }
@@ -81,7 +82,7 @@ fig.story([
   { dur: 0, hold: 1.4, theta: 0.75, phi: 1.22, zoom: 1.05, labels: [], caption: 'A single implant replacing the lower first molar.' },
   { dur: 2.4, hold: 2.2, theta: 1.0, phi: 1.15, explode: 0.75, labels: STACK, caption: 'Four parts, lifted in the order they go in.' },
   { dur: 1.8, hold: 2.0, zoom: 0.6, focus: [0, 9, 0], labels: ['Abutment screw', 'Abutment'], caption: 'The screw clamps the abutment into the implant; the hex stops it turning.' },
-  { dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.3, phi: 1.38, explode: 0, labels: [] },
+  { fov: 26, dur: 2.0, hold: 0.3, zoom: 1, focus: 'auto', theta: 1.3, phi: 1.38, explode: 0, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 7 },
   { dur: 2.2, hold: 2.2, offset: 0, labels: ['Implant body', 'Inferior alveolar canal', 'Alveolar bone'], caption: 'Cut through the axis: the apex stays at least 2 mm above the nerve canal.' },
   { dur: 1.8, hold: 2.6, zoom: 0.7, focus: [0, -6.5, 0], labels: ['Implant body', 'Inferior alveolar canal'], caption: `${DK.mm(toCanal)} of bone between the apex and the canal.` }

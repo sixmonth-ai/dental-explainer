@@ -23,36 +23,41 @@
   // Restrained palette: every tissue is a muted ivory, grey or dusty tone from the off-white / ink world of the brand, so the
   // figure reads as one calm object; the brand accent is reserved for the single thing a figure points at.
   DK.COLORS = {
-    enamel: 0xebe8e1, enamelCap: 0xe8e6e1, dentin: 0xdacfb6, dentinCap: 0xd8c9aa,
-    cementum: 0xcfc3aa, pulp: 0xb8827a, pulpCap: 0xb07a71, nerve: 0xd6c08a, artery: 0xb3675f, vein: 0x74839c,
-    pdl: 0xbca29c, gingiva: 0xcaa29e, gingivaCap: 0xc39692, cortical: 0xe3dbcb, corticalCap: 0xe9e3d4, cancellous: 0xd6cab2,
-    titanium: 0xb1b3b5, titaniumDark: 0x85888c, zirconia: 0xf2f0ea, ceramic: 0xf1efe8,
-    gold: 0xcbb27c, steel: 0xc4c6c8, nickelTi: 0xa3a6a9, gutta: 0xc8977c, composite: 0xe7e1d3, rubberDam: 0x5b7f9a, caries: 0x7a6554,
+    enamel: 0xeeeae2, enamelCap: 0xe8e6df, dentin: 0xcfba96, dentinCap: 0xccb894,
+    cementum: 0xb0a287, pulp: 0xa16f69, pulpCap: 0xa16f69, nerve: 0xc6b183, artery: 0xa36f68, vein: 0x7e8793,
+    pdl: 0x9e8983, gingiva: 0xb78b87, gingivaCap: 0xaf817d, mucosa: 0xa37c79, mucosaCap: 0x9c7471,
+    gingivaInflamed: 0xac7773, gingivaInflamedCap: 0xa4706c,
+    cortical: 0xcfc5b0, corticalCap: 0xd9d0bd, cancellous: 0xb9a88c, trabecula: 0xddd4c0, marrow: 0xbfae92,
+    titanium: 0x929a9c, titaniumDark: 0x656e72, zirconia: 0xf5f3ee, zirconiaCap: 0xe8e8e1, ceramic: 0xdddcd3, ceramicCap: 0xd5d7ce,
+    gold: 0xb6a17b, steel: 0xd2d6d5, nickelTi: 0x8d9692, gutta: 0xb58268,
+    composite: 0xb9c1bc, compositeCap: 0xadb8b2, compositeLight: 0xcdd3cd, fiber: 0xd2cec0, fiberCap: 0xb6b2a4,
+    cement: 0xc6c9c5, rubberDam: 0x737f82, caries: 0x7a6554, cavity: 0x514a40, cavityDark: 0x34312b,
     accent: 0x0E3A5C, accentDark: 0x5A8FB8
   };
   const MAT_PRESETS = {
-    enamel: { color: 'enamel', roughness: 0.3, metalness: 0, clearcoat: 0.7, rim: [0.80, 0.86, 0.95, 0.45], core: [1.0, 0.965, 0.9, 0.45], bump: 'perikymata', bumpScale: 0.005 },
-    dentin: { color: 'dentin', roughness: 0.62, bump: 'streaks', bumpScale: 0.02 },
-    root: { color: 'cementum', roughness: 0.68, bump: 'streaks', bumpScale: 0.03, map: 'streaks' },
+    enamel: { color: 'enamel', cap: 'enamelCap', roughness: 0.34, metalness: 0, clearcoat: 0.38, clearcoatRoughness: 0.32, envMapIntensity: 0.65, rim: [0.86, 0.89, 0.91, 0.16], core: [1.0, 0.975, 0.93, 0.24], bump: 'perikymata', bumpScale: 0.005 },
+    dentin: { color: 'dentin', cap: 'dentinCap', roughness: 0.68, envMapIntensity: 0.5, bump: 'streaks', bumpScale: 0.016 },
+    root: { color: 'cementum', cap: 'dentinCap', roughness: 0.76, envMapIntensity: 0.45, bump: 'streaks', bumpScale: 0.024, map: 'streaks' },
     pulp: { color: 'pulp', roughness: 0.5 },
-    gingiva: { color: 'gingiva', roughness: 0.42, clearcoat: 0.3, bump: 'stipple', bumpScale: 0.02, core: [1.0, 0.93, 0.92, 0.22] },
-    bone: { color: 'cortical', roughness: 0.74, bump: 'pores', bumpScale: 0.05, map: 'pores' },
-    titanium: { color: 'titanium', roughness: 0.32, metalness: 0.85 },
-    titaniumDark: { color: 'titaniumDark', roughness: 0.35, metalness: 0.85 },
+    gingiva: { color: 'gingiva', cap: 'gingivaCap', roughness: 0.52, clearcoat: 0.18, envMapIntensity: 0.55, bump: 'stipple', bumpScale: 0.014, core: [1.0, 0.95, 0.94, 0.15] },
+    mucosa: { color: 'mucosa', cap: 'mucosaCap', roughness: 0.44, clearcoat: 0.24, envMapIntensity: 0.55, bump: 'stipple', bumpScale: 0.008 },
+    bone: { color: 'cortical', cap: 'corticalCap', roughness: 0.84, envMapIntensity: 0.4, bump: 'pores', bumpScale: 0.035, map: 'pores' },
+    titanium: { color: 'titanium', roughness: 0.42, metalness: 0.82 },
+    titaniumDark: { color: 'titaniumDark', roughness: 0.46, metalness: 0.8 },
     gold: { color: 'gold', roughness: 0.3, metalness: 0.9 },
-    steel: { color: 'steel', roughness: 0.25, metalness: 0.9 },
-    zirconia: { color: 'zirconia', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },
-    ceramic: { color: 'ceramic', roughness: 0.3, clearcoat: 0.5, rim: [0.9, 0.92, 0.96, 0.2] },   // same program as zirconia
+    steel: { color: 'steel', roughness: 0.23, metalness: 0.93 },
+    zirconia: { color: 'zirconia', cap: 'zirconiaCap', roughness: 0.28, clearcoat: 0.4, envMapIntensity: 0.7, rim: [0.94, 0.95, 0.94, 0.1] },
+    ceramic: { color: 'ceramic', cap: 'ceramicCap', roughness: 0.33, clearcoat: 0.32, envMapIntensity: 0.6, rim: [0.88, 0.91, 0.91, 0.16] },
     nerve: { color: 'nerve', roughness: 0.5 },
     artery: { color: 'artery', roughness: 0.45 },
     vein: { color: 'vein', roughness: 0.45 },
     pdl: { color: 'pdl', roughness: 0.6 },
-    gutta: { color: 'gutta', roughness: 0.5 },
-    composite: { color: 'composite', roughness: 0.35 },
+    gutta: { color: 'gutta', roughness: 0.63, envMapIntensity: 0.5 },
+    composite: { color: 'composite', cap: 'compositeCap', roughness: 0.42, clearcoat: 0.16, envMapIntensity: 0.55 },
     caries: { color: 'caries', roughness: 0.8 },
     rubberDam: { color: 'rubberDam', roughness: 0.5 },
-    fiber: { color: 0xe9e5da, roughness: 0.35 },
-    cement: { color: 0xdcdedf, roughness: 0.6 }
+    fiber: { color: 'fiber', cap: 'fiberCap', roughness: 0.48, bump: 'streaks', bumpScale: 0.008 },
+    cement: { color: 'cement', roughness: 0.7 }
   };
 
   /* Procedural textures (no image files). All tileable. */
@@ -113,17 +118,25 @@
     const p = Object.assign({}, MAT_PRESETS[name] || { color: name }, extra || {});
     const c = typeof p.color === 'string' ? (DK.COLORS[p.color] !== undefined ? DK.COLORS[p.color] : p.color) : p.color;
     const Mat = p.clearcoat ? T.MeshPhysicalMaterial : T.MeshStandardMaterial;
-    const m = new Mat({ color: DK.color(c), roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: 0.35 } : {}),
+    const m = new Mat({ color: DK.color(c), roughness: p.roughness ?? 0.5, metalness: p.metalness ?? 0, envMapIntensity: p.envMapIntensity ?? 0.8, ...(p.clearcoat ? { clearcoat: p.clearcoat, clearcoatRoughness: p.clearcoatRoughness ?? 0.4 } : {}),
       ...(p.bump ? { bumpMap: noiseTexture(p.bump), bumpScale: p.bumpScale ?? 0.03 } : {}), ...(p.map ? { map: mapTexture(p.map) } : {}),
-      transparent: !!p.opacity && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
-    m.userData.capColor = p.cap !== undefined ? p.cap : c;
-    if (p.rim || p.core) { // view-dependent tints: cool translucent edge at grazing angles (enamel, ceramics), warm core where the surface faces the viewer (dentin glowing through enamel, blood under gingiva)
+      transparent: p.opacity !== undefined && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
+    m.userData.capColor = p.cap !== undefined ? (DK.COLORS[p.cap] ?? p.cap) : c;
+    if (p.rim || p.core || p.rootTint) { // tint the diffuse body BEFORE lighting; rims must retain shadow and never glow over the silhouette
       const v4 = a => a.map(x => x.toFixed(3)).join(',');
-      const code = (p.rim ? `{ vec4 R = vec4(${v4(p.rim)}); gl_FragColor.rgb = mix(gl_FragColor.rgb, R.rgb, pow(fr, 2.5) * R.a); }` : '') +
-        (p.core ? `{ vec4 C = vec4(${v4(p.core)}); gl_FragColor.rgb *= mix(vec3(1.0), C.rgb, pow(1.0 - fr, 1.5) * C.a); }` : '');
-      m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>',
-        `{ float fr = 1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0); ${code} }\n#include <dithering_fragment>`); };
-      m.customProgramCacheKey = () => 'tint' + code.length + (p.rim || '') + (p.core || '');
+      const rootColor = DK.color(DK.COLORS.cementum).toArray().map(x => x.toFixed(6)).join(',');
+      const code = (p.rootTint ? `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${rootColor}), 1.0 - smoothstep(-0.65, 0.05, vDKToothY));` : '') +
+        (p.rim ? `{ vec4 R = vec4(${v4(p.rim)}); diffuseColor.rgb *= mix(vec3(1.0), R.rgb, pow(fr, 2.5) * R.a); }` : '') +
+        (p.core ? `{ vec4 C = vec4(${v4(p.core)}); diffuseColor.rgb *= mix(vec3(1.0), C.rgb, pow(1.0 - fr, 1.5) * C.a); }` : '');
+      m.onBeforeCompile = sh => {
+        if (p.rootTint) { // the continuous dentin/root mesh still shows cementum below the CEJ; no extra shell or geometry
+          sh.vertexShader = 'varying float vDKToothY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvDKToothY = position.y;');
+          sh.fragmentShader = 'varying float vDKToothY;\n' + sh.fragmentShader;
+        }
+        sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_fragment>',
+          `{ float fr = 1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0); ${code} }\n#include <lights_physical_fragment>`);
+      };
+      m.customProgramCacheKey = () => 'dk-body-tint:' + code;
     }
     return m;
   };
@@ -443,7 +456,7 @@
     opts = opts || {};
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
     const g = new T.Group(); g.name = s.name;
-    const mats = { enamel: DK.mat('enamel'), dentin: DK.mat('dentin'), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
+    const mats = { enamel: DK.mat('enamel'), dentin: DK.mat('dentin', { rootTint: true }), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
     mats.enamel.userData.capColor = DK.COLORS.enamelCap; mats.pulp.userData.capColor = DK.COLORS.pulpCap;
     const omit = opts.omit || [];   // e.g. ['enamel','dentin'] for a crown-less root, ['pulp'] for an obturated tooth
     const single = s.roots.length === 1;
@@ -555,7 +568,7 @@
     const canc = DK.mat('bone', { color: DK.COLORS.cancellous });
     const outer = new T.Mesh(blockGeometry(o.width, o.height, o.depth, o.crest, o.scallop, o.round ?? undefined), cort); outer.name = 'Cortical bone';
     const inner = new T.Mesh(blockGeometry(o.width - 0.2, o.height - o.cortical * 2, o.depth - o.cortical * 2, o.crest * 0.8, o.scallop, o.round ?? undefined), canc); inner.name = 'Cancellous bone';
-    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(0xeae4d6, 0xd2c3a8);
+    inner.position.y = -o.cortical; inner.userData.capTexture = trabecularTexture(DK.COLORS.trabecula, DK.COLORS.marrow);
     inner.material.visible = false; // only seen in section
     grp.add(outer, inner); grp.userData.layers = { cortical: outer, cancellous: inner };
     return grp;
@@ -564,7 +577,8 @@
   // rises by `rise` mm (default 0.8) into a free gingival margin along each cervical outline and a papilla where two meet.
   DK.gingiva = function (o) {
     o = Object.assign({ width: 24, height: 4, depth: 12, crest: 1.6, scallop: null, around: null, round: null }, o);
-    const m = DK.mat('gingiva', { cap: o.capColor ?? DK.COLORS.gingivaCap, color: o.color ?? DK.COLORS.gingiva }); // inflamed: color 0xd0606f
+    const tissue = o.material === 'mucosa' ? 'mucosa' : 'gingiva';
+    const m = DK.mat(tissue, { cap: o.capColor ?? DK.COLORS[tissue + 'Cap'], color: o.color ?? DK.COLORS[tissue] });
     let top = o.scallop;
     if (o.around && o.around.length) {
       const cuff = (x, z) => {
@@ -740,15 +754,16 @@
     sky.setAttribute('color', new T.Float32BufferAttribute(col, 3));
     env.add(new T.Mesh(sky, new T.MeshBasicMaterial({ vertexColors: true, side: T.BackSide })));
     const panel = (w, h, c, pos) => { const m = new T.Mesh(new T.PlaneGeometry(w, h), new T.MeshBasicMaterial({ color: c, side: T.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); env.add(m); };
-    panel(40, 26, 0xfff6e8, [10, 38, 20]);   // key softbox
-    panel(10, 40, 0xdfe9ff, [-40, 8, -6]);   // cool strip
-    panel(30, 8, 0xffffff, [0, 18, -40]);    // rim
+    panel(40, 26, 0xf5f3ee, [25, 30, 35]);   // broad neutral key softbox
+    panel(10, 40, 0xc5cbc9, [-40, 8, -6]);   // quiet neutral strip
+    panel(30, 8, 0xe6e4dd, [0, 18, -40]);    // rim
     const pm = new T.PMREMGenerator(renderer), tex = pm.fromScene(env, 0.02).texture; pm.dispose();
     return tex;
   }
 
   const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
-  const STORY_KEYS = ['theta', 'phi', 'zoom', 'explode', 'offset', 'xray', 'focusX', 'focusY', 'focusZ'];
+  const STORY_KEYS = ['theta', 'phi', 'zoom', 'fov', 'explode', 'offset', 'xray', 'focusX', 'focusY', 'focusZ'];
+  const figureFov = v => Number.isFinite(v) ? clamp(v, 12, 60) : 32;
   // easing for camera and state moves: smootherstep by default (zero velocity and acceleration at both ends → no visible kick)
   const EASES = { inOut: t => t * t * t * (t * (t * 6 - 15) + 10), out: t => 1 - Math.pow(1 - t, 3), in: t => t * t * t, linear: t => t };
 
@@ -795,14 +810,16 @@
     renderer.autoClearStencil = true; renderer.shadowMap.autoUpdate = false;
     stage.insertBefore(renderer.domElement, labelLayer);
     const scene = new T.Scene();
-    const camera = new T.PerspectiveCamera(26, 1, 0.5, 2000);
+    const camera = new T.PerspectiveCamera(figureFov(o.fov), 1, 0.5, 2000);
     // studio lighting: a soft procedural environment (reflections on enamel, metal, moist tissue) + a shadow-casting key
     scene.environment = studioEnvironment(renderer);
-    scene.add(new T.HemisphereLight(0xfff8ee, 0x6b6056, 0.4));
-    const key = new T.DirectionalLight(0xfff5e8, 1.05); key.position.set(45, 80, 60); scene.add(key, key.target);
-    key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.04; key.shadow.radius = 3;
-    const fill = new T.DirectionalLight(0xdce6f5, 0.35); fill.position.set(-70, 15, -10); scene.add(fill);
-    const rim = new T.DirectionalLight(0xffffff, 0.4); rim.position.set(-20, 40, -80); scene.add(rim);
+    scene.add(new T.HemisphereLight(0xf5f3ee, 0x625e55, 0.26));
+    const keyDirection = new T.Vector3(65, 65, 55);
+    const key = new T.DirectionalLight(0xf5f3ee, 1.18); key.position.copy(keyDirection); scene.add(key, key.target);
+    key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.00015; key.shadow.normalBias = 0.025;
+    const fill = new T.DirectionalLight(0xdde2df, 0.23); fill.position.set(-70, 15, 20); scene.add(fill);
+    const rim = new T.DirectionalLight(0xeeeae2, 0.32); rim.position.set(-20, 40, -80); scene.add(rim);
+    // PCFSoft provides the portable soft contact edge; shadow.radius is ignored by this r128 filter.
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
     function renderFrame() { if (section) section.prepass(renderer, camera); renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); }
 
@@ -810,7 +827,7 @@
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     // orbit; auto-rotate is opt-in (it fights precise views)
-    const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: !still && !!o.autoRotate, zoom: 1 };
+    const orbit = { theta: o.view?.theta ?? 0.55, phi: o.view?.phi ?? 1.15, dist: o.view?.dist ?? 80, target: new T.Vector3(...(o.view?.target || [0, 0, 0])), auto: !still && !!o.autoRotate, zoom: 1, fov: camera.fov };
     const home = Object.assign({}, orbit, { target: orbit.target.clone() });
     const focusOff = new T.Vector3();   // story focus: offset of the orbit target from the auto-fitted centre
     function placeCam() { const { theta, phi, dist, target } = orbit; camera.position.set(target.x + dist * Math.sin(phi) * Math.sin(theta), target.y + dist * Math.cos(phi), target.z + dist * Math.sin(phi) * Math.cos(theta)); camera.lookAt(target); }
@@ -894,23 +911,34 @@
       if (ins.t || ins.b) camera.setViewOffset(w, h, 0, -(ins.t - ins.b) / 2, w, h); else { camera.clearViewOffset(); camera.aspect = w / h; camera.updateProjectionMatrix(); }
       return ins;
     }
+    let fitMargin = 0.85, fitInsetScale = 1;
+    // Cached bounds, not a new scene traversal on every lens frame. The corner guard accounts for near-side depth at wide FOVs.
+    function fitDistance(size) {
+      const vf = orbit.fov * Math.PI / 180, asp = Math.max(0.01, camera.aspect), hf = 2 * Math.atan(Math.tan(vf / 2) * asp);
+      const tv = Math.tan(vf / 2), th = Math.tan(hf / 2), k = fitMargin / 0.85 * 1.08;
+      let d = Math.max(size.length() / 2 / Math.sin(Math.min(vf, hf) / 2) * fitMargin, size.y / 2 * k / tv, Math.max(size.x, size.z) / 2 * k / th);
+      const st = Math.sin(orbit.theta), ct = Math.cos(orbit.theta), sp = Math.sin(orbit.phi), cp = Math.cos(orbit.phi);
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) {
+        const x = sx * size.x / 2, y = sy * size.y / 2, z = sz * size.z / 2;
+        const depth = x * sp * st + y * cp + z * sp * ct, right = x * ct - z * st, up = -x * cp * st + y * sp - z * cp * ct;
+        d = Math.max(d, (depth + Math.max(Math.abs(right) / th, Math.abs(up) / tv)) * fitMargin / 0.85);
+      }
+      return d * fitInsetScale;
+    }
     function fit(margin) {
-      const ins = applyInsets();
-      const vf = camera.fov * Math.PI / 180, asp = Math.max(0.5, stage.clientWidth / stage.clientHeight), hf = 2 * Math.atan(Math.tan(vf / 2) * asp);
+      const ins = applyInsets(); fitMargin = margin || 0.85; fitInsetScale = still ? Math.max(1.1, 1.02 / ins.f) : 1;
       fits = [0, 1].map(e => {
         parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); }); world.updateMatrixWorld(true);
         const box = fitBox(), size = box.getSize(new T.Vector3()), c = box.getCenter(new T.Vector3());
-        // the diagonal fit alone clips long, thin subjects (a single tooth standing up): also fit the height and the width
-        const k = (margin || 0.85) / 0.85 * 1.08;
-        const d = Math.max(size.length() / 2 / Math.sin(Math.min(vf, hf) / 2) * (margin || 0.85), size.y / 2 * k / Math.tan(vf / 2), Math.max(size.x, size.z) / 2 * k / Math.tan(hf / 2));
-        return { c, d: d * (still ? Math.max(1.1, 1.02 / ins.f) : 1) };
+        return { c, size, d: fitDistance(size) };
       });
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base); });
       world.updateMatrixWorld(true);
       const box = new T.Box3(); parts.forEach(p => { if (!p.inPlace) box.expandByObject(p.obj); }); box.union(fitBox());   // the shadow covers context too
       if (!box.isEmpty()) {
         const c = box.getCenter(new T.Vector3()), r = box.getSize(new T.Vector3()).length() / 2 + 2;
-        key.target.position.copy(c); key.position.copy(c).add(new T.Vector3(45, 80, 60).setLength(r * 3));
+        key.target.position.copy(c); key.position.copy(c).add(keyDirection.clone().setLength(r * 3));
+        key.shadow.normalBias = clamp(r * 0.001, 0.015, 0.08); // contact stays attached on a single tooth and a whole jaw
         Object.assign(key.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: r, far: r * 5 }); key.shadow.camera.updateProjectionMatrix();
       }
       world.traverse(m => { if (m.isMesh && !m.userData.isStencil) { m.castShadow = m.material.visible !== false && !m.userData.noShadow; m.receiveShadow = true; } });
@@ -981,7 +1009,7 @@
     }
 
     /* ----- story: one list of shots drives the intro (interactive), the loop (video) and the final frame (image) -----
-       step = { dur, hold, theta, phi, zoom, explode, section, offset, xray, focus:[x,y,z]|'auto', ease, drift, labels:[names]|'all', caption }
+       step = { dur, hold, theta, phi, zoom, fov, explode, section, offset, xray, focus:[x,y,z]|'auto', ease, drift, labels:[names]|'all', caption }
        Unset keys carry over from the previous step. Think of each step as a shot: `dur` is the camera move, `hold` the time it
        rests. The move eases (smootherstep; `ease: 'out' | 'in' | 'linear'` to change it), the hold drifts very slightly
        (`drift: 0` to pin it), labels land as the move settles and captions fade in on their beat. `focus` pushes the orbit
@@ -990,12 +1018,13 @@
     const params = {};   // named numbers a story can animate (drill depth, insertion, bone level…): fig.param(name, value, fn)
     const keys = () => STORY_KEYS.concat(Object.keys(params).map(n => '$' + n));
     const autoFocus = () => fits ? [fits[0].c.x, fits[0].c.y, fits[0].c.z] : [0, 0, 0];
-    function snapshot() { const f = autoFocus(), o2 = { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, focusX: f[0] + focusOff.x, focusY: f[1] + focusOff.y, focusZ: f[2] + focusOff.z, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
-    function homeState() { const f = autoFocus(); return { theta: home.theta, phi: home.phi, zoom: 1, explode: 0, focusX: f[0], focusY: f[1], focusZ: f[2], labels: null }; }
+    function snapshot() { const f = autoFocus(), o2 = { theta: orbit.theta, phi: orbit.phi, fov: orbit.fov, zoom: zoomTarget, explode: explodeTarget, offset: section ? section.offset : 0, section: section ? section.enabled : false, xray: xrayAmt, focusX: f[0] + focusOff.x, focusY: f[1] + focusOff.y, focusZ: f[2] + focusOff.z, labels: labelFilter, caption: '' }; Object.keys(params).forEach(n => { o2['$' + n] = params[n].v; }); return o2; }
+    function homeState() { const f = autoFocus(); return { theta: home.theta, phi: home.phi, fov: home.fov, zoom: 1, explode: 0, focusX: f[0], focusY: f[1], focusZ: f[2], labels: null }; }
     function compile(steps, from) {
       let t = 0, prev = Object.assign({}, from); const segs = [];
       steps.forEach((s, i) => {
         const to = Object.assign({}, prev); STORY_KEYS.forEach(k => { if (s[k] !== undefined) to[k] = typeof s[k] === 'boolean' ? +s[k] : s[k]; });
+        if (s.fov !== undefined) to.fov = figureFov(s.fov);
         if (s.focus) { const f = s.focus === 'auto' ? autoFocus() : s.focus; to.focusX = f[0]; to.focusY = f[1]; to.focusZ = f[2]; }
         if (s.set) Object.keys(s.set).forEach(n => { to['$' + n] = +s.set[n]; });
         if (s.section !== undefined) to.section = s.section; if (s.labels !== undefined) to.labels = s.labels === 'all' ? null : s.labels; to.caption = s.caption !== undefined ? s.caption : '';
@@ -1025,7 +1054,7 @@
       return out;
     }
     function apply(sv) {
-      orbit.theta = sv.theta; orbit.phi = sv.phi; zoomTarget = sv.zoom; if (fits) orbit.zoom = sv.zoom;
+      orbit.theta = sv.theta; orbit.phi = sv.phi; orbit.fov = figureFov(sv.fov); zoomTarget = sv.zoom; if (fits) orbit.zoom = sv.zoom;
       if (fits && sv.focusX !== undefined) { const f = autoFocus(); focusOff.set(sv.focusX - f[0], sv.focusY - f[1], sv.focusZ - f[2]); }
       explodeTarget = explodeT = sv.explode; if (fig.explodeSlider) fig.explodeSlider.value = sv.explode;
       if (section && (section.enabled !== !!sv.section || Math.abs(section.offset - sv.offset) > 1e-4)) section.set(!!sv.section, sv.offset);
@@ -1131,6 +1160,9 @@
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
       frameHooks.forEach(f => f(dt, e));
       tickTools(frozen ? 0 : dt);
+      orbit.fov = figureFov(orbit.fov);
+      if (camera.fov !== orbit.fov) { camera.fov = orbit.fov; camera.updateProjectionMatrix(); }
+      if (fits) fits.forEach(f => { f.d = fitDistance(f.size); });
       if (fits) { orbit.target.lerpVectors(fits[0].c, fits[1].c, e).add(focusOff); orbit.dist = lerp(fits[0].d, fits[1].d, e) * orbit.zoom; }
       fitCenter.copy(orbit.target);
       placeCam();
@@ -1287,13 +1319,13 @@
     function playFrom(i) {
       const tick = t => { const k = stepAtTime(player.base + t); if (k !== stepCur) showStep(k); };
       if (i === 0) { play(story, { from: startState, tag: 'proc', tick }); player.base = 0; showStep(0); return; }
-      const c = compile(story, startState), from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget });
+      const c = compile(story, startState), from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, fov: orbit.fov, zoom: zoomTarget });
       apply(from); play(story.slice(proc[i].first), { from, tag: 'proc', tick }); player.base = c.segs[proc[i].first].t0; showStep(i);
     }
     function goStep(i) {
       i = clamp(i, 0, proc.length - 1); if (!startState || i === stepCur && player) return;
       if (i === stepCur + 1 && !reduce) {   // forward: finish the previous step instantly (keep the viewer's camera), then animate this one
-        const c = compile(story, startState), from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, zoom: zoomTarget });
+        const c = compile(story, startState), from = Object.assign({}, stepEnds()[i - 1], { theta: orbit.theta, phi: orbit.phi, fov: orbit.fov, zoom: zoomTarget });
         apply(from); play(proc[i].beats, { from, tag: 'proc' }); player.base = c.segs[proc[i].first].t0;
       }
       // back / jump: ease to that step's end state, resetting every param (even ones that step never set)
@@ -1436,6 +1468,7 @@
       setState(s) {
         player = null; introOff = true; frozen = false; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
         if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; }
+        if (s.fov !== undefined) orbit.fov = figureFov(s.fov);
         if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi;
         if (s.dist !== undefined) { if (fits) orbit.zoom = zoomTarget = s.dist; else orbit.dist = s.dist; }
         if (s.section !== undefined && section) section.set(s.section, s.offset);
@@ -1520,7 +1553,7 @@
     if (o.minY !== undefined || o.maxY !== undefined) { // slice: maxY → ferrule collar of own dentin; minY → core sitting on it
       const p = g.attributes.position; for (let i = 0; i < p.count; i++) p.setY(i, clamp(p.getY(i), o.minY ?? -1e9, o.maxY ?? 1e9)); g.computeVertexNormals();
     }
-    const m = new T.Mesh(g, DK.mat(o.material || 'dentin', o.material === 'composite' ? { cap: 0xe9dfc4 } : { cap: DK.COLORS.dentinCap }));
+    const m = new T.Mesh(g, DK.mat(o.material || 'dentin', o.material === 'composite' ? { cap: DK.COLORS.compositeCap } : { cap: DK.COLORS.dentinCap }));
     m.name = o.material === 'composite' ? 'Core' : 'Prepared tooth'; return m;
   };
   // Crown preparation you can animate: one closed crown mesh that eases from the intact crown to the finished prep.
@@ -1881,13 +1914,13 @@
   // Lesions and direct restorations. Everything is probed off the real tooth meshes (ray casts in the tooth frame), so
   // lesions sit inside the enamel and dentin layers, follow the surface and the DEJ, and preparations open exactly on the
   // crown surface. All solids are closed (section-ready). Stages follow ICDAS / ICCMS (dental-facts.md §16).
-  Object.assign(DK.COLORS, { chalk: 0xf8f7f2, cariesSoft: 0x6a574a, cariesFirm: 0xc0a378, reactionary: 0xc7b28a, cavity: 0xeeeae1, cavityWall: 0xc4b596, amalgam: 0xb7babb, amalgamCap: 0x9fa3a5, gic: 0xe4ddc8, sealant: 0xefe9dc, wood: 0xd7bf90 });
+  Object.assign(DK.COLORS, { chalk: 0xf8f7f2, cariesSoft: 0x6a574a, cariesFirm: 0xc0a378, reactionary: 0xc7b28a, cavityWall: 0x827360, amalgam: 0xb7babb, amalgamCap: 0x9fa3a5, gic: 0xe4ddc8, sealant: 0xefe9dc, wood: 0xd7bf90 });
   Object.assign(MAT_PRESETS, {
     chalk: { color: 'chalk', roughness: 0.95 },                                              // white-spot lesion body (demineralised, opaque enamel)
     cariesSoft: { color: 'cariesSoft', roughness: 0.85 },                                    // infected (soft) dentin
     cariesFirm: { color: 'cariesFirm', roughness: 0.7, bump: 'streaks', bumpScale: 0.02 },   // affected (firm, remineralisable) dentin
     reactionary: { color: 'reactionary', roughness: 0.65, bump: 'streaks', bumpScale: 0.02 },
-    cavity: { color: 'cavityWall', cap: 0xeeeae1, roughness: 0.75, bump: 'streaks', bumpScale: 0.02 },   // the hole of a cavity or a prep: its walls (back faces) and an 'empty' cap
+    cavity: { color: 'cavityWall', cap: 'cavity', roughness: 0.75, bump: 'streaks', bumpScale: 0.02 },   // the hole of a cavity or a prep: its walls (back faces) and an 'empty' cap
     amalgam: { color: 'amalgam', roughness: 0.42, metalness: 0.8, cap: 0x9fa3a5 },
     gic: { color: 'gic', roughness: 0.55 },                                                  // glass-ionomer liner / base
     sealant: { color: 'sealant', roughness: 0.3, clearcoat: 0.4 },
@@ -1933,7 +1966,7 @@
   function asHole(mesh) { mesh.material.side = T.BackSide; mesh.material.depthTest = false; mesh.material.needsUpdate = true; mesh.renderOrder = 1; return mesh; }
   DK.asHole = asHole; DK.inFront = obj => { obj.traverse(m => { if (m.isMesh) m.renderOrder = 2; }); return obj; };
   // Cut-face colour of a hole: exactly the stage tone of the theme (the same convention as the endo access cavities).
-  DK.holeCap = fig => fig.dark ? 0x1D1C19 : 0xE9E4D9;
+  DK.holeCap = fig => fig.dark ? DK.COLORS.cavityDark : DK.COLORS.cavity;
   function morphInto(mesh, g) { const p = mesh.geometry.attributes.position; p.array.set(g.attributes.position.array); p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); g.dispose(); }
 
   /* Caries lesion in the enamel and dentin of a tooth, driven by a continuous `stage` (0 sound → 1 white spot → 2 enamel
@@ -2334,12 +2367,12 @@
   // cut-face colour lives on the section cap: tint fig.section.caps[i].material.uniforms.uColor yourself if it must redden too.
   DK.perioGingiva = function (spec, o) {
     o = Object.assign({ margin: 1.5, crest: -1.8, inflamed: 0, width: 22, depth: 13.2, x: 0, z: 0, rise: null }, o);
-    const cH = DK.color(DK.COLORS.gingiva), cI = DK.color(0xb98a88);
+    const cH = DK.color(DK.COLORS.gingiva), cI = DK.color(DK.COLORS.gingivaInflamed);
     const shape = () => { const inf = clamp(+o.inflamed, 0, 1), rise = o.rise ?? lerp(0.8, 1.15, inf), top = o.margin - rise, height = Math.max(1.2, top - o.crest + 0.4);
       const cuff = perioCuff([{ x: o.x, z: o.z, md: spec.mdC + 0.7 * inf, bl: spec.blC + 0.7 * inf, rise }]);
       return { inf, top, height, crest: Math.min(1.3, height * 0.4), topFn: o.scallop ? (x, z) => o.scallop(x, z) + cuff(x, z) : cuff }; };
     const sh = shape();
-    const g = DK.gingiva(Object.assign({ width: o.width, height: sh.height, depth: o.depth, crest: sh.crest, round: o.round, scallop: sh.topFn, capColor: sh.inf > 0.5 ? 0xb8847f : 0xc39692 }, o.extra || {}));
+    const g = DK.gingiva(Object.assign({ width: o.width, height: sh.height, depth: o.depth, crest: sh.crest, round: o.round, scallop: sh.topFn, capColor: sh.inf > 0.5 ? DK.COLORS.gingivaInflamedCap : DK.COLORS.gingivaCap }, o.extra || {}));
     const apply = sh => { g.material.color.copy(cH).lerp(cI, sh.inf); g.userData.margin = o.margin; g.userData.inflamed = sh.inf; };
     g.position.y = sh.top; const top0 = sh.top;   // position is set once; set() moves the vertices instead (a regular part's position is reset every frame)
     g.set = o2 => { Object.assign(o, o2 || {}); const sh = shape(), g2 = blockGeometry(o.width, sh.height, o.depth, sh.crest, sh.topFn, o.round ?? undefined), p = g.geometry.attributes.position, dy = sh.top - top0;
@@ -2440,7 +2473,7 @@
     const geo = new T.BufferGeometry(); geo.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new T.Float32BufferAttribute(uv.concat(uv), 2)); geo.setIndex(idx); geo.computeVertexNormals();
     return geo;
   }
-  const prostheticMat = m => DK.mat(m === 'composite' ? 'composite' : (m === 'zirconia' || m === 'gold' ? m : 'ceramic'), { cap: m === 'gold' ? 0xb48a2c : 0xe4e0d6 });   // caps a touch darker than the body so a cut reads as a cut
+  const prostheticMat = m => DK.mat(m === 'composite' ? 'composite' : (m === 'zirconia' || m === 'gold' ? m : 'ceramic'));   // caps a touch darker than the body so a cut reads as a cut
 
   /* --- Veneer: labial reduction by thirds, three incisal designs, an animatable prep and the shell that fits it --- */
   // o: { cervical: 0.3, middle: 0.5, incisal: 0.7 (labial depths, mm), edge: 1.5 (incisal reduction, mm),
@@ -2832,7 +2865,7 @@
     const g = slabGeometry(6, 6, (i, j) => { const u = i / 6 - 0.5, v = j / 6 - 0.5, q = surf.at(o.x + u * o.w, y0 + v * o.h);
       let k = 1; if (o.bevel === 'gingival') k = 0.85 - 0.75 * (v + 0.5); else if (o.bevel === 'occlusal') k = 0.1 + 0.75 * (v + 0.5); else if (o.bevel === 'mesial') k = 0.1 + 0.75 * (u + 0.5); else if (o.bevel === 'distal') k = 0.85 - 0.75 * (u + 0.5);
       const dd = o.d * k; return [[q.p[0] - q.n[0] * 0.04, q.p[1] - q.n[1] * 0.04, q.p[2] - q.n[2] * 0.04], [q.p[0] + q.n[0] * dd, q.p[1] + q.n[1] * dd, q.p[2] + q.n[2] * dd]]; });
-    const m = new T.Mesh(g, DK.mat('composite', { color: 0xe4ddcc, cap: 0xe2dac8, roughness: 0.3 })); m.name = 'Attachment'; m.userData.spec = { x: o.x, y: y0, w: o.w, h: o.h, d: o.d, bevel: o.bevel, side: o.side }; return m;
+    const m = new T.Mesh(g, DK.mat('composite')); m.name = 'Attachment'; m.userData.spec = { x: o.x, y: y0, w: o.w, h: o.h, d: o.d, bevel: o.bevel, side: o.side }; return m;
   };
   // Clear aligner over one crown: a translucent shell `thickness` mm thick standing `gap` mm off the enamel, trimmed at the
   // CEJ. o.bumps: [{x, y, w, h, d, side}] (the specs of DK.attachment meshes: `att.userData.spec`) bulge the shell over the attachments.
@@ -3094,7 +3127,7 @@
   const ISO_CYCLE = ['white', 'yellow', 'red', 'blue', 'green', 'black'];
   const ISO_SIZES = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150];
   // the real ISO hues (a dentist must recognise them), toned down to sit with the palette
-  DK.ISO_COLORS = { pink: 0xd3a3b0, grey: 0x9d9d9a, purple: 0x7a5696, white: 0xf3f0e9, yellow: 0xd2b24e, red: 0xb24640, blue: 0x3b5f92, green: 0x4a8862, black: 0x2e2d2a };
+  DK.ISO_COLORS = { pink: 0xc99aa6, grey: 0x9a9a96, purple: 0x7d6194, white: 0xf1eee6, yellow: 0xc9ad5c, red: 0xa84e46, blue: 0x476a98, green: 0x568a68, black: 0x2e2d2a };
   DK.isoColor = function (size) {
     const k = ISO_SIZES.indexOf(size);
     const name = size === 6 ? 'pink' : size === 8 ? 'grey' : size === 10 ? 'purple' : k >= 0 ? ISO_CYCLE[k % 6] : null;
@@ -3263,9 +3296,9 @@
     const c = cs[0] || { r: 0.4 }, e = Math.max(0.5, (c.rbk || c.r) * 1.2), a = at(0);
     return { plane: 'occlusal', points: roundedPolygon([[a[0], a[1] + e], [a[0], a[1] - e]], 0.9, n), shape: 'oval' };
   };
-  // Empty space in a figure is painted in the stage tone of the theme (so a cut cavity reads as a hole, not a dark solid),
+  // Empty space uses a recessed warm ink, distinct from both the tooth and a filling in either theme,
   // with a thin ink rim: build the rim as a slightly larger copy in a section group just before the void.
-  DK.voidColor = fig => (fig && fig.dark) ? 0x1D1C19 : 0xE9E4D9;
+  DK.voidColor = fig => (fig && fig.dark) ? DK.COLORS.cavityDark : DK.COLORS.cavity;
   DK.RIM = 0x3a3733;
   DK.inflateGeometry = function (geo, d) { // copy of a geometry pushed `d` mm along its vertex normals (rims, outlines)
     const g = geo.clone(); if (!g.attributes.normal) g.computeVertexNormals();
@@ -3274,7 +3307,7 @@
     p.needsUpdate = true; g.computeBoundingSphere(); return g;
   };
   DK.accessCavity = function (specOrFdi, o) {
-    o = Object.assign({ material: 'void', color: 0xE9E4D9, lift: 0.03, bottomScale: 0.85, k: 1, grow: 1 }, o);
+    o = Object.assign({ material: 'void', color: DK.COLORS.cavity, lift: 0.03, bottomScale: 0.85, k: 1, grow: 1 }, o);
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi, ol = DK.accessOutline(s, o), pts = ol.points.map(p => [p[0] * o.grow, p[1] * o.grow]), N = pts.length;
     // frame: origin at the cavity floor, axis out of the tooth, (u, v) span the opening plane
     let origin, axis, u, v;
@@ -3296,7 +3329,7 @@
     for (let r = 0; r < rings + W; r++) for (let j = 0; j < N; j++) { const a = at(r, j), b = at(r, j + 1), c = at(r + 1, j + 1), d = at(r + 1, j); if (r > 0) idx.push(a, b, d); idx.push(b, c, d); }
     for (let j = 0; j < N; j++) idx.push(at(wallRing(W), j), at(wallRing(W), j + 1), bottomCentre);   // opposite to the top fan, so the floor faces outward (a flipped floor punches holes in the stencil cap)
     const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
-    const mat = o.material === 'composite' ? DK.mat('composite', { cap: 0xf1e4c6 }) : o.material === 'ink' ? DK.mat('pdl', { color: DK.RIM, cap: DK.RIM, roughness: 0.9 }) : DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.95 });
+    const mat = o.material === 'composite' ? DK.mat('composite', { cap: DK.COLORS.compositeCap }) : o.material === 'ink' ? DK.mat('pdl', { color: DK.RIM, cap: DK.RIM, roughness: 0.9 }) : DK.mat('pdl', { color: o.color, cap: o.color, roughness: 0.95 });
     const m = new T.Mesh(g, mat); m.name = o.material === 'composite' ? 'Coronal restoration' : 'Access cavity'; if (o.material === 'ink') m.userData.cutOnly = true;
     const P = g.attributes.position;
     m.set = k => {

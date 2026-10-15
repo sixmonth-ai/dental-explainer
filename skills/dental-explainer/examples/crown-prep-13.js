@@ -7,6 +7,7 @@ const FDI = 13;
 const PREP = { occlusal: 2.0, axial: 1.2, margin: 1.0 };   // typical glass-ceramic values (dental-facts.md §14)
 
 const fig = DK.figure({
+  fov: 26,
   title: 'Preparing a canine for a crown',
   subtitle: 'FDI 13 (Universal 6), crown up. Typical glass-ceramic reductions.',
   view: { theta: 1.15, phi: 1.3 }
@@ -53,7 +54,7 @@ fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [crown], color: 0xf4f1ea },
+  { objects: [crown], color: DK.COLORS.ceramicCap },
   { objects: [intact.layers.enamel], color: DK.COLORS.enamelCap },
   { objects: [intact.layers.dentin, intact.layers.root, tooth.layers.root, prep], color: DK.COLORS.dentinCap },
   { objects: [intact.layers.pulp, tooth.layers.pulp], color: DK.COLORS.pulpCap }
@@ -66,8 +67,8 @@ const TOP = s.crownL, LAB = s.blC / 2 - PREP.axial + 0.7, LIN = -(s.blC / 2 - PR
 const park = { burY: 40 };
 fig.procedure([
   { label: 'Canine', caption: 'The upper canine before preparation.', beats: [
-    { dur: 0, hold: 0.8, theta: 1.15, phi: 1.3, zoom: 1, section: false, labels: ['Canine 13'] },
-    { dur: 0, hold: 0, section: true, offset: 6 },
+    { fov: 34, dur: 0, hold: 0.8, theta: 1.15, phi: 1.3, zoom: 1, section: false, labels: ['Canine 13'] },
+    { fov: 26, dur: 0, hold: 0, section: true, offset: 6 },
     { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.7, focus: [0, 4, 0], offset: 0, labels: ['Canine 13', 'Pulp'], key: true }] },
   { label: 'Incisal', caption: `Incisal edge lowered about ${PREP.occlusal} mm.`, beats: [
     { dur: 1.2, hold: 0.1, zoom: 0.55, focus: [0, TOP - 2, 0], set: { burX: 3, burY: TOP + 0.6, burZ: 0.6, burTilt: -0.9 }, labels: ['Diamond bur'] },

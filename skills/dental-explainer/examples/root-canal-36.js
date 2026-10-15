@@ -9,6 +9,7 @@ const REF = [2.6, 8.8, 2.2];                             // reference point: the
 const SHORT = 0.5;                                       // working length ends 0.5 mm short of the apex (apical constriction)
 
 const fig = DK.figure({
+  fov: 26,
   title: 'Root canal treatment of 36',
   subtitle: 'FDI 36 (Universal 19), cut through the mesiobuccal canal.',
   view: { theta: 0, phi: 1.42, margin: 1.02 }
@@ -36,7 +37,7 @@ const chamberRim = new THREE.Mesh(DK.inflateGeometry(chamberGeo, 0.12), DK.mat('
 const canals = ['MB', 'ML', 'D'].map(n => DK.canalShape(s, n, Object.assign({ color: CANAL_INK }, SHAPE)));
 const fillings = ['MB', 'ML', 'D'].map(n => DK.rootFilling(s, n, SHAPE));
 const resto = DK.accessCavity(s, { material: 'composite', lift: 0.16 });
-const chamberResto = new THREE.Mesh(chamberGeo, DK.mat('composite', { cap: 0xf1e4c6 })); chamberResto.position.copy(chamberPos);
+const chamberResto = new THREE.Mesh(chamberGeo, DK.mat('composite', { cap: DK.COLORS.compositeCap })); chamberResto.position.copy(chamberPos);
 const path = DK.canalAccessPath(s, CANAL, { ref: REF, short: SHORT }), WL = path.wl, PATH = path.points, END = PATH[PATH.length - 1];
 const wlMark = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), new THREE.MeshBasicMaterial({ color: fig.accent, toneMapped: false })); wlMark.position.set(END[0], END[1], END[2] + 0.25); wlMark.visible = false;
 [accessRim, chamberRim, access, chamberVoid, ...canals, ...fillings, resto, chamberResto, wlMark].forEach(o => tooth.group.add(o));
@@ -99,7 +100,7 @@ fig.enableSection([0, 0, 1], [
   { objects: [access, chamberVoid], color: EMPTY, kind: 'plain' },
   { objects: canals, color: CANAL_INK, kind: 'plain' },
   { objects: fillings, color: DK.COLORS.gutta },
-  { objects: [resto, chamberResto], color: 0xf1e4c6, kind: 'plain' }
+  { objects: [resto, chamberResto], color: DK.COLORS.compositeCap, kind: 'plain' }
 ]);
 fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range: [-3.5, 3.5], offset: CUT } });
 fig.xray([bone, gum, L.enamel, L.dentin, L.root], false);
@@ -115,8 +116,8 @@ const park = { kfile: -40, rotary: -40, needle: -40, cone: -40, bur: 40 };
 const FOCUS_CROWN = [0, 4, CUT], FOCUS_TOOTH = [0.4, -3, CUT];
 fig.procedure([
   { label: 'Diagnosis', caption: 'A lower first molar with apical periodontitis on the mesial root.', beats: [
-    { dur: 0, hold: 1.0, theta: 0.5, phi: 1.2, zoom: 1.05, section: false, xray: 0, labels: [] },
-    { dur: 2.2, hold: 1.8, theta: 0, phi: 1.5, zoom: 1, xray: 1, set: { necrosis: 1 }, labels: ['Necrotic pulp', 'Periapical lesion'], key: true }] },
+    { fov: 34, dur: 0, hold: 1.0, theta: 0.5, phi: 1.2, zoom: 1.05, section: false, xray: 0, labels: [] },
+    { fov: 26, dur: 2.2, hold: 1.8, theta: 0, phi: 1.5, zoom: 1, xray: 1, set: { necrosis: 1 }, labels: ['Necrotic pulp', 'Periapical lesion'], key: true }] },
   { label: 'Access', caption: 'Through the occlusal surface into the pulp chamber; the pulp is removed.', beats: [
     { dur: 1.6, hold: 0, theta: 0, phi: 1.42, xray: 0, labels: [] },
     { dur: 0, hold: 0, section: true, offset: 8 },

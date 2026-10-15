@@ -2,6 +2,7 @@
 // (turned crown-up, DK.arch placement 'chart'), the lower arch below, the patient's right on the viewer's left. FDI numbers sit on
 // the teeth; the Universal and Palmer buttons swap them. Hover a tooth for its name and all three numbers.
 const fig = DK.figure({
+  fov: 26,
   title: 'Tooth numbering chart',
   subtitle: 'FDI on the teeth; Universal and Palmer on the buttons. Patient’s right is on the left.',
   view: { theta: 0, phi: 0.16, margin: 1.08 }   // seen from above, the chart's depth runs up the screen: the auto-fit needs a looser margin
@@ -43,8 +44,8 @@ fig.standardControls({ explode: false });
 // story: both arches at an angle → the chart from above → the upper right quadrant (numbers 11–18 run from the midline) →
 // the lower left (31–38) → back out to the whole chart
 fig.story([
-  { dur: 0, hold: 1.4, theta: 0.45, phi: 0.95, zoom: 1.05, caption: 'Both arches, as a chart: upper above, lower below.' },
-  { dur: 2.4, hold: 1.6, theta: 0, phi: 0.16, zoom: 1, caption: 'Seen from the occlusal. The patient’s right is on the left.' },
+  { fov: 34, dur: 0, hold: 1.4, theta: 0.45, phi: 0.95, zoom: 1.05, caption: 'Both arches, as a chart: upper above, lower below.' },
+  { fov: 26, dur: 2.4, hold: 1.6, theta: 0, phi: 0.16, zoom: 1, caption: 'Seen from the occlusal. The patient’s right is on the left.' },
   { dur: 2.0, hold: 2.2, zoom: 0.5, focus: [-22, 4, zU], caption: 'FDI: quadrant 1 is the upper right; 11 to 18 run from the midline back.' },
   { dur: 2.4, hold: 2.2, zoom: 0.5, focus: [22, 4, zL], caption: 'Quadrant 3 is the lower left: 31 to 38.' },
   { dur: 2.2, hold: 2.4, zoom: 1, focus: 'auto', theta: 0, phi: 0.16, drift: 0, caption: '' }

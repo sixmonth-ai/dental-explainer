@@ -5,6 +5,7 @@
 const SLOT = '0.022', WIRE = '0.014';
 const HOME = { theta: 0.52, phi: 1.20 };
 const fig = DK.figure({
+  fov: 32,
   title: 'Brackets on the lower front teeth',
   subtitle: 'FDI 43–33 in the mouth. 0.022 in slots, 0.014 in NiTi aligning wire.',
   view: Object.assign({ margin: 0.76 }, HOME)
@@ -32,7 +33,7 @@ const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 fig.part(wire, { name: 'Archwire', sub: `${DK.wireSize(WIRE).name} NiTi, round`, anchor: mid(wirePts[2], wirePts[3]), explode: [0, 0, 10], labelOffset: [-110, 60], info: 'A thin superelastic NiTi wire aligns crowded teeth with light continuous force; rectangular steel wires come later.' });
 
 fig.standardControls({ explode: true, explodeLabel: 'Lift off' });
-fig.view('Front', { theta: 0, phi: 1.5, zoom: 1 });
+fig.view('Front', { fov: 32, theta: 0, phi: 1.5, zoom: 1 });
 const b31 = teeth.find(t => t.fdi === 31).br;
 fig.story([
   { dur: 0, hold: 1.4, theta: 0, phi: 1.5, zoom: 1, labels: [], caption: 'Brackets and an aligning wire on the lower front teeth.' },

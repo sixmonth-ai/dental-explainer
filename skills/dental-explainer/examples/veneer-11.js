@@ -6,6 +6,7 @@ const FDI = 11;
 const V = { cervical: 0.3, middle: 0.5, incisal: 0.7, edge: 1.5, type: 'butt' };   // enamel-preserving depths by third (dental-facts.md §18)
 
 const fig = DK.figure({
+  fov: 26,
   title: 'Preparing an incisor for a veneer',
   subtitle: 'FDI 11 (Universal 8), crown up. Labial 0.3–0.7 mm, incisal 1.5 mm, butt joint.',
   view: { theta: 1.1, phi: 1.3 }
@@ -32,7 +33,7 @@ fig.part(tooth.layers.dentin, { inPlace: true, name: 'Dentin', anchor: [0, 2.5, 
 // --- tools and the veneer (fig.world, moved by params)
 const bur = DK.bur({ shape: 'taper', diameter: 1.2 });
 const veneer = DK.veneer(s, V, 'ceramic');
-veneer.material = DK.mat('ceramic', { color: 0xf7f8fa, cap: 0xeef0f3 });   // a cooler white than enamel, so the shell reads against it
+veneer.material = DK.mat('ceramic');   // shared ceramic tone, distinct from enamel
 [bur, veneer].forEach(o => fig.world.add(o));
 fig.part(bur, { inPlace: true, name: 'Diamond bur', sub: 'tapered, round end', anchor: [0, 10, 0], info: 'Depth cutters set 0.3 / 0.5 mm grooves first; a tapered diamond then joins them, following the two planes of the labial face.' });
 fig.part(veneer, { inPlace: true, name: 'Veneer', sub: 'glass-ceramic, 0.3–0.7 mm', anchor: [0, s.crownL - 3, s.bl / 2 + 0.1], info: 'A thin ceramic shell bonded to the enamel with resin cement. It is not a crown: the lingual surface stays untouched.' });
@@ -50,7 +51,7 @@ fig.enableSection([1, 0, 0], [
   { objects: [bone.userData.layers.cortical], color: DK.COLORS.corticalCap },
   { objects: [bone.userData.layers.cancellous], color: 0xffffff, texture: bone.userData.layers.cancellous.userData.capTexture },
   { objects: [gum], color: DK.COLORS.gingivaCap },
-  { objects: [veneer], color: 0xeef0f3, kind: 'plain' },
+  { objects: [veneer], color: DK.COLORS.ceramicCap, kind: 'plain' },
   { objects: [prep], color: DK.COLORS.enamelCap },
   { objects: [tooth.layers.dentin, tooth.layers.root], color: DK.COLORS.dentinCap },
   { objects: [tooth.layers.pulp], color: DK.COLORS.pulpCap }
@@ -62,8 +63,8 @@ fig.standardControls({ explode: false, section: { label: 'Cut', on: true, range:
 const TOP = s.crownL, LAB = s.bl / 2, park = { burY: 40 };
 fig.procedure([
   { label: 'Incisor', caption: 'The upper central incisor before preparation.', beats: [
-    { dur: 0, hold: 0.8, theta: 1.1, phi: 1.3, zoom: 1, section: false, labels: ['Central incisor 11'] },
-    { dur: 0, hold: 0, section: true, offset: 6 },
+    { fov: 34, dur: 0, hold: 0.8, theta: 1.1, phi: 1.3, zoom: 1, section: false, labels: ['Central incisor 11'] },
+    { fov: 26, dur: 0, hold: 0, section: true, offset: 6 },
     { dur: 2.0, hold: 1.2, theta: Math.PI / 2, phi: 1.42, zoom: 0.68, focus: [0, 4.2, 0], offset: 0, labels: ['Central incisor 11', 'Dentin'], key: true }] },
   { label: 'Labial reduction', caption: `Labial face reduced ${V.cervical}–${V.incisal} mm, staying in enamel.`, beats: [
     { dur: 1.2, hold: 0.1, set: { burX: 3, burY: TOP - 1, burZ: LAB + 0.9, burTilt: -0.35 }, labels: ['Diamond bur'] },

@@ -4,6 +4,7 @@
 // so the ordinary bone block fits. Left quadrant: mesial is toward the viewer's left, as seen from the patient's left.
 const AGE = 8;
 const fig = DK.figure({
+  fov: 26,
   title: 'Mixed dentition at age 8',
   subtitle: 'Lower left, buccal view. Primary teeth 73–75 with their successors forming below.',
   view: { theta: 0.12, phi: 1.42 }

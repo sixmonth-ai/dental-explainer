@@ -2,6 +2,7 @@
 // Seen from the patient's left cheek, anterior is to the viewer's LEFT. Left-quadrant teeth are mirrored mesio-distally
 // (scale.x = −1: a preset tooth has right-side chirality), and maxillary teeth crown-down (scale.y = −1), as in the mouth.
 const fig = DK.figure({
+  fov: 26,
   title: 'Permanent teeth, left side',
   subtitle: 'Buccal view. FDI numbers, Universal below. Third molars not shown.',
   view: { theta: 0, phi: 1.5 }

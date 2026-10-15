@@ -6,6 +6,7 @@
 // Frame: +x = mesial, +z = buccal, CEJ at y = 0. All sizes in mm (dental-facts.md §16).
 const FDI = 25;
 const fig = DK.figure({
+  fov: 26,
   title: 'Class II composite on a premolar',
   subtitle: 'FDI 25 (Universal 13), crown up, mesio-distal cut. Selective caries removal, composite in increments.',
   view: { theta: 0.5, phi: 1.3 }
@@ -34,7 +35,7 @@ const PREP = { class: 2, side: 'mesial', depth: 0.2, box: { gingivalY: 2.7, widt
 const prep = DK.cavityPrep(tooth, PREP); tooth.group.add(prep);
 // the composite goes in as three increments, each its own slice of the same filling, in two close shades so the layers read
 const D = prep.dims, TOPF = s.crownL + 1.5, INC = [D.gingivalY, D.gingivalY + 2.0, D.floorY + 0.6, TOPF];   // box floor → ~2 mm → step floor → surface
-const SHADES = [0xdfc893, 0xefe2c0, 0xdfc893];
+const SHADES = [DK.COLORS.compositeCap, DK.COLORS.compositeLight, DK.COLORS.compositeCap];
 const fills = SHADES.map(c => { const f = DK.filling(tooth, PREP, 'composite'); f.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.color = DK.color(c); } }); tooth.group.add(f); return f; });
 const fill = fills[0];
 const band = DK.matrixBand(tooth, { side: 'mesial', bottom: D.gingivalY - 1.2, height: s.crownL - D.gingivalY + 1.6 }); tooth.group.add(band);
@@ -92,7 +93,7 @@ fig.enableSection([0, 0, 1], [
   { objects: [M.infected], color: DK.COLORS.cariesSoft, kind: 'plain' },
   { objects: [M.cavity], color: DK.holeCap(fig), kind: 'plain' },
   { objects: [prep], color: DK.holeCap(fig), kind: 'plain' },
-  ...fills.map((f, i) => ({ objects: [f], color: SHADES[i], kind: 'plain' }))   // warm ivory, ungrained: reads as a material, not tooth
+  ...fills.map((f, i) => ({ objects: [f], color: SHADES[i], kind: 'plain' }))   // muted composite shades, ungrained: distinguish increments from tooth
 ]);
 // the band is cut with the tooth, so the half in front of the cut never hides the box being filled
 [band].forEach(o => o.traverse(m => { if (m.isMesh) { m.material = m.material.clone(); m.material.clippingPlanes = [fig.section.plane]; } }));

@@ -4,6 +4,7 @@
 // Frame: +x = mesial, +z = buccal, CEJ at y = 0. Sizes in mm (Wheeler averages via DK.toothPreset).
 const FDI = 46;
 const fig = DK.figure({
+  fov: 26,
   title: 'How decay reaches the pulp',
   subtitle: 'FDI 46 (Universal 30), mesio-distal cut through the central pit. Stages follow ICDAS.',
   view: { theta: 0.45, phi: 1.3 }

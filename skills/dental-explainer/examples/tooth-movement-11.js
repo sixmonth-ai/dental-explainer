@@ -6,6 +6,7 @@
 // on one side and widened on the other. PDL width is exaggerated (0.5 mm; real 0.15–0.38 mm). Frame: +x mesial, +z labial, CEJ at y = 0.
 const FDI = 11, CREST = -1.8, GAP = 0.5;
 const fig = DK.figure({
+  fov: 26,
   title: 'How a tooth moves through bone',
   subtitle: 'FDI 11 (Universal 8), crown up, labio-lingual cut. PDL width exaggerated.',
   view: { theta: Math.PI / 2, phi: 1.45 }

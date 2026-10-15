@@ -7,6 +7,7 @@
 const SLOT = '0.022', WIRE = '0.019x0.025';
 const HOME = { theta: 0.58, phi: 1.98 };
 const fig = DK.figure({
+  fov: 36,
   title: 'Fixed appliance on the upper arch',
   subtitle: 'FDI 16–26 in the mouth. 0.022 in slots, 0.019 × 0.025 in steel wire.',
   view: Object.assign({ margin: 0.68 }, HOME)
@@ -45,8 +46,8 @@ const t21 = teeth.find(t => t.fdi === 21), b21 = t21.part;
 fig.part(b21, { inPlace: true, name: 'Slot', sub: `${DK.SLOTS[SLOT].name}`, accent: true, anchor: [b21.userData.width / 2 + 0.1, 0, b21.userData.floor + 0.2], when: e => e > 0.6, labelOffset: [90, 70], info: `The slot: ${DK.SLOTS[SLOT].w.toFixed(3)} mm high, ${DK.SLOTS[SLOT].d.toFixed(3)} mm deep. The wire is bent to the arch form; the slot's angles do the rest.` });
 
 fig.standardControls({ explode: true, explodeLabel: 'Lift off' });
-fig.view('Occlusal', { theta: 0, phi: 2.75, zoom: 1 });
-fig.view('Front', { theta: 0, phi: 1.66, zoom: 1 });
+fig.view('Occlusal', { fov: 26, theta: 0, phi: 2.75, zoom: 1 });
+fig.view('Front', { fov: 36, theta: 0, phi: 1.66, zoom: 1 });
 
 // --- story: the arch from the front → the parts lift off as the camera orbits → push in on one bare bracket (the slot) →
 // everything seats again on that bracket (wire in the slot, ring over the wings) → ease out to the three-quarter hero shot

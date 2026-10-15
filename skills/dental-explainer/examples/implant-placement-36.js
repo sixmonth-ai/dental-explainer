@@ -9,6 +9,7 @@ const PILOT = 2.0, FINAL = 3.5;                      // drill diameters; the fin
 const clearance = (CREST - IMPLANT.length) - (CANAL_Y + CANAL_R);
 
 const fig = DK.figure({
+  fov: 26,
   title: 'Placing an implant in 36',
   subtitle: 'FDI 36 (Universal 19), mesio-distal cut. Drill sizes vary by system.',
   view: { theta: 0, phi: 1.45 }
@@ -83,8 +84,8 @@ const D = IMPLANT.length;
 // Each step is a few shots: the camera settles where the step's action is, the tool or part moves, the label lands.
 fig.procedure([
   { label: 'Healed site', caption: 'The healed site of 36, between 35 and 37.', beats: [
-    { dur: 0, hold: 1.0, theta: 0.55, phi: 1.25, zoom: 1.05, section: false, labels: [] },
-    { dur: 0, hold: 0, section: true, offset: 7 },
+    { fov: 34, dur: 0, hold: 1.0, theta: 0.55, phi: 1.25, zoom: 1.05, section: false, labels: [] },
+    { fov: 26, dur: 0, hold: 0, section: true, offset: 7 },
     { dur: 2.4, hold: 1.6, theta: 0, phi: 1.45, zoom: 1, offset: 0, labels: ['35', '37', 'Inferior alveolar canal'], key: true }] },
   { label: 'Pilot drill', caption: `Pilot drill to ${D} mm: position, angle, depth.`, beats: [
     { dur: 1.2, hold: 0.2, zoom: 0.92, focus: [0, 1, 0], phi: 1.38, set: { pilot: 0 }, labels: ['Pilot drill'] },

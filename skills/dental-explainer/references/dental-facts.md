@@ -831,9 +831,16 @@ Sides are always the **patient's** right and left. Values are adult averages wit
 - Early opening is mostly **pure rotation**, up to about **20–25 mm** between the incisors; beyond that the condyles **translate** forward and down the eminences while rotation continues. During pure rotation the incisal point moves down **and back**.
 - In **protrusion** both condyles translate forward and down along their eminences; the incisors slide down the lingual surfaces of the upper incisors (incisal guidance).
 
-### The articular disc [U, standard teaching]
-- Biconcave fibrous disc with a **thin intermediate zone** (~1 mm) between a **thicker posterior band** (~3 mm) and an anterior band (~2 mm); the condyle normally articulates on the intermediate zone in all positions. Behind it the **retrodiscal tissue** (bilaminar zone) attaches to the fossa and the condylar neck; in front the superior head of the lateral pterygoid attaches. It is not vascularised or innervated in its central part.
-- The kit shows the disc only as the joint space (`gap`, ~2.4 mm) between the condyle and the fossa; draw it as a schematic band if the disc is the point.
+### The articular disc
+- Biconcave fibrous disc with a **thin intermediate zone** between a **thicker posterior band** and an anterior band; the condyle normally articulates on the intermediate zone in all positions. Behind it the **retrodiscal tissue** (bilaminar zone: a superior lamina to the back of the fossa, an inferior lamina to the condylar neck) attaches; in front the superior head of the lateral pterygoid attaches. It is not vascularised or innervated in its central part [U, standard teaching].
+- **Band thickness.** Textbook teaching: posterior ~3 mm, intermediate ~1 mm, anterior ~2 mm [U]. Measured: MRI of 93 asymptomatic young adults (186 joints): anterior 2.25 ± 0.45, intermediate 1.02 ± 0.25, posterior 2.15 ± 0.64 mm [V, Luo 2022]; cadaver discs measured after dissection: anterior 2.7 ± 0.6, intermediate 1.4 ± 0.7, posterior 3.7 ± 0.6 mm (Hansson 1977, as quoted there: 2.1 / 1.1 / 2.8 mm) [V, Coombs 2019]; another cadaver series: 2.39 / 1.60 / 3.29 mm [V, Matamala Vargas 2006]. The kit draws 2 / 1 / 3 mm (`DK.articularDisc`, adjustable).
+- **Size.** Cadaver: about **14 mm anteroposteriorly × 22 mm mediolaterally** (14.0 ± 1.3 × 22.1 ± 1.7 mm; 14.5 × 20.1 mm in another series) [V, Coombs 2019; Matamala Vargas 2006]: wider than the condyle it caps. The kit draws ≈ 12 × 19 mm on its 20 mm head.
+- **Fossa and eminence (CBCT).** Fossa depth about **6 mm** (6.07 ± 1.04 mm in 46 control joints; 6.8 mm with TMD), fossa width ≈ 16 mm; eminence height ≈ **7 mm** (7.3 mm men, 6.7 mm women); eminence inclination by the "top-roof" line ≈ **37–40°**, by a best-fit line ≈ 48–50° (to Frankfort) [V, Paknahad 2016; Ilgüy 2014]. The kit's eminence is 7 mm high with a steepest slope of 35° to its occlusal plane, and its fossa and eminence are the surface the disc–condyle complex sweeps (`DK.tmj`, `DK.maxilla`).
+
+### The upper jaw and the bone around the joint (for `DK.maxilla`) [V unless noted]
+- **Hard palate:** palatal height at the first molars about **20 mm** (20.2–21.3 mm, adult casts; 15.5–19.4 mm by other instruments in adolescents), intermolar width ≈ **46–48 mm** [V, Adhikari 2020; Eslami Amirabadi 2018]. The kit's vault is ≈ 12 mm above the upper CEJ plane at the molars (≈ 20 mm from the occlusal plane).
+- **Anterior maxilla:** buccal plate over the incisors and canine about **1 mm** thick at the crest and mid-root (1.0–1.1 mm; 1.9 mm at the apex) [V, Vyas 2023]; incisor root apex to the nasal floor about **8.5–9.5 mm** (canine 5.4 mm) [V, Ducommun 2019]; alveolar height from the crest to the floor of the nasal fossa about **19 mm** at the incisors and canine [V, Zhang 2015]. The kit's nasal floor sits 19.3 mm above the upper CEJ plane, with the anterior nasal spine at the midline.
+- **Zygomatic arch:** about **6–14 mm** tall and **3–4 mm** thick (cadaver: 14.0 × 3.6 mm at its anterior end, 6.3 × 2.9 mm at its most protruding point; CT: 2–7 mm thick, 9–23 mm tall along its length); bizygomatic width ≈ **130 mm** (129.5 ± 7.0 mm, CBCT) [V, Barausse 2024; Kim 2019; Ben Kheder 2026]. The kit draws a 7 × 4 mm bar, 114 mm between its outer faces (a cropped context, not a measurement).
 
 ### Guidance in lateral excursion [U, standard teaching]
 - **Canine guidance (canine protected occlusion):** in a lateral excursion only the working-side canines touch, so all other teeth separate (disocclude).
@@ -847,7 +854,8 @@ Sides are always the **patient's** right and left. Values are adult averages wit
 4. **Drawing the jaw as a bent tube with discs or balls for condyles.** The mandible has a body with a chin, gonial angles, flat rami, coronoid processes, a sigmoid notch and ellipsoidal condyles wider mediolaterally (15–20 mm) than front to back (8–10 mm). Use `DK.mandible`.
 5. **The non-working condyle moving straight forward on a flat path.** It goes down the eminence (it drops several mm) and medially.
 6. **Opening as pure rotation to full gape, or pure sliding from the start.** Rotation first (to ~20–25 mm), then translation.
-7. **Hiding the condyle inside an opaque fossa block.** The fossa and eminence are context: draw them see-through or as a profile.
+7. **Hiding the condyle inside an opaque fossa block.** The fossa and eminence are context: draw them see-through or as a profile (`DK.maxilla` keeps its temporal bone at 0.3 opacity).
+11. **A disc that stays in the fossa while the condyle leaves it, or a flat pad of even thickness.** The disc is biconcave and rides with the condyle: the head rotates under it, and disc and head slide down the eminence together; the thin intermediate zone stays between them and the eminence.
 8. **Condyles side by side on one transverse axis with no angulation**, or as large as the ramus is wide. The long axes converge posteriorly and medially.
 9. **Quoting one exact Bennett angle or condylar guidance as universal.** They vary widely and with the recording method; say "about".
 10. **Calling non-working contacts "balancing" as if they were desirable** in natural teeth. In natural dentitions they are interferences; balanced occlusion is a complete-denture concept.
@@ -864,6 +872,19 @@ Sides are always the **patient's** right and left. Values are adult averages wit
 - Mouth opening and lateral movement in normal subjects (JCDA 2003;69(11):737): https://jcda.ca/sites/default/files/back_issues_fr/vol-69/issue-11/737.pdf
 - Minimum normal opening and lateral excursion (study aid, used only to corroborate): https://brainscape.com/flashcards/chapter-6-mandibular-dynamics-12496373/packs/21156502
 - Condylar translation at maximum opening (Korean study, 17.5 mm horizontal at 47 mm opening): https://www.newnonmun.com/article=20432358
+- Luo D et al. Articular disc band thickness on MRI in 93 asymptomatic adults. Dentomaxillofac Radiol 2022;51(3):20210272: https://pmc.ncbi.nlm.nih.gov/articles/PMC8925880
+- Coombs MC et al. Cadaver and 7T MRI disc morphometrics (band thickness, 14 × 22 mm; quotes Hansson 1977). J Oral Maxillofac Surg 2019;77(1):42–53: https://pmc.ncbi.nlm.nih.gov/articles/PMC6312751
+- Matamala Vargas F et al. Disc dimensions in adult cadavers. Int J Morphol 2006: https://revistaschilenas.uchile.cl/handle/2250/59455
+- Paknahad M et al. Glenoid fossa depth, width and eminence inclination on CBCT. J Dent (Shiraz) 2016;17(2):134–141: https://pmc.ncbi.nlm.nih.gov/articles/PMC4885671
+- Ilgüy D et al. Eminence inclination and height on CBCT (105 patients). ScientificWorldJournal 2014:761714: https://pmc.ncbi.nlm.nih.gov/articles/PMC3947926/
+- Adhikari D et al. Palatal height and width in adult Nepalese casts. J Nepal Dent Assoc 2020;20(1):28–30: https://jnda.com.np/article/pj1jjad08e7.pdf
+- Eslami Amirabadi G et al. Palatal dimensions in the permanent dentition. BMC Oral Health 2018;18:87: https://pmc.ncbi.nlm.nih.gov/articles/PMC5952467
+- Vyas R et al. Anterior maxillary buccal and palatal bone thickness on CBCT. Cureus 2023;15(4):e37875: https://pmc.ncbi.nlm.nih.gov/articles/PMC10199654/
+- Ducommun J et al. Incisor and canine apex to nasal floor distance. Clin Oral Investig 2019;23(5):2253–2263: https://pubmed.ncbi.nlm.nih.gov/30288606/
+- Zhang W et al. Anterior maxillary alveolar height on CBCT. BMC Oral Health 2015;15:65: https://pmc.ncbi.nlm.nih.gov/articles/PMC4460662/
+- Barausse C et al. Zygomatic arch height and thickness in cadavers. J Clin Med 2024;13(22):6798: https://pmc.ncbi.nlm.nih.gov/articles/PMC11595039/
+- Kim H, Yoon J, Lee B. Zygomatic arch thickness and height on CT. J Plast Reconstr Aesthet Surg 2019;72(5):831–841: https://scholar.korea.ac.kr/handle/2021.sw.korea/65860
+- Ben Kheder CF et al. Bizygomatic width on CBCT. J Craniofac Surg 2026 (PMID 42017963): https://pubmed.ncbi.nlm.nih.gov/42017963/
 <!-- end topic: occlusion -->
 
 ---

@@ -752,8 +752,10 @@
     const mode = askedMode === 'video' && !window.DK_ENABLE_VIDEO ? 'interactive' : askedMode;   // video stays in the kit, switched off until it ships
     const still = mode !== 'interactive';
     const aspect = ASPECTS[qs.get('aspect') || window.DK_ASPECT || o.aspect || '16:9'] || 16 / 9;
-    if (!document.querySelector('link[data-dk-font]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONT_URL; l.dataset.dkFont = '1'; document.head.appendChild(l); }
+    // the kit's own CSS goes in before the font stylesheet: WebKit (Safari, every iOS browser, the Claude iOS app) holds back a
+    // <style> added after a still-loading external sheet, so the stage would be measured unstyled and the canvas drawn stretched
     const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
+    if (!document.querySelector('link[data-dk-font]')) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = FONT_URL; l.dataset.dkFont = '1'; document.head.appendChild(l); }
     const root = o.mount || document.body;
     const card = document.createElement('div'); card.className = 'dk' + (still ? ' dk-still' : ''); card.dataset.mode = mode;
     const credit = 'Made with dental-explainer by <b>Sixmonth</b>';
@@ -1031,12 +1033,16 @@
     }
 
     // resize & loop
+    let sized = [0, 0];
     function resize() {
       const w = stage.clientWidth, h = stage.clientHeight; if (!w || !h) return;
+      sized = [w, h];
       renderer.setSize(w, h, false); camera.aspect = w / h; applyInsets(); camera.updateProjectionMatrix();
       if (fits && !o.view?.dist) { const z = orbit.zoom; fit(o.view?.margin); orbit.zoom = z; }
     }
     window.addEventListener('resize', resize);
+    // the stage can change size without a window resize (late CSS, fonts, an artifact pane opening): re-fit whenever it does
+    if (window.ResizeObserver) new ResizeObserver(() => { if (stage.clientWidth !== sized[0] || stage.clientHeight !== sized[1]) { resize(); if (frozen) renderFrame(); } }).observe(stage);
     const tmp = new T.Vector3();
     const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let last = performance.now(), frameHooks = [], frozen = false;

@@ -8,7 +8,7 @@ usage: python3 check.py figure.html [--out shots/] [--three-local three.min.js] 
 States shot by default, only where the figure has the feature:
   procedures: every step's key frame (what the stepper shows at the end of each step);
   otherwise:  assembled, exploded (explode slider), section (cut), top, xray (x-ray objects);
-  plus one mobile (390 px) shot.
+  plus one mobile (390 px) shot and one iPhone (WebKit) shot; any canvas drawn at the wrong shape is an error.
 --step i / --seek t add a step's key frame or any story time. Custom --state keys: explode, section, offset, theta, phi,
 dist (zoom factor, <1 = closer), xray, click (list of button labels to press), step, seek. --only shoots just the custom ones.
 Uses the GPU when there is one (--soft forces software GL). three.js is cached after the first run; if it can't load,
@@ -23,6 +23,12 @@ DEFAULT = [
     ("top", {"explode": 0, "phi": 0.35, "section": False}),
     ("xray", {"explode": 0, "section": False, "xray": True, "_needs": "xray"}),
 ]
+
+
+# the 3D canvas must be drawn at the stage's shape; a mismatch means the scene is stretched (the WebKit bug fixed in 1.4)
+ASPECT = """(() => { const s = document.querySelector('.dk-stage'), c = s && s.querySelector('canvas'); if (!c || !s.clientHeight || !c.height) return '';
+  const want = s.clientWidth / s.clientHeight, got = c.width / c.height;
+  return Math.abs(got / want - 1) > 0.03 ? `stage ${s.clientWidth}x${s.clientHeight}, canvas ${c.width}x${c.height} (${(want / got).toFixed(2)}x)` : ''; })()"""
 
 
 def shoot(pg, st, offset):
@@ -51,6 +57,7 @@ def main():
     ap.add_argument("--state", action="append", default=[]); ap.add_argument("--only", action="store_true")
     ap.add_argument("--step", action="append", type=int, default=[]); ap.add_argument("--seek", action="append", type=float, default=[])
     ap.add_argument("--soft", action="store_true")
+    ap.add_argument("--no-webkit", action="store_true", help="skip the iPhone (WebKit) pass")
     a = ap.parse_args()
     try:
         from playwright.sync_api import sync_playwright
@@ -94,7 +101,29 @@ def main():
                 f = out / f"{name}{tag}.png"
                 pg.screenshot(path=str(f), full_page=True)
                 shots.append(f); print("shot", f, flush=True)
+            bad = pg.evaluate(ASPECT)
+            if bad:
+                errors.append(f"stretched canvas at {width} px: {bad}")
             pg.close()
+        # iPhone pass: Safari, every iOS browser and the Claude iOS app use WebKit, which lays pages out differently from Chromium
+        if not a.no_webkit:
+            try:
+                wk = p.webkit.launch()
+            except Exception:
+                wk = None; print("webkit: not installed, iPhone pass skipped (playwright install webkit)", flush=True)
+            if wk:
+                pg = wk.new_context(**p.devices["iPhone 15"]).new_page()
+                pg.on("pageerror", lambda e: errors.append(f"iphone pageerror: {e}"))
+                _browser.route_three(pg, three); pg.goto(url)
+                try:
+                    pg.wait_for_function("window.__dkReady === true", timeout=90000); pg.wait_for_timeout(400)
+                    bad = pg.evaluate(ASPECT)
+                    if bad:
+                        errors.append(f"stretched canvas on iPhone: {bad}")
+                    f = out / "iphone.png"; pg.screenshot(path=str(f), full_page=True); shots.append(f); print("shot", f, flush=True)
+                except Exception as e:
+                    errors.append(f"iphone: the figure never finished starting ({str(e).splitlines()[0]})")
+                wk.close()
         # one contact sheet of every shot, so a single look covers the whole check
         b.close()   # the sheet is plain HTML: shoot it in a fresh browser without WebGL (a software-GL browser that ran heavy figures can fail to capture)
         b = p.chromium.launch()

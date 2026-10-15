@@ -4,3 +4,5 @@ shots/
 dist/
 test-output/
 .claude/worktrees/
+.venv/
+library/build/

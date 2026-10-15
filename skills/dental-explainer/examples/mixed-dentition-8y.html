@@ -31,7 +31,7 @@
     titanium: 0x929a9c, titaniumDark: 0x656e72, zirconia: 0xf5f3ee, zirconiaCap: 0xe8e8e1, ceramic: 0xdddcd3, ceramicCap: 0xd5d7ce,
     gold: 0xb6a17b, steel: 0xd2d6d5, nickelTi: 0x8d9692, gutta: 0xb58268,
     composite: 0xb9c1bc, compositeCap: 0xadb8b2, compositeLight: 0xcdd3cd, fiber: 0xd2cec0, fiberCap: 0xb6b2a4,
-    cement: 0xc6c9c5, rubberDam: 0x737f82, caries: 0x7a6554, cavity: 0x514a40, cavityDark: 0x34312b,
+    cement: 0xc6c9c5, rubberDam: 0x737f82, caries: 0x7a6554, cavity: 0xd3ccbe, cavityDark: 0x262521,   // empty space: a recessed shade of the stage, never caries brown or amalgam grey
     accent: 0x0E3A5C, accentDark: 0x5A8FB8
   };
   const MAT_PRESETS = {
@@ -1914,7 +1914,7 @@
   // Lesions and direct restorations. Everything is probed off the real tooth meshes (ray casts in the tooth frame), so
   // lesions sit inside the enamel and dentin layers, follow the surface and the DEJ, and preparations open exactly on the
   // crown surface. All solids are closed (section-ready). Stages follow ICDAS / ICCMS (dental-facts.md §16).
-  Object.assign(DK.COLORS, { chalk: 0xf8f7f2, cariesSoft: 0x6a574a, cariesFirm: 0xc0a378, reactionary: 0xc7b28a, cavityWall: 0x827360, amalgam: 0xb7babb, amalgamCap: 0x9fa3a5, gic: 0xe4ddc8, sealant: 0xefe9dc, wood: 0xd7bf90 });
+  Object.assign(DK.COLORS, { chalk: 0xf8f7f2, cariesSoft: 0x6a574a, cariesFirm: 0xc0a378, reactionary: 0xc7b28a, cavityWall: 0xb9b1a2, amalgam: 0xb7babb, amalgamCap: 0x9fa3a5, gic: 0xe4ddc8, sealant: 0xefe9dc, wood: 0xd7bf90 });
   Object.assign(MAT_PRESETS, {
     chalk: { color: 'chalk', roughness: 0.95 },                                              // white-spot lesion body (demineralised, opaque enamel)
     cariesSoft: { color: 'cariesSoft', roughness: 0.85 },                                    // infected (soft) dentin

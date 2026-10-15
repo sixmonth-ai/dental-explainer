@@ -257,8 +257,8 @@ fig.xrayToggle([], 'X-ray', false);
 const studTop = [L.x, L.muc + 1, L.z];
 fig.procedure([
   { label: 'Loose denture', caption: 'A lower denture only rests on the gum, so it lifts and slides.', beats: [
-    { fov: 32, dur: 0, hold: 1.0, theta: 0.55, phi: 1.25, zoom: 1, labels: [] },
-    { dur: 1.4, hold: 0.3, set: { dent: 3.2, tilt: 0.06 }, labels: ['Denture', 'Ridge'] },
+    { fov: 32, dur: 0, hold: 1.0, theta: 0.55, phi: 1.25, zoom: 0.85, labels: [] },
+    { dur: 1.4, hold: 0.3, set: { dent: 3.2, tilt: 0.06 }, labels: ['Denture'] },
     { dur: 1.0, hold: 0.1, set: { dent: 0.6, tilt: 0.01 } },
     { dur: 1.2, hold: 1.4, set: { dent: 3.2, tilt: 0.06 }, labels: ['Denture', 'Ridge'], key: true }] },
   { label: 'Two implants', caption: 'Two implants go into the front of the jaw, in front of the nerve.', beats: [
@@ -271,9 +271,9 @@ fig.procedure([
   { label: 'Housings', caption: 'The denture gets a housing with a nylon insert over each attachment.', beats: [
     { dur: 1.6, hold: 0.3, set: { dent: 8, dentOp: 1 }, zoom: 1, focus: 'auto', theta: 1.15, phi: 1.3, labels: ['Denture'] },
     { fov: 26, dur: 0, hold: 0, section: true, offset: 40 },
-    { dur: 2.2, hold: 1.8, offset: L.x, zoom: 0.62, focus: [L.x, L.muc + 3, L.z], labels: ['Housing', 'Attachment', 'Implant'], key: true }] },
+    { dur: 2.2, hold: 1.8, offset: L.x, zoom: 0.52, focus: [L.x, L.muc + 2, L.z], labels: ['Housing', 'Attachment', 'Implant'], key: true }] },
   { label: 'Snaps in', caption: 'Pressed down, the inserts click over the studs and hold the denture still.', beats: [
     { dur: 1.6, hold: 0.3, set: { dent: 0 }, labels: ['Housing', 'Attachment'] },
-    { dur: 1.8, hold: 2.4, theta: 1.0, phi: 1.32, zoom: 0.7, focus: [L.x, L.muc, L.z], labels: ['Denture', 'Housing', 'Attachment', 'Implant'], key: true }] }
+    { dur: 1.8, hold: 2.4, theta: 1.0, phi: 1.32, zoom: 0.55, focus: [L.x, L.muc - 1, L.z], labels: ['Denture', 'Housing', 'Attachment', 'Implant'], key: true }] }
 ]);
 fig.start();

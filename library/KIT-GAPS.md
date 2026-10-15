@@ -28,3 +28,5 @@ which would also help the skill on topics with no example.
 - Section-safe calculus deposit band (overlapping `DK.calculus` lumps break stencil caps); `DK.curette`; site-specific gingival margin (labial recession, papillae kept); an inside-a-layer sampler for placing particles in enamel/dentin/pulp (calculus, scaling-root-planing, gum-recession, whitening).
 - Kit artefact: thin dark hairlines on incisor enamel/pulp-horn cut faces.
 - Not in dental-facts.md: whitening mechanism (qualitative only, e.g. Joiner 2006).
+- **tmj-anatomy held back** after three passes: without a real temporal-bone section (fossa and eminence profile as a cut solid), the sagittal joint view reads as a translucent box. Needs `DK.temporalBone` / a fossa-eminence section builder before it can ship. Bruxism also lacks gingiva on `DK.mandible`/`DK.maxilla` arches (root necks show).
+- Not in dental-facts.md: night guard about 2 mm thick; luting cement film thickness; Aquilino & Caplan 2002 survival ratio for crowned root-filled teeth.

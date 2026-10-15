@@ -69,14 +69,13 @@ fig.enableSection([0, 0, 1], [
 fig.standardControls({ explodeLabel: 'Lift crowns', section: { label: 'Cut', range: [-6, 6], offset: 1.0 } });
 const NAMES = SETS.map(S => S.name);
 const CUT = 1.0;   // through the buccal cusps, so the occlusal thickness reads over a cusp, not a groove
-const HERO = { fov: 26, section: true, offset: CUT, theta: 0, phi: 1.48, zoom: 0.62, focus: [0, 1.6, 0], xray: 1, explode: 0, labels: NAMES.concat(['Metal coping']) };
-fig.xray([bone, gum], false);
+const HERO = { fov: 26, section: true, offset: CUT, theta: 0, phi: 1.48, zoom: 0.62, focus: [0, -1.4, 0], explode: 0, labels: NAMES.concat(['Metal coping']) };
 fig.view('Section', HERO);
 
 // story: four crowned molars → push in on the look → crowns lift: different stumps → reseat, face the buccal side and sweep the
 // cut in → hero: four shells of different thickness
 fig.story([
-  { dur: 0, hold: 1.4, theta: 0.35, phi: 1.12, zoom: 1, xray: 0, labels: [] },
+  { dur: 0, hold: 1.4, theta: 0.35, phi: 1.12, zoom: 1, labels: [] },
   { dur: 2.0, hold: 2.0, theta: 0.25, phi: 1.2, zoom: 0.8, focus: [0, 4, 0], labels: NAMES },
   { dur: 2.4, hold: 2.4, theta: 0.3, phi: 0.95, zoom: 0.9, explode: 1, labels: ['Most tooth removed', 'Least tooth removed'] },
   { fov: 26, dur: 2.2, hold: 0.3, theta: 0, phi: 1.5, zoom: 0.8, explode: 0, labels: [] },

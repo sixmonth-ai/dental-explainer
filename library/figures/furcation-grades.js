@@ -6,7 +6,7 @@
 // The cut removes the mesial half (+x), so the camera on the mesial side (theta = π/2) sees the slab with buccal on the left.
 const CREST = -1.8;            // healthy crest, ~2 mm below the CEJ
 const HORIZ = 1.2;             // a little general horizontal loss in every set
-const SPACE = 18.5;            // set spacing along z
+const SPACE = 21;            // set spacing along z
 const CLASSES = [
   { name: 'Class I', sub: 'probe enters under 3 mm', depth: 1.8, info: 'Hamp Class I: horizontal loss into the furcation of less than 3 mm.' },
   { name: 'Class II', sub: '3 mm or more, not through', depth: 4.6, info: 'Hamp Class II: the probe goes in 3 mm or more but meets bone before the other side: a cul-de-sac.' },
@@ -18,7 +18,7 @@ const fig = DK.figure({
   fov: 28,
   title: 'Furcation classes',
   subtitle: 'Hamp classes, FDI 36 (Universal 19), probed from the buccal.',
-  view: { theta: Math.PI / 2 - 0.12, phi: 1.42, margin: 1.0 }
+  view: { theta: Math.PI / 2 - 0.12, phi: 1.42, margin: 0.88 }
 });
 
 // curved furcation probe (schematic, Nabers-like; local helper): tip at the origin, an 11 mm straight working end along +z with
@@ -70,6 +70,9 @@ sets.forEach((S, i) => {
   fig.part(S.bone, { inPlace: true, name: S.name, sub: S.sub, anchor: (e, sec) => [(sec.enabled ? sec.offset : 0) + 0.1, -11.3, 0], labelOffset: [0, 46], accent: i === 2, dim: false, info: S.info });
   fig.part(S.probe, { inPlace: true, name: 'Probe', label: false, info: 'A curved furcation probe (schematic, 1 mm ticks) slid in horizontally from the cheek side.' });
 });
+// an invisible frame that also covers the probes' shanks, so the camera fit leaves room for them (probes live in fig.world)
+const frameBox = new THREE.Mesh(new THREE.BoxGeometry(2, 25, 2 * SPACE + 25), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false }));
+frameBox.position.set(0, 0.5, 5); fig.part(frameBox, { name: 'Frame', label: false });
 const mid = sets[1];
 fig.part(mid.t.layers.dentin, { inPlace: true, name: 'Root trunk', sub: 'about 3 mm', anchor: (e, sec) => [(sec.enabled ? sec.offset : 0) + 0.1, -mid.s.trunk / 2, -mid.s.blC / 2 + 0.6], labelOffset: [70, 40], when: (e, sec) => sec.enabled, dim: false, info: 'CEJ to the furcation entrance. The shorter the trunk, the sooner bone loss reaches the furcation.' });
 
@@ -96,6 +99,6 @@ fig.story([
   { dur: 2.2, hold: 1.4, offset: -0.25, labels: ['Root trunk'], caption: 'A cut through the furcation, from cheek side to tongue side.' },
   { dur: 2.6, hold: 2.6, set: { probe: 1 }, labels: ['Class I', 'Class II', 'Class III'], caption: 'A probe slid in from the cheek side reads how far the loss goes.' },
   { dur: 2.0, hold: 2.2, zoom: 0.5, focus: [0, -3, 0], labels: ['Class II'], caption: 'Class II: the probe goes in 3 mm or more, then meets bone.' },
-  { dur: 2.0, hold: 2.4, focus: 'auto', zoom: fig.mode === 'image' ? 0.88 : 1, theta: Math.PI / 2 - 0.1, phi: 1.44, labels: ['Class I', 'Class II', 'Class III', 'Root trunk'] }
+  { dur: 2.0, hold: 2.4, focus: 'auto', zoom: fig.mode === 'image' ? 0.7 : 1, theta: Math.PI / 2 - 0.1, phi: 1.44, labels: ['Class I', 'Class II', 'Class III', 'Root trunk'] }
 ]);
 fig.start();

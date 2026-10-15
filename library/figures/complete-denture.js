@@ -65,7 +65,7 @@ function archSpine(arch, lastFdi, extend) {
     if (x === memo.x && z === memo.z) return memo;
     const ax = Math.abs(x); let best = Infinity, r = null;
     seg.forEach((g, i) => { const wx = ax - g.x0, wz = z - g.z0, t = clamp(wx * g.tx + wz * g.tz, 0, g.l), dx = wx - g.tx * t, dz = wz - g.tz * t, dd = dx * dx + dz * dz;
-      if (dd < best) { best = dd; r = { s: g.s0 + t, d: dx * -g.tz + dz * g.tx, past: i === seg.length - 1 ? wx * g.tx + wz * g.tz - g.l : -1e3 }; } });
+      if (dd < best) { best = dd; r = { s: g.s0 + t, d: dx * -g.tz + dz * g.tx, past: g.s0 + t - S + (i === seg.length - 1 ? Math.max(0, wx * g.tx + wz * g.tz - g.l) : 0) }; } });   // signed arc length past the end: continuous, so cuts across the end are clean planes
     return (memo = Object.assign({ x, z }, r));
   };
   return { near, end, sEnd, S, pts };
@@ -133,14 +133,14 @@ function edentulous(cfg) {
     const env = smin(m - cfg.base, saddle, 2.0);
     const side = smooth(-1.5, 1.5, n.d), sul = yT - lerp(cfg.sulL, cfg.sulB, side);
     let border = (sul + 1.0 + notch(n, side)) - y;
-    if (cfg.upper) border = lerp(-20, border, smooth(-3, 0, n.d));   // the upper base covers the whole palate: no lingual border
-    let b = rnd(env, border, 1.0);
-    if (cfg.upper) b = rnd(b, postZ - z, 1.2); else b = rnd(b, n.past + 3.5, 1.6);
+    if (cfg.upper && n.d < -1.5) border = -20;   // the upper base covers the whole palate: no lingual border (the switch lies inside the base, under the ridge crest)
+    let b = rnd(env, border, 0.8);   // edge radii stay under half the base thickness: a rolled border, never a feathered sliver
+    if (cfg.upper) b = rnd(b, postZ - z, 0.75); else b = rnd(b, n.past + 3.5, 0.75);
     // the fitting surface is the mucosa itself (0.04 mm relief); the upper one carries the posterior palatal seal bead into the soft tissue
     let fit = 0.04 - m;
     fit = Math.max(fit, cfg.th - 0.5 - bone(x, y, z));   // never inside the bone (where the mucosa layer was cropped)
     if (cfg.upper && n.d < -1) fit = Math.max(fit, vaultAt(x, z, n) + 0.5 - y);   // nor on the nasal side of the palate
-    return Math.max(b, fit);
+    return rnd(b, fit, 0.5);   // the border meets the fitting surface in a rounded roll, not a knife edge
   };
   return { near, gum, bone, mucosa, base, spine: sp, rowAt, vaultAt, postZ };
 }
@@ -157,7 +157,7 @@ function buildJaw(J, box, name) {
   const muc = meshOf(nets(J.mucosa, box, 0.7), DK.mat('mucosa'), name + ' mucosa');
   return { bone, canc, muc };
 }
-function buildBase(J, box, name) { return meshOf(nets(J.base, box, 0.42), acrylicMat(), name); }
+function buildBase(J, box, name) { return meshOf(nets(J.base, box, 0.32), acrylicMat(), name); }
 // fade a set of objects (story params): opacity, depth write and visibility together
 function fader(objs) {
   const list = []; objs.forEach(o => o.traverse(m => { if (m.isMesh && !m.userData.cutOnly) list.push(m); }));
@@ -168,7 +168,7 @@ function fader(objs) {
 /* ---------- the figure ---------- */
 const fig = DK.figure({
   fov: 34,
-  title: 'Complete dentures',
+  title: 'Complete denture',
   subtitle: 'Upper and lower full dentures on toothless ridges. Average adult.',
   view: { theta: 0.6, phi: 1.4, margin: 0.9 }
 });
@@ -181,7 +181,7 @@ const LOW = edentulous({ arch: lowArch, last: 37, extend: 13, upper: false, th: 
   rows: [[0, -5.0, 3.0, 3.4], [14, -5.0, 3.4, 3.5], [28, -5.1, 4.4, 3.8], [40, -5.2, 5.8, 4.2], [54, -4.8, 6.2, 4.6], [70, -4.2, 5.8, 4.6]] });
 // upper: crown-up in its own arch frame, mirrored crown-down and set in occlusion (2.5 mm overbite) like the kit's upper teeth
 const upArch = DK.arch({ jaw: 'maxilla', build: resinTooth });
-const UP = edentulous({ arch: upArch, last: 27, extend: 7, upper: true, th: 2.3, sulB: 8, sulL: 8, base: 2.0, height: 9.5, vault: 8.5, ridgeShift: -1.2,
+const UP = edentulous({ arch: upArch, last: 27, extend: 10, upper: true, th: 2.3, sulB: 8, sulL: 8, base: 2.0, height: 9.5, vault: 8.5, ridgeShift: -1.2,
   rows: [[0, -5.2, 3.0, 3.2], [16, -5.2, 3.6, 3.6], [30, -5.4, 4.6, 4.0], [46, -5.4, 5.4, 4.4], [62, -5.2, 6.2, 4.8]] });
 const lowBox = [[-38, -26, -60], [38, 3.2, 8]], upBox = [[-40, -17.6, -58], [40, 3.2, 8]];
 const lowJaw = buildJaw(LOW, lowBox, 'Lower'), upJaw = buildJaw(UP, upBox, 'Upper');
@@ -238,7 +238,8 @@ fig.part(lowArch.group, { inPlace: true, name: 'Denture teeth', anchor: [s32.c[0
 // params: fade a set out of the way (the upper jaw, to look down onto the fitting surface of the upper denture)
 fig.param('upJaw', 1, fader([upJawG]));
 fig.param('upDent', 1, fader([upDent]));
-fig.param('lower', 1, fader([lowJawG, lowDent]));
+fig.param('lower', 1, fader([lowDent]));
+fig.param('lowJaw', 1, fader([lowJawG]));
 
 fig.enableSection([0, 0, 1], [
   { objects: [upJaw.muc, lowJaw.muc], color: DK.COLORS.mucosaCap, kind: 'gingiva' },
@@ -248,9 +249,9 @@ fig.enableSection([0, 0, 1], [
   { objects: [...upArch.teeth.map(t => t.tooth.layers.enamel), ...lowArch.teeth.map(t => t.tooth.layers.enamel)], color: DK.COLORS.ceramicCap, kind: 'plain' }
 ]);
 const zCut = (s36.c[1] + s16.c[1] + HOLD.z) / 2;
-const EX = 0.85, ALL = { upJaw: 1, upDent: 1, lower: 1 };
+const EX = 0.85, ALL = { upJaw: 1, upDent: 1, lower: 1, lowJaw: 1 };
 const HOME = { theta: 0.6, phi: 1.4, zoom: 1, fov: 34, explode: 0, focus: 'auto', section: false, set: ALL, labels: ['Upper denture', 'Lower denture', 'Ridge', 'Denture teeth'] };
-const PALATE = { theta: 0.35, phi: 0.85, zoom: 0.62, explode: EX, focus: [0, HOLD.y + 8 * EX + 7, -17], section: false, set: { upJaw: 0, upDent: 1, lower: 0 }, labels: ['Palate cover', 'Posterior seal'] };
+const PALATE = { theta: 0.35, phi: 0.85, zoom: 0.62, explode: EX, focus: [0, HOLD.y + 8 * EX + 7, -17], section: false, set: { upJaw: 0, upDent: 1, lower: 0, lowJaw: 0 }, labels: ['Palate cover', 'Posterior seal'] };
 const LOWER = { theta: 0.25, phi: 0.5, zoom: 0.62, explode: EX, focus: [0, -8 * EX - 2, -18], section: false, set: { upJaw: 0, upDent: 0, lower: 1 }, labels: ['Lower denture', 'Flange'] };
 const ctl = fig.standardControls({ explode: true, section: { label: 'Cut', range: [-48, 10], offset: zCut } });
 fig.view('Palate', PALATE);
@@ -264,6 +265,8 @@ fig.story([
   Object.assign({ dur: 2.6, hold: 2.0, caption: 'The lower one is a horseshoe around the tongue, held mostly by the cheeks and tongue.' }, LOWER),
   { fov: 28, dur: 2.4, hold: 0.2, theta: 0.5, phi: 1.4, zoom: 1, focus: 'auto', explode: 0, set: ALL, labels: [] },
   { dur: 0, hold: 0, section: true, offset: 10 },
-  { dur: 2.6, hold: 2.8, offset: zCut, theta: 0.42, phi: 1.36, zoom: 0.8, labels: ['Palate cover', 'Lower denture', 'Ridge', 'Bone'], caption: 'Cut across the molars: the bases sit on the mucosa, the upper one spans the palate.' }
+  { dur: 2.6, hold: 2.2, offset: zCut, theta: 0.42, phi: 1.36, zoom: 0.8, labels: ['Palate cover', 'Lower denture', 'Ridge', 'Bone'], caption: 'Cut across the molars: the bases sit on the mucosa, the upper one spans the palate.' },
+  { dur: 0.1, hold: 0, offset: 10, labels: [] },
+  { fov: 34, dur: 2.6, hold: 3.0, section: false, explode: 0.5, set: { upJaw: 0, lowJaw: 0 }, theta: 0.6, phi: 1.32, zoom: 0.72, focus: 'auto', labels: ['Upper denture', 'Lower denture', 'Denture teeth'], caption: 'A pair of complete dentures: resin teeth on pink acrylic bases that rest on the gums.' }
 ]);
 fig.start();

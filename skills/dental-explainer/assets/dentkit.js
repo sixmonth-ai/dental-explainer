@@ -3542,6 +3542,7 @@
     // steepest (`inclination`) in its middle and levels out at the crest: a cosine from phase P0 to π, scaled to `height`
     const P0 = 35 * Math.PI / 180, K = 1 + Math.cos(P0), L = em.height * (Math.PI - P0) / (K * Math.tan(em.inclination * Math.PI / 180));
     m.eminence = { inclination: em.inclination, height: em.height, length: L, drop: a => a <= 0 ? 0 : a >= L ? em.height : em.height * (Math.cos(P0) - Math.cos(P0 + (Math.PI - P0) * a / L)) / K };
+    m.sdf = sdf;   // the bone's signed distance (rest pose, frame coordinates): the disc drapes on it
     m.teeth = null; m.upper = null;
     if (o.teeth) {
       m.teeth = DK.arch(Array.isArray(o.teeth) ? { jaw: 'mandible', teeth: o.teeth } : { jaw: 'mandible' });
@@ -3749,17 +3750,58 @@
     const C = m.centres[side], sgn = side === 'left' ? 1 : -1, AX = m.axes[side].clone().multiplyScalar(sgn);   // local +x = patient's left on both sides
     const a = m.head.ml / 2, b = m.head.si / 2, c = m.head.ap / 2, ax = a * 0.93, TH0 = -62, TH1 = 80, MID = (TH0 + TH1) / 2;
     const edge = x => Math.sqrt(Math.max(0, 1 - Math.pow(x / ax, 2))), taper = x => 0.35 + 0.65 * edge(x);
+    // The head as meshed is a little fatter than its ellipsoid where the neck blends into it, so the lens is draped on the bone's
+    // own signed distance (m.sdf, rest pose): each sample ray from the centre is pushed out until it clears the bone, for every
+    // pitch the disc takes down the eminence (0–35°: the head turns under it), so the thin zone never sinks into the condyle.
+    const XB = AX.clone(), YB = new T.Vector3(0, 1, 0), ZB = new T.Vector3().crossVectors(XB, YB).normalize(), F = new T.Vector3();
+    const clear = (x, r, th) => { // radial scale that puts the ellipsoid point (x, th) on the bone surface, max over the disc's pitch range
+      let best = 1;
+      for (let tilt = 0; tilt <= 36; tilt += 9) {
+        const t = (th + tilt) * Math.PI / 180, py = b * r * Math.cos(t), pz = c * r * Math.sin(t);
+        const at = s => { F.copy(C).addScaledVector(XB, x * s).addScaledVector(YB, py * s).addScaledVector(ZB, pz * s); return m.sdf ? m.sdf(F.x, F.y, F.z) : 1; };
+        if (at(1) <= 0) { let lo = 1, hi = 1.5; for (let i = 0; i < 12; i++) { const mid = (lo + hi) / 2; (at(mid) <= 0 ? (lo = mid) : (hi = mid)); } best = Math.max(best, hi); }
+      }
+      return best;
+    };
     const surf = (x, th, k) => { // k = 0 inner surface, 1 outer: a point of the lens for the head angle th (°) at axial position x
       th = MID + (th - MID) * Math.pow(edge(x), 0.6);   // the lens narrows toward the poles: a rounded oval in plan, not a cap plunging to them
-      const t = th * Math.PI / 180, r = Math.sqrt(Math.max(0.002, 1 - Math.pow(x / a, 2))), p = [x, b * r * Math.cos(t), c * r * Math.sin(t)];
+      const t = th * Math.PI / 180, r = Math.sqrt(Math.max(0.002, 1 - Math.pow(x / a, 2))), s = clear(x, r, th), p = [x * s, b * r * Math.cos(t) * s, c * r * Math.sin(t) * s];
       const n = [p[0] / (a * a), p[1] / (b * b), p[2] / (c * c)], nl = Math.hypot(...n), d = o.gap + k * jawDiscThickness(th, o) * taper(x);
       return [p[0] + n[0] / nl * d, p[1] + n[1] / nl * d, p[2] + n[2] / nl * d];
     };
-    const rows = 26, half = 32, cols = half * 2;
+    const rows = 26, half = 32, cols = half * 2, W1 = cols + 1;
     const g = gridGeometry(rows, cols, (i, j) => { const x = -ax * Math.cos(Math.PI * i / rows); return j <= half ? surf(x, TH0 + (TH1 - TH0) * j / half, 0) : surf(x, TH1 - (TH1 - TH0) * (j - half) / half, 1); },
       surf(ax, MID, 0.5), surf(-ax, MID, 0.5));
     const disc = new T.Mesh(g, jawDiscMat(o.color, o.opacity)); disc.name = 'Articular disc'; disc.userData.noShadow = true;
     const grp = new T.Group(); grp.name = (side === 'left' ? 'Left' : 'Right') + ' articular disc'; grp.add(disc); m.group.add(grp);
+    const frame = new T.Matrix4(), X = new T.Vector3(), Y = new T.Vector3(), Z = new T.Vector3();
+    const setFrame = pose => { // the disc's frame for a pose: centre on the condyle, pitch from the eminence slope under it, long axis on the condyle's poles
+      const n = pose.condyles[side], fwd = n.forward, slope = (m.eminence.drop(fwd + 0.02) - m.eminence.drop(fwd - 0.02)) / 0.04;
+      Y.set(0, 1, slope).normalize(); X.copy(AX).applyQuaternion(pose.quaternion); X.addScaledVector(Y, -X.dot(Y)).normalize(); Z.crossVectors(X, Y).normalize();
+      frame.makeBasis(X, Y, Z); frame.setPosition(n.now); return slope;
+    };
+    // Settle: the head turns and slides under the disc through every pose, so each inner vertex is tested against the bone (m.sdf,
+    // in the posed condyle's frame) over excursions, protrusions and openings, and any that would sink is pushed out along its
+    // normal, with its outer twin, by the penetration plus a film of joint space. Then the lens never sinks into the condyle.
+    if (m.sdf) {
+      const P = g.attributes.position, N = g.attributes.normal, V = new T.Vector3(), R = new T.Vector3(), push = new Float32Array(P.count);
+      const POSES = [{}, { protrusion: 4 }, { protrusion: 8 }, { protrusion: 11 }, { open: 15 }, { open: 30 }, { open: 45 }];
+      ['right', 'left'].forEach(s => [3, 6, 9, 12].forEach(l => POSES.push({ lateral: l, side: s })));
+      POSES.forEach(pose => {
+        const r = jawSolve(m, pose); setFrame(r); const qi = r.quaternion.clone().invert();
+        for (let i = 0; i <= rows; i++) for (let j = 0; j <= half; j++) {
+          const k = i * W1 + j; V.fromBufferAttribute(P, k).applyMatrix4(frame); R.copy(V).sub(r.position).applyQuaternion(qi);
+          const sd = m.sdf(R.x, R.y, R.z); if (sd < 0.1) push[k] = Math.max(push[k], 0.1 - sd);
+        }
+      });
+      for (let i = 0; i <= rows; i++) for (let j = 0; j <= half; j++) {
+        const k = i * W1 + j, p = push[k]; if (!(p > 0)) continue;
+        const x = -ax * Math.cos(Math.PI * i / rows), th = MID + (TH0 + (TH1 - TH0) * j / half - MID) * Math.pow(edge(x), 0.6), t = th * Math.PI / 180, rr = Math.sqrt(Math.max(0.002, 1 - Math.pow(x / a, 2)));
+        const nn = [x / (a * a), b * rr * Math.cos(t) / (b * b), c * rr * Math.sin(t) / (c * c)], nl = Math.hypot(...nn);   // the ellipsoid normal of this sample
+        [k, i * W1 + (cols - j), j === 0 ? i * W1 + cols : -1].forEach(idx => { if (idx >= 0) P.setXYZ(idx, P.getX(idx) + nn[0] / nl * p, P.getY(idx) + nn[1] / nl * p, P.getZ(idx) + nn[2] / nl * p); });
+      }
+      P.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere();
+    }
     // soft tissue with a fixed topology whose vertices follow the pose (no per-frame geometry allocation)
     const tissue = jawTissueMat(0xC9ACA6, 0.42), muscle = jawTissueMat(0xB08C86, 0.6);
     const tube = (name, mat, parent) => { const mesh = new T.Mesh(gridGeometry(10, 14, () => [0, 0, 0], [0, 0, 0], [0, 0, 0]), mat); mesh.name = name; mesh.userData.noShadow = true; mesh.renderOrder = 2; parent.add(mesh); return mesh; };
@@ -3774,7 +3816,6 @@
       }
       p.setXYZ(n, P0.x, P0.y, P0.z); p.setXYZ(n + 1, P1.x, P1.y, P1.z); p.needsUpdate = true; mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
     };
-    const frame = new T.Matrix4(), X = new T.Vector3(), Y = new T.Vector3(), Z = new T.Vector3();
     const local = (x, y, z) => new T.Vector3(x, y, z).applyMatrix4(frame);
     const back = surf(0, TH0 + 6, 0.5), front = surf(0, TH1 - 6, 0.5);
     const post = C.clone().add(new T.Vector3(0, 2.2, -7.6)), neck = C.clone().add(new T.Vector3(0, -6.5, -3.2)), fovea = C.clone().add(new T.Vector3(0, -7, 2.2));
@@ -3782,9 +3823,7 @@
     grp.userData = { disc, laminae, pterygoid: pteryg, thickness: { posterior: o.posterior, intermediate: o.intermediate, anterior: o.anterior },
       anchors: { posteriorBand: surf(0, -20, 1), intermediate: surf(0, 25, 1), anteriorBand: surf(0, 55, 1), lateral: surf(sgn * ax * 0.8, 10, 1) },
       update(pose) {
-        const n = pose.condyles[side], fwd = n.forward, slope = (m.eminence.drop(fwd + 0.02) - m.eminence.drop(fwd - 0.02)) / 0.04;
-        Y.set(0, 1, slope).normalize(); X.copy(AX); X.addScaledVector(Y, -X.dot(Y)).normalize(); Z.crossVectors(X, Y).normalize();
-        frame.makeBasis(X, Y, Z); frame.setPosition(n.now); frame.decompose(grp.position, grp.quaternion, grp.scale); grp.updateMatrixWorld(true);
+        const slope = setFrame(pose); frame.decompose(grp.position, grp.quaternion, grp.scale); grp.updateMatrixWorld(true);
         if (laminae.length) { fill(laminae[0], local(...back), post, t => a * (0.78 - 0.25 * t), t => 1.3 + 0.9 * t, 0.35); fill(laminae[1], local(...back), pose.apply(neck), a * 0.6, 0.9, 0.2); }
         if (pteryg.length) { fill(pteryg[0], local(...front), plate[0], t => 2.4 + 1.6 * t, t => 1.4 + 1.2 * t, 0.15); fill(pteryg[1], pose.apply(fovea), plate[1], t => 3 + 2 * t, t => 2.2 + 1.6 * t, 0.2); }
         grp.userData.pitch = Math.atan(slope);
@@ -3816,7 +3855,7 @@
     const toH = (y, z) => [E[5] * y + E[9] * z + E[13], E[6] * y + E[10] * z + E[14]];   // frame (y, z) → holder (y, z); x is shared
     const toF = (x, y, z) => [x, HE[5] * y + HE[9] * z + HE[13], HE[6] * y + HE[10] * z + HE[14]];
     // the arch line (holder xz) as segments, from the midline to the distal of the last molar and 7 mm on (the tuberosity)
-    const last = up.teeth.reduce((p, t) => (t.slot.side === 'left' && (!p || t.fdi > p.fdi) ? t : p), null).slot;
+    const last = (up.teeth.reduce((p, t) => (t.slot.side === 'left' && (!p || t.fdi > p.fdi) ? t : p), null) || { slot: up.slots[27] }).slot;   // the arch's last molar slot, even when fewer teeth are built
     const endPt = [last.c[0] - last.t[0] * last.md / 2, last.c[1] - last.t[1] * last.md / 2], xEnd = endPt[0];
     const pts = []; for (let i = 0; i <= 40; i++) pts.push(up.curve(xEnd * Math.sin(Math.PI / 2 * i / 40)));
     pts.push([endPt[0] - last.t[0] * 7, endPt[1] - last.t[1] * 7]);
@@ -3834,6 +3873,7 @@
     };
     const RW = [[0, 4.5, 5.2], [16, 5.1, 5.9], [20, 5.0, 6.0], [30, 5.5, 6.4], [44, 6.4, 7.2], [56, 6.6, 7.4], [70, 6.4, 7.0]];   // s → buccal, palatal half-width at the crest
     const C = m.centres.left, AXv = m.axes.left, JS = jawJointSurface(m, jawDiscGap), poly = JS.poly, L = JS.L, crop = o.crop, ZS = up.curve(0)[1] + 4.6;
+    const PR = JS.prof, profAt = u => { let i = 0; while (i < PR.length - 2 && PR[i + 1][0] < u) i++; const A = PR[i], B = PR[i + 1], t = clamp((u - A[0]) / ((B[0] - A[0]) || 1), 0, 1); return A[1] + (B[1] - A[1]) * t; };   // joint surface height (v) at u
     const BLOCK = { x0: 33, x1: 56, z0: -96, z1: -58 };
     const parts = (x, y, z) => { // [maxilla, zygomatic arch, temporal] distances at a frame point (the zygoma and temporal parts mirror in x)
       const n = nearby(x, z), [yh, zh] = toH(y, z), ax = Math.abs(x);
@@ -3859,13 +3899,14 @@
       // --- zygoma body and arch (frame coordinates, mirrored): the arch is a 7 × 4 mm bar bowing laterally back to the temporal bone
       const zyg = (Math.hypot((ax - 47) / 7.5, (y - 41) / 7, (z + 29) / 9.5) - 1) * 7;
       const [px, py] = jawTable([[-92, 57, 38], [-75, 57, 39], [-62, 57.5, 39.5], [-48, 57, 40.5], [-36, 54.5, 41], [-27, 50, 41]], z);
-      const arch = jawRound(jawRound(Math.abs(ax - px) - 2, Math.abs(y - py) - 3.5, 1.4), Math.max(-93 - z, z + 25), 2);   // its root runs on over the joint as the fossa's lateral rim
+      const uA = z - C.z - AXv.z * (ax - C.x) / Math.abs(AXv.x), lowA = z < -58 && uA > 0 ? Math.min(py - 3.5, C.y + profAt(uA) - 1.2) : py - 3.5;   // over the joint its lower edge follows the eminence down to the crest
+      const arch = jawRound(jawRound(Math.abs(ax - px) - 2, Math.max(y - py - 3.5, lowA - y), 1.4), Math.max(-93 - z, z + 25), 2);   // its root runs on over the joint as the fossa's lateral rim
       bone = jawSmin(bone, zyg, 4);
       // --- temporal bone over the joint: a block whose under-surface is the fossa and eminence carved to the joint surface
       let temporal = 1e3;
       if (ax > BLOCK.x0 - 4 && z < BLOCK.z1 + 4 && z > BLOCK.z0 - 5) {
         const w = (ax - C.x) / Math.abs(AXv.x), u = z - C.z - AXv.z * w, v = y - C.y;
-        const floor = 3 - 9 * smooth(-6, -10, u) + 2.5 * smooth(L + 2, L + 6, u);   // rim level: equator + 3; the postglenoid process drops behind; the preglenoid plane in front
+        const floor = u < 0 ? 3 - 9 * smooth(-6, -10, u) : Math.min(3, profAt(u) - 1.2);   // the rim: equator + 3 behind, then under the joint surface itself (the crest is bone), the postglenoid process drops behind
         const box = jawRound(Math.max(BLOCK.x0 - ax, ax - BLOCK.x1), Math.max(BLOCK.z0 - z, z - BLOCK.z1), 5);
         const cavity = jawRound(jawSdPolygon(poly, u, v), Math.abs(w) - 13, 3);
         temporal = Math.max(jawRound(box, floor - v, 2.5), -cavity);

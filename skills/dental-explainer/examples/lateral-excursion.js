@@ -20,17 +20,18 @@ const mx = m.maxilla, discs = m.discs, tmjR = mx.joints.right, tmjL = mx.joints.
 fig.part(m.group, { name: 'Jaw', label: false, info: 'Average adult mandible with its teeth, under the upper jaw and the two temporomandibular joints.' });
 fig.part(mx.maxilla, { inPlace: true, name: 'Maxilla', label: false, info: 'Upper jaw: alveolar process with every upper tooth on its roots in a socket, the hard palate, tuberosities and the anterior nasal spine; the zygomatic buttress rises over the first molar. Cut flat below the orbits.' });
 fig.part(mx.temporal.right, { inPlace: true, name: 'Right fossa', label: false, info: 'Glenoid fossa and articular eminence of the right temporal bone (drawn see-through).' });
-fig.part(mx.temporal.left, { inPlace: true, name: 'Articular eminence', sub: 'left', anchor: tmjL.userData.anchors.crest, labelOffset: [-75, -80],
+const crestCut = tmjL.userData.at(m.eminence.length, 0.5 / m.axes.left.x);   // the crest on the section plane (x = L.x + 0.5)
+fig.part(mx.temporal.left, { inPlace: true, name: 'Articular eminence', sub: 'left', anchor: (e, sec) => sec.enabled ? crestCut : tmjL.userData.anchors.crest, labelOffset: [-75, -80],
   info: 'The convex slope in front of the fossa, carved into the temporal bone. The non-working condyle slides down it with its disc, so that side of the jaw drops.' });
 fig.part(discs.left, { inPlace: true, name: 'Articular disc', sub: 'moves with the condyle', anchor: discs.left.userData.anchors.lateral, labelOffset: [80, -65], dim: false,
   info: 'Biconcave fibrocartilage: a thick posterior band (about 3 mm) and an anterior band (about 2 mm) around a thin intermediate zone (about 1 mm). The condyle rotates beneath it (lower joint space); disc and condyle translate together down the eminence (upper joint space). Retrodiscal tissue behind.' });
 fig.part(m.body, { inPlace: true, name: 'Mandible', label: false, info: 'The mandible moves as one rigid bone, so what one condyle does fixes what the other can do.' });
 fig.part(m.upper.holder, { inPlace: true, name: 'Upper teeth', label: false, info: 'Maxillary teeth, fixed to the skull. The lower teeth slide across them; the canines guide the jaw apart.' });
 fig.enableSection([1, 0, 0], [
-  { objects: m.bone, color: 0xD7D1C5, kind: 'cortical' },
-  { objects: mx.bone, color: 0xE2DCCF, kind: 'cortical' },
-  { objects: [discs.left.userData.disc, discs.right.userData.disc], color: 0xC2ADA7, kind: 'plain' },
-  { objects: [...discs.left.userData.laminae, ...discs.right.userData.laminae], color: 0xD3BDB7, kind: 'plain' }
+  { objects: m.bone, color: 0xCCC3B2, kind: 'plain' },          // the condyle: a smooth, slightly darker cut
+  { objects: mx.bone, color: 0xEAE5DA, kind: 'cortical' },      // fossa, eminence and temporal bone: pale, grained
+  { objects: [discs.left.userData.disc, discs.right.userData.disc], color: 0xB89F98, kind: 'plain' },   // the disc: the darkest tone, so its 3 / 1 / 2 mm profile reads
+  { objects: [...discs.left.userData.laminae, ...discs.right.userData.laminae], color: 0xD6C2BC, kind: 'plain' }
 ]);
 
 // the two condyles move with the jaw: their anchors are frame points at rest (the top of each head)
@@ -116,10 +117,8 @@ fig.procedure([
   { label: 'From above', caption: 'Seen from above, the path also runs medially: the Bennett angle.', beats: [
     { dur: 2.2, hold: 2.2, theta: 0.0, phi: 0.32, zoom: 0.92, focus: [0, R.y, R.z + 8], set: { guides: 1, context: 0.04, fossa: 0.04 }, labels: ['Right condyle', 'Left condyle', 'Condyle path'], key: true }] }
 ]);
-fig.view('Front', { theta: 0, phi: 1.5, zoom: 1, focus: 'auto', section: false, set: { lower: 1, context: 0.85, fossa: 0.22, guides: 0 }, labels: [] });
-fig.view('Side', { theta: Math.PI / 2, phi: 1.5, zoom: 1, focus: 'auto', section: false, set: { lower: 1, context: 0.85, fossa: 0.22, guides: 0 }, labels: [] });
 fig.view('Palate', { theta: 0.3, phi: 2.9, zoom: 0.8, focus: [0, 25, -45], section: false, set: { lateral: 0, context: 0.85, fossa: 0.3, guides: 0, lower: 0 }, labels: [] });
 fig.param('lower', 1, v => { m.jaw.visible = v > 0.5; });
-fig.view('Disc section', { theta: Math.PI / 2, phi: 1.5, zoom: 0.15, focus: [L.x, L.y + 1, L.z + 4], section: true, offset: L.x + 0.5,
+fig.view('Section', { theta: Math.PI / 2, phi: 1.5, zoom: 0.15, focus: [L.x, L.y + 1, L.z + 4], section: true, offset: L.x + 0.5,
   set: { context: 0.3, fossa: 0.1, guides: 0, lower: 1 }, labels: ['Articular disc', 'Articular eminence'] });
 fig.start();

@@ -720,7 +720,7 @@
   .dk-ov-foot b{color:var(--ink);font-weight:600}
   .dk-panel{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:4px;padding:5px;max-width:calc(100% - 20px);overflow-x:auto;scrollbar-width:none;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:var(--shadow);border-radius:12px}
   .dk-panel:not(:has(.dk-btn,.dk-ctrl,.dk-step)){display:none}.dk-panel::-webkit-scrollbar{display:none}
-  .dk-psteps,.dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-psteps:not(:empty)+.dk-pmain:not(:empty),.dk-pmain:not(:empty)+.dk-pend:not(:empty),.dk-psteps:not(:empty)+.dk-pmain:empty+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
+  .dk-prog{position:absolute;left:18px;right:18px;top:12px;height:3px;border-radius:2px;background:var(--line);overflow:hidden;opacity:0;transition:opacity .3s ease;pointer-events:none;z-index:2}.dk-prog i{display:block;height:100%;border-radius:2px;background:var(--accent);transform-origin:0 50%;transform:scaleX(0)}.dk-prog.paused i{opacity:.5}.dk-psteps,.dk-pmain,.dk-pend{display:flex;align-items:center;gap:4px}.dk-psteps:not(:empty)+.dk-pmain:not(:empty),.dk-pmain:not(:empty)+.dk-pend:not(:empty),.dk-psteps:not(:empty)+.dk-pmain:empty+.dk-pend:not(:empty){border-left:1px solid var(--line);padding-left:4px;margin-left:3px}
   .dk-step{position:relative;flex:none;min-width:150px;padding:0 6px;font-size:13px;font-weight:600;white-space:nowrap;text-align:center}.dk-step small{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;margin-right:6px}
   .dk-step i{position:absolute;left:8px;right:8px;bottom:-4px;height:2px;border-radius:1px;opacity:0;transition:opacity .2s ease;background:linear-gradient(90deg,var(--accent) calc(var(--p,0)*100%),var(--line) 0)}.dk-step.playing i{opacity:1}
   .dk-btn svg{display:block;margin:0 auto}.dk-btn.dk-play[aria-pressed=true]{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
@@ -834,7 +834,8 @@
     // inertia: the model keeps turning a little after a flick, then settles
     let drag = null, vel = { th: 0, ph: 0 };
     let introOff = false;
-    function interrupt() { player = null; introOff = true; orbit.auto = false; if (caption) caption.style.opacity = 0; }
+    // a touch, drag or wheel pauses a playing story or procedure where it is (Play resumes it); camera moves are just dropped
+    function interrupt() { if (player && player.tag && !paused) paused = true; else if (!(player && paused)) player = null; introOff = true; orbit.auto = false; if (caption) caption.style.opacity = 0; }
     if (!still) {
       // touch: one finger orbits, two fingers pinch-zoom, a tap names the part under it (hover does that for a mouse)
       const touches = new Map(); let pinch = null, tap = null;
@@ -1033,7 +1034,7 @@
        rests. The move eases (smootherstep; `ease: 'out' | 'in' | 'linear'` to change it), the hold drifts very slightly
        (`drift: 0` to pin it), labels land as the move settles and captions fade in on their beat. `focus` pushes the orbit
        centre to a point of the figure (world mm) for close-ups; 'auto' returns to the fitted centre. */
-    let story = null, player = null, labelFilter = null;
+    let story = null, player = null, labelFilter = null, paused = false;
     const params = {};   // named numbers a story can animate (drill depth, insertion, bone level…): fig.param(name, value, fn)
     const keys = () => STORY_KEYS.concat(Object.keys(params).map(n => '$' + n));
     const autoFocus = () => fits ? [fits[0].c.x, fits[0].c.y, fits[0].c.z] : [0, 0, 0];
@@ -1084,7 +1085,7 @@
     }
     function play(steps, opts) {
       opts = opts || {}; const c = compile(steps, Object.assign(snapshot(), opts.from || {}));
-      player = { c, t: 0, loop: !!opts.loop, done: opts.done, tick: opts.tick, tag: opts.tag }; return c;
+      paused = false; player = { c, t: 0, loop: !!opts.loop, done: opts.done, tick: opts.tick, tag: opts.tag, blend: opts.blend ? { from: snapshot(), e: 0, dur: 0.7 } : null }; return c;
     }
 
     // resize & loop
@@ -1164,10 +1165,22 @@
     function clearParticles() { pLife.fill(0); pts.visible = false; }
 
     function update(dt) {
-      if (player) {
+      if (player && !paused) {
         player.t += dt;
         if (player.t >= player.c.total) { if (player.loop) player.t %= player.c.total || 1; else { apply(stateAt(player.c, player.c.total)); const d = player.done; player = null; if (d) d(); } }
-        if (player) { apply(stateAt(player.c, player.t)); if (player.tick) player.tick(player.t); }
+        if (player) {
+          let sv = stateAt(player.c, player.t);
+          if (player.blend) {   // after a pause the viewer may have turned the model: ease the camera back onto the story's path
+            const b = player.blend; b.e += dt; const k = ease(clamp(b.e / b.dur, 0, 1)); sv = Object.assign({}, sv);
+            ['theta', 'phi', 'zoom', 'fov', 'focusX', 'focusY', 'focusZ'].forEach(n => {
+              if (b.from[n] === undefined || sv[n] === undefined) return;
+              let a = b.from[n]; if (n === 'theta') a = sv.theta + Math.atan2(Math.sin(a - sv.theta), Math.cos(a - sv.theta));
+              sv[n] = lerp(a, sv[n], k);
+            });
+            if (k >= 1) player.blend = null;
+          }
+          apply(sv); if (player.tick) player.tick(player.t);
+        }
       } else {
         if (orbit.auto && !reduce) orbit.theta += dt * 0.15;
         if (!drag && (Math.abs(vel.th) > 0.01 || Math.abs(vel.ph) > 0.01)) { orbit.theta += vel.th * dt; orbit.phi = clamp(orbit.phi + vel.ph * dt, 0.06, Math.PI - 0.06); const k = Math.exp(-dt * 6); vel.th *= k; vel.ph *= k; }
@@ -1175,6 +1188,7 @@
         if (fits) orbit.zoom += (zoomTarget - orbit.zoom) * (reduce ? 1 : Math.min(1, dt * 10));
       }
       if (playB) syncPlay();
+      if (progEl) syncProgress();
       const e = ease(clamp(explodeT, 0, 1));
       parts.forEach(p => { if (!p.inPlace) p.obj.position.copy(p.base).addScaledVector(p.ex, e); });
       frameHooks.forEach(f => f(dt, e));
@@ -1300,7 +1314,7 @@
     function videoType() { return ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)); }
     // deterministic seek for frame-by-frame rendering (scripts/render.py)
     function seek(t) {
-      frozen = true; player = null; introOff = true;
+      frozen = true; player = null; paused = false; introOff = true;
       if (!story) { update(0); return; }
       const c = compile(story, startState);
       apply(stateAt(c, clamp(t, 0, c.total)));
@@ -1326,14 +1340,37 @@
     }
     // play / stop: the button shows what is happening (▶ idle, ■ playing, pressed) and the step label fills as the step plays
     const ICON_PLAY = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M3 1.6v8.8L10.4 6z" fill="currentColor"/></svg>';
-    const ICON_STOP = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1.2" fill="currentColor"/></svg>';
+    const ICON_PAUSE = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect x="2.4" y="1.8" width="2.6" height="8.4" rx=".8" fill="currentColor"/><rect x="7" y="1.8" width="2.6" height="8.4" rx=".8" fill="currentColor"/></svg>';
+    const ICON_REPLAY = '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 2.2a3.8 3.8 0 1 1-3.6 2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M1.6 1.8l.9 3.1 3-1.1z" fill="currentColor"/></svg>';
+    let storyB = null;
+    function syncStory() {
+      const now = !!player && player.tag === 'story' && !paused, held = !!player && player.tag === 'story' && paused;
+      const look = now ? 'pause' : held ? 'resume' : 'replay';
+      if (storyB.dataset.look === look) return; storyB.dataset.look = look;
+      storyB.innerHTML = now ? ICON_PAUSE : held ? ICON_PLAY : ICON_REPLAY;
+      const label = now ? 'Pause' : held ? 'Resume' : 'Play again'; storyB.title = label; storyB.setAttribute('aria-label', label); storyB.setAttribute('aria-pressed', now);
+    }
+    function resume() { if (!player || !paused) return; paused = false; player.blend = { from: snapshot(), e: 0, dur: 0.7 }; }
+    // a thin progress line along the bottom of the stage while a story or procedure plays or is paused
+    let progEl = null, progShown = -1, procTotal = 0;
+    function syncProgress() {
+      const live = !!player && !!player.tag && player.c.total > 0, base = player && player.base ? player.base : 0;
+      if (live && player.tag === 'proc' && !procTotal) procTotal = compile(story, startState).total;
+      const total = live ? (player.tag === 'proc' ? procTotal : player.c.total) : 1, v = live ? clamp((base + player.t) / total, 0, 1) : 0;
+      const shown = live ? Math.round(v * 400) : -1; if (shown === progShown) return; progShown = shown;
+      progEl.style.opacity = live ? 1 : 0; progEl.firstChild.style.transform = `scaleX(${v.toFixed(4)})`; progEl.classList.toggle('paused', live && paused);
+    }
     function syncPlay() {
-      const now = !!player && player.tag === 'proc';
-      if (now) { const c = compile(story, startState), st = proc[stepCur], a = c.segs[st.first].t0, b = c.segs[st.last].t2, t = player.base + player.t; stepEl.style.setProperty('--p', clamp((t - a) / Math.max(b - a, 1e-3), 0, 1).toFixed(3)); }
-      if (now === playing) return; playing = now;
-      playB.innerHTML = now ? ICON_STOP : ICON_PLAY; playB.setAttribute('aria-pressed', now);
-      const label = now ? 'Stop' : (stepCur === proc.length - 1 ? 'Play from the start' : 'Play from this step'); playB.title = label; playB.setAttribute('aria-label', label);
-      stepEl.classList.toggle('playing', now); if (!now) stepEl.style.setProperty('--p', 0);
+      const held = !!player && player.tag === 'proc' && paused, now = !!player && player.tag === 'proc' && !paused;
+      const look = now ? 'pause' : held ? 'resume' : 'idle';
+      if (playB.dataset.look !== look) {
+        playB.dataset.look = look; playB.innerHTML = now ? ICON_PAUSE : ICON_PLAY;
+        const label = now ? 'Pause' : held ? 'Resume' : (stepCur === proc.length - 1 ? 'Play from the start' : 'Play from this step');
+        playB.title = label; playB.setAttribute('aria-label', label); playB.setAttribute('aria-pressed', now);
+      }
+      if (now || held) { const c = compile(story, startState), st = proc[stepCur], a = c.segs[st.first].t0, b = c.segs[st.last].t2, t = player.base + player.t; stepEl.style.setProperty('--p', clamp((t - a) / Math.max(b - a, 1e-3), 0, 1).toFixed(3)); }
+      playing = now;
+      const on = now || held; if (stepEl.classList.contains('playing') !== on) { stepEl.classList.toggle('playing', on); if (!on) stepEl.style.setProperty('--p', 0); }
     }
     function playFrom(i) {
       const tick = t => { const k = stepAtTime(player.base + t); if (k !== stepCur) showStep(k); };
@@ -1383,13 +1420,18 @@
           prevB = mk('‹', 'Previous step', () => goStep(stepCur - 1));
           stepEl = document.createElement('span'); stepEl.className = 'dk-step'; stepEl.setAttribute('aria-live', 'polite'); stepEl.innerHTML = '<small></small><span></span><i></i>'; box.appendChild(stepEl);
           nextB = mk('›', 'Next step', () => goStep(stepCur + 1));
-          playB = mk('', 'Play', was => { if (!was) playFrom(stepCur === proc.length - 1 ? 0 : stepCur); });   // pressed while playing = stop (interrupt already did it)
+          // one button: pause while playing (interrupt already paused it), resume when paused, else play from this step
+          playB = mk('', 'Play', was => { if (was) return; if (player && paused) resume(); else playFrom(stepCur === proc.length - 1 ? 0 : stepCur); });
           playB.classList.add('dk-play'); playB.innerHTML = ICON_PLAY;
           showStep(0);
         }
         return fig;
       },
       get step() { return stepCur; },
+      // play every step through from the first (a host page can call this instead of the step-1 intro)
+      playAll() { if (!proc) return; introOff = true; playFrom(0); },
+      get playing() { return !!player && !!player.tag && !paused; },
+      get paused() { return !!player && paused; },
       goStep,
       // the image of a procedure: one panel per step, laid out to fill the requested aspect (16:9, 1:1, 4:5, 9:16)
       storyboard(outW) {
@@ -1474,9 +1516,27 @@
         } else if (story && !reduce) {
           const intro = proc ? proc[0].beats : story;   // procedures: play step 1, then the viewer steps through
           apply(stateAt(compile(intro, startState), 0));
-          setTimeout(() => { if (!introOff) { play(intro, { from: startState, tag: proc ? 'proc' : undefined }); player.base = 0; } }, o.introDelay ?? 500);
+          setTimeout(() => { if (!introOff) { play(intro, { from: startState, tag: proc ? 'proc' : 'story' }); player.base = 0; } }, o.introDelay ?? 500);
         } else if (story) apply(compile(proc ? proc[0].beats : story, startState).end);
         else if (o.introExplode && !reduce) setTimeout(() => fig.explode(o.introExplode), 700);
+        if (story && mode === 'interactive') {
+          // every animated figure gets play / pause: stories here, procedures on their stepper
+          if (!proc && panel) {
+            const box = panel.querySelector('.dk-psteps'), b = document.createElement('button');
+            b.className = 'dk-btn dk-icon dk-play'; box.appendChild(b); storyB = b;
+            b.addEventListener('click', () => {
+              if (player && player.tag === 'story' && !paused) { paused = true; introOff = true; }
+              else if (player && player.tag === 'story' && paused) resume();
+              else { introOff = true; play(story, { from: startState, tag: 'story', blend: true }); player.base = 0; }
+            });
+            fig.onFrame(syncStory);
+          }
+          progEl = document.createElement('div'); progEl.className = 'dk-prog'; progEl.innerHTML = '<i></i>'; stage.appendChild(progEl);
+          window.addEventListener('keydown', e => {
+            if (e.code !== 'Space' || /^(INPUT|TEXTAREA|SELECT|BUTTON)$/.test(e.target.tagName)) return;
+            const b = storyB || playB; if (b) { e.preventDefault(); b.click(); }
+          });
+        }
         requestAnimationFrame(frame); window.__dkReady = true; return fig;
       },
       // test hook: restart the live loop after seek() (so a button pressed at a procedure moment renders)
@@ -1485,7 +1545,7 @@
       get particles() { let n = 0; for (let i = 0; i < NP; i++) if (pLife[i] > 0) n++; return n; },
       // test hook: jump state instantly (used by verification screenshots)
       setState(s) {
-        player = null; introOff = true; frozen = false; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
+        player = null; paused = false; introOff = true; frozen = false; if (s.home) { Object.assign(orbit, home, { target: home.target.clone(), zoom: 1 }); zoomTarget = 1; focusOff.set(0, 0, 0); }
         if (s.explode !== undefined) { explodeTarget = explodeT = s.explode; if (fig.explodeSlider) fig.explodeSlider.value = s.explode; }
         if (s.fov !== undefined) orbit.fov = figureFov(s.fov);
         if (s.theta !== undefined) orbit.theta = s.theta; if (s.phi !== undefined) orbit.phi = s.phi;

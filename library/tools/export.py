@@ -6,9 +6,11 @@ usage: .venv/bin/python library/tools/export.py --out ../marketing-website-2/pub
 Writes into --out:
   dentkit.<hash>.js            the kit, content-hashed so browsers can cache it for good
   figures/<slug>.<hash>.js     one figure script each
-  posters/<slug>-light.webp    the poster frame (stage only, no labels or controls), 4:3, both themes
-  posters/<slug>-dark.webp
-  catalog.json                 what the page reads: titles, categories, search phrasings, file names
+  posters/<slug>-<theme>[-480].<hash>.webp   the poster frame (stage only, no labels or controls), 4:3,
+                               both themes, 960 and 480 px wide, content-hashed so they can be cached for good
+  search.<hash>.json           the search phrasings and synonyms, loaded after the page is up
+  catalog.json                 what the page bundles: titles, categories, file names (kept small)
+Rendered posters are kept in library/build/posters/ (gitignored), so an export only redraws what changed.
 A figure's poster frame comes from its `// poster: end | step N` line (default: end of the story).
 Posters are re-rendered only when the figure script or the kit changed, unless --force.
 """
@@ -23,6 +25,7 @@ import _browser  # noqa: E402
 KIT = SKILL / "assets" / "dentkit.js"
 LIB = ROOT / "library"
 POSTER_W, POSTER_H = 960, 720
+CACHE = LIB / "build" / "posters"
 STAGE_W, STAGE_H = 2000, 1500
 
 
@@ -110,7 +113,7 @@ def render_posters(figs, kit_js: str, out: pathlib.Path):
                 pg.close()
                 if errors:
                     raise SystemExit(f"{fig['slug']} ({theme}): JS error: {errors[0]}")
-                autocrop(Image.open(io.BytesIO(png)).convert("RGB"), Image.open(io.BytesIO(empty)).convert("RGB")).save(out / "posters" / f"{fig['slug']}-{theme}.webp", "WEBP", quality=82, method=6)
+                autocrop(Image.open(io.BytesIO(png)).convert("RGB"), Image.open(io.BytesIO(empty)).convert("RGB")).save(CACHE / f"{fig['slug']}-{theme}.webp", "WEBP", quality=82, method=6)
             print(f"poster {fig['slug']} ({state})", flush=True)
         b.close()
 
@@ -125,12 +128,13 @@ def main():
     out = pathlib.Path(a.out).resolve()
     (out / "figures").mkdir(parents=True, exist_ok=True)
     (out / "posters").mkdir(parents=True, exist_ok=True)
+    CACHE.mkdir(parents=True, exist_ok=True)
 
     cat = json.loads((LIB / "catalog.json").read_text())
     search = json.loads((LIB / "search.json").read_text()) if (LIB / "search.json").exists() else {"synonyms": [], "queries": {}}
-    prev = {}
-    if (out / "catalog.json").exists():
-        prev = {f["slug"]: f for f in json.loads((out / "catalog.json").read_text())["figures"]}
+    # what each cached poster was drawn from (figure + kit hash), kept out of the public catalog
+    state_file = CACHE / "state.json"
+    prev = {k: {"_hash": v} for k, v in json.loads(state_file.read_text()).items()} if state_file.exists() else {}
 
     kit_bytes = KIT.read_bytes(); kit_js = kit_bytes.decode()
     kit_name = f"dentkit.{h(kit_bytes)}.js"
@@ -139,7 +143,7 @@ def main():
             old.unlink()
     (out / kit_name).write_bytes(kit_bytes)
 
-    figures, todo, keep = [], [], set()
+    figures, todo, keep, phrasings = [], [], set(), {}
     for fig in cat["figures"]:
         src = source(fig)
         if not (fig.get("src") or fig.get("published")) or not src.exists():
@@ -152,15 +156,15 @@ def main():
         entry = {
             "slug": fig["slug"], "title": fig["title"], "category": fig["category"], "audience": fig["audience"],
             "teeth": fig.get("teeth", []), "point": fig.get("point", ""), "procedure": "fig.procedure" in js,
-            "queries": list(dict.fromkeys(fig.get("queries", []) + search["queries"].get(fig["slug"], []))),
             "script": f"figures/{name}", "priority": fig.get("priority", 2),
         }
         figures.append(entry)
         stale = prev.get(fig["slug"], {}).get("_hash") != f"{h(data)}{h(kit_bytes)}"
-        posters_missing = not (out / "posters" / f"{fig['slug']}-dark.webp").exists()
+        posters_missing = not (CACHE / f"{fig['slug']}-dark.webp").exists()
         if (a.only is None or fig["slug"] in a.only) and (a.force or stale or posters_missing):
             todo.append((fig, js))
         # remember what the posters were drawn from; unchanged when they were not redrawn this run
+        phrasings[fig["slug"]] = list(dict.fromkeys(fig.get("queries", []) + search["queries"].get(fig["slug"], [])))
         entry["_hash"] = prev.get(fig["slug"], {}).get("_hash") if (a.no_posters and stale) else f"{h(data)}{h(kit_bytes)}"
     for old in (out / "figures").glob("*.js"):
         if old.name not in keep:
@@ -170,7 +174,35 @@ def main():
         render_posters(todo, kit_js, out)
     shutil.rmtree(LIB / "build" / "_posters", ignore_errors=True)
 
-    public = {"kit": kit_name, "categories": cat["categories"], "synonyms": search["synonyms"], "figures": figures}
+    # posters: two widths per theme, named by content so the CDN and browsers can keep them for good
+    from PIL import Image
+    keep_posters = set()
+    for entry in figures:
+        entry["poster"] = {}
+        for theme in ("light", "dark"):
+            src_png = CACHE / f"{entry['slug']}-{theme}.webp"
+            if not src_png.exists():
+                continue
+            im = Image.open(src_png)
+            for w, key in ((960, theme), (480, theme + "Sm")):
+                buf = io.BytesIO()
+                (im if w == im.width else im.resize((w, round(im.height * w / im.width)), Image.LANCZOS)).save(buf, "WEBP", quality=80 if w == 480 else 82, method=6)
+                data = buf.getvalue(); name = f"{entry['slug']}-{theme}{'-480' if w == 480 else ''}.{h(data)}.webp"
+                if not (out / "posters" / name).exists():
+                    (out / "posters" / name).write_bytes(data)
+                keep_posters.add(name); entry["poster"][key] = f"posters/{name}"
+    for old in (out / "posters").glob("*.webp"):
+        if old.name not in keep_posters:
+            old.unlink()
+
+    search_bytes = json.dumps({"synonyms": search["synonyms"], "queries": phrasings}, ensure_ascii=False, separators=(",", ":")).encode()
+    search_name = f"search.{h(search_bytes)}.json"
+    for old in out.glob("search.*.json"):
+        if old.name != search_name:
+            old.unlink()
+    (out / search_name).write_bytes(search_bytes)
+    state_file.write_text(json.dumps({e["slug"]: e.pop("_hash") for e in figures}, indent=0))
+    public = {"kit": kit_name, "search": search_name, "categories": cat["categories"], "figures": figures}
     (out / "catalog.json").write_text(json.dumps(public, ensure_ascii=False, separators=(",", ":")))
     print(f"exported {len(figures)} figures ({len(todo)} posters rendered) to {out}")
 

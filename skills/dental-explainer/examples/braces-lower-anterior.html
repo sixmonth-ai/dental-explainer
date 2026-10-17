@@ -122,22 +122,34 @@
       ...(p.bump ? { bumpMap: noiseTexture(p.bump), bumpScale: p.bumpScale ?? 0.03 } : {}), ...(p.map ? { map: mapTexture(p.map) } : {}),
       transparent: p.opacity !== undefined && p.opacity < 1, opacity: p.opacity ?? 1, side: p.side ?? T.FrontSide, flatShading: !!p.flat });
     m.userData.capColor = p.cap !== undefined ? (DK.COLORS[p.cap] ?? p.cap) : c;
-    if (p.rim || p.core || p.rootTint) { // tint the diffuse body BEFORE lighting; rims must retain shadow and never glow over the silhouette
+    // p.shade (enamel on a tooth): {crownL, incisal, tint}. Colour only, no geometry: a warmer neck where the thin enamel lets
+    // dentin show through, a cooler translucent biting edge (strong on incisors and canines), and a ±2 % per-tooth tint so an
+    // arch doesn't read as copies. Values arrive as uniforms, so every enamel shares one program.
+    if (p.rim || p.core || p.rootTint || p.shade) { // tint the diffuse body BEFORE lighting; rims must retain shadow and never glow over the silhouette
       const v4 = a => a.map(x => x.toFixed(3)).join(',');
       const rootColor = DK.color(DK.COLORS.cementum).toArray().map(x => x.toFixed(6)).join(',');
       const code = (p.rootTint ? `diffuseColor.rgb = mix(diffuseColor.rgb, vec3(${rootColor}), 1.0 - smoothstep(-0.65, 0.05, vDKToothY));` : '') +
         (p.rim ? `{ vec4 R = vec4(${v4(p.rim)}); diffuseColor.rgb *= mix(vec3(1.0), R.rgb, pow(fr, 2.5) * R.a); }` : '') +
-        (p.core ? `{ vec4 C = vec4(${v4(p.core)}); diffuseColor.rgb *= mix(vec3(1.0), C.rgb, pow(1.0 - fr, 1.5) * C.a); }` : '');
+        (p.core ? `{ vec4 C = vec4(${v4(p.core)}); diffuseColor.rgb *= mix(vec3(1.0), C.rgb, pow(1.0 - fr, 1.5) * C.a); }` : '') +
+        (p.shade ? `{ float tY = clamp(vDKToothY / dkCrownL, 0.0, 1.0);
+          diffuseColor.rgb *= mix(vec3(1.0), vec3(0.965, 0.928, 0.85), (1.0 - smoothstep(0.0, 0.42, tY)) * 0.5);
+          diffuseColor.rgb *= mix(vec3(1.0), vec3(0.885, 0.92, 0.955), smoothstep(0.7, 1.0, tY) * dkIncisal * (0.55 + 0.45 * fr));
+          diffuseColor.rgb *= dkTint; }` : '');
+      const shade = p.shade && { dkCrownL: { value: Math.max(1, p.shade.crownL || 10) }, dkIncisal: { value: p.shade.incisal ?? 0.5 }, dkTint: { value: new T.Vector3(...(p.shade.tint || [1, 1, 1])) } };
       m.onBeforeCompile = sh => {
-        if (p.rootTint) { // the continuous dentin/root mesh still shows cementum below the CEJ; no extra shell or geometry
+        if (p.rootTint || p.shade) { // tooth-frame height: cementum below the CEJ on dentin, the enamel gradient on enamel; no extra geometry
           sh.vertexShader = 'varying float vDKToothY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvDKToothY = position.y;');
-          sh.fragmentShader = 'varying float vDKToothY;\n' + sh.fragmentShader;
+          sh.fragmentShader = 'varying float vDKToothY;\n' + (shade ? 'uniform float dkCrownL; uniform float dkIncisal; uniform vec3 dkTint;\n' : '') + sh.fragmentShader;
+          if (shade) Object.assign(sh.uniforms, shade);
         }
         sh.fragmentShader = sh.fragmentShader.replace('#include <lights_physical_fragment>',
           `{ float fr = 1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0); ${code} }\n#include <lights_physical_fragment>`);
       };
       m.customProgramCacheKey = () => 'dk-body-tint:' + code;
     }
+    // r128 clone() drops onBeforeCompile and customProgramCacheKey: keep them, so a cloned enamel keeps its shading (and any AO hook)
+    const baseClone = m.clone;
+    m.clone = function () { const c = baseClone.call(this); c.onBeforeCompile = this.onBeforeCompile; c.customProgramCacheKey = this.customProgramCacheKey; c.clone = this.clone; return c; };
     return m;
   };
 
@@ -456,7 +468,11 @@
     opts = opts || {};
     const s = typeof specOrFdi === 'number' ? DK.toothPreset(specOrFdi) : specOrFdi;
     const g = new T.Group(); g.name = s.name;
-    const mats = { enamel: DK.mat('enamel'), dentin: DK.mat('dentin', { rootTint: true }), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
+    // enamel shading per tooth (see DK.mat p.shade): translucency mostly on incisors and canines; primary teeth are whiter and more opaque
+    // per-tooth variation the way real teeth vary: a little brightness (±1.5 %) and a little yellow (up to 2.5 %), never a hue shift
+    const pos = s.fdi % 10, anterior = pos <= 3, rnd = seeded(((s.fdi || 11) * 7919) % 2147483646 + 1), lum = 1 + (rnd() - 0.5) * 0.03, yel = rnd() * 0.025;
+    const shade = { crownL: s.crownL, incisal: s.primary ? 0.25 : anterior ? 1 : 0.4, tint: [lum, lum, lum * (1 - yel)] };
+    const mats = { enamel: DK.mat('enamel', { shade }), dentin: DK.mat('dentin', { rootTint: true }), root: DK.mat('root', { cap: DK.COLORS.dentinCap }), pulp: DK.mat('pulp') };
     mats.enamel.userData.capColor = DK.COLORS.enamelCap; mats.pulp.userData.capColor = DK.COLORS.pulpCap;
     const omit = opts.omit || [];   // e.g. ['enamel','dentin'] for a crown-less root, ['pulp'] for an obturated tooth
     const single = s.roots.length === 1;
@@ -761,6 +777,158 @@
     return tex;
   }
 
+
+  // Ambient occlusion (screen space). Contacts between teeth, the gum line, embrasures and grooves darken the way they do in a
+  // photo, which is most of what makes a shape read as solid. Each frame: the scene's depth at half resolution (opaque parts only,
+  // clipped like the frame, cut faces included), an occlusion estimate within AO_RADIUS mm of each point, a depth-aware blur. Solid
+  // MeshStandard/Physical materials then dim their ambient and reflected light by it (direct light a little); transparent, X-ray,
+  // marker and cap materials are untouched. Colour only: no geometry moves. Off with ?ao=0 or DK.figure({ ao: false }).
+  const AO_RADIUS = 2.6, AO_INTENSITY = 3.5;
+  const AO_VS = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const AO_COMMON = `#include <packing>
+    uniform sampler2D tDepth; uniform vec2 resolution; uniform mat4 cameraProjection; uniform mat4 cameraInverseProjection; uniform float cameraNear; uniform float cameraFar;
+    varying vec2 vUv;
+    float depthAt(vec2 uv) { return texture2D(tDepth, uv).x; }
+    vec3 viewPos(vec2 uv, float d) { float z = perspectiveDepthToViewZ(d, cameraNear, cameraFar); float w = cameraProjection[2][3] * z + cameraProjection[3][3];
+      return (cameraInverseProjection * (vec4((vec3(uv, d) - 0.5) * 2.0, 1.0) * w)).xyz; }`;
+  const AO_FS = AO_COMMON + `
+    uniform float radius; uniform float intensity;
+    float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+    void main() {
+      float d = depthAt(vUv);
+      if (d >= 0.99999) { gl_FragColor = vec4(1.0); return; }
+      vec3 P = viewPos(vUv, d);
+      vec2 px = 1.0 / resolution;
+      vec3 Pr = viewPos(vUv + vec2(px.x, 0.0), depthAt(vUv + vec2(px.x, 0.0))), Pl = viewPos(vUv - vec2(px.x, 0.0), depthAt(vUv - vec2(px.x, 0.0)));
+      vec3 Pu = viewPos(vUv + vec2(0.0, px.y), depthAt(vUv + vec2(0.0, px.y))), Pd = viewPos(vUv - vec2(0.0, px.y), depthAt(vUv - vec2(0.0, px.y)));
+      vec3 dx = abs(Pr.z - P.z) < abs(P.z - Pl.z) ? Pr - P : P - Pl;   // the flatter side, so silhouettes don't bend the normal
+      vec3 dy = abs(Pu.z - P.z) < abs(P.z - Pd.z) ? Pu - P : P - Pd;
+      vec3 N = normalize(cross(dx, dy));
+      vec2 rUV = vec2(cameraProjection[0][0], cameraProjection[1][1]) * radius / max(-P.z, 1.0) * 0.5;
+      float a0 = hash(gl_FragCoord.xy) * 6.2831853, occ = 0.0;
+      for (int i = 0; i < 12; i++) {
+        float t = (float(i) + 0.5) / 12.0, a = a0 + float(i) * 2.3999632;
+        vec2 suv = vUv + vec2(cos(a), sin(a)) * rUV * sqrt(t);
+        float sd = depthAt(clamp(suv, vec2(0.0), vec2(1.0)));
+        if (sd >= 0.99999) continue;
+        vec3 v = viewPos(suv, sd) - P;
+        float vv = dot(v, v);
+        if (vv < 1e-6) continue;
+        occ += max(dot(v, N) * inversesqrt(vv) - 0.12, 0.0) * max(1.0 - vv / (radius * radius), 0.0);
+      }
+      gl_FragColor = vec4(vec3(clamp(1.0 - intensity * occ / 12.0 * 2.2, 0.3, 1.0)), 1.0);
+    }`;
+  const AO_BLUR = AO_COMMON + `
+    uniform sampler2D tAO; uniform vec2 dir;   // one axis per pass (horizontal, then vertical), depth-aware
+    void main() {
+      float z0 = perspectiveDepthToViewZ(depthAt(vUv), cameraNear, cameraFar), s = 0.0, w = 0.0;
+      for (int i = -2; i <= 2; i++) {
+        vec2 uv = vUv + dir * float(i) / resolution;
+        float z = perspectiveDepthToViewZ(depthAt(uv), cameraNear, cameraFar), k = exp(-abs(z - z0) * 1.5);
+        s += texture2D(tAO, uv).r * k; w += k;
+      }
+      gl_FragColor = vec4(vec3(s / max(w, 1e-4)), 1.0);
+    }`;
+  function makeAO(renderer) {
+    if (!renderer.capabilities.isWebGL2 && !renderer.extensions.get('WEBGL_depth_texture')) return null;
+    const white = new T.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); white.needsUpdate = true;
+    const tex = { value: white }, inv = { value: new T.Vector2(1, 1) }, on = { value: 1 };
+    let depthRT = null, aoRT = null, blurRT = null, W = 0, H = 0;
+    const AO_MAX = 1600;   // occlusion buffer cap (px): a 2x export doesn't quadruple the cost
+    const uniforms = () => ({ tDepth: { value: null }, resolution: { value: new T.Vector2() }, cameraProjection: { value: new T.Matrix4() }, cameraInverseProjection: { value: new T.Matrix4() }, cameraNear: { value: 1 }, cameraFar: { value: 1000 } });
+    const aoMat = new T.ShaderMaterial({ vertexShader: AO_VS, fragmentShader: AO_FS, uniforms: Object.assign(uniforms(), { radius: { value: AO_RADIUS }, intensity: { value: AO_INTENSITY } }), depthTest: false, depthWrite: false });
+    const blurMat = new T.ShaderMaterial({ vertexShader: AO_VS, fragmentShader: AO_BLUR, uniforms: Object.assign(uniforms(), { tAO: { value: null }, dir: { value: new T.Vector2(1, 0) } }), depthTest: false, depthWrite: false });
+    const quad = new T.Mesh(new T.PlaneGeometry(2, 2), aoMat); quad.frustumCulled = false;
+    const quadScene = new T.Scene(); quadScene.add(quad);
+    const quadCam = new T.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const depthMats = new Map(), v2 = new T.Vector2();
+    // r128 cannot resize a depth+stencil target in place, so targets are re-created when the size changes (as for the section)
+    function targets(w, h) {
+      if (w === W && h === H) return;
+      [depthRT, aoRT, blurRT].forEach(t => t && t.dispose()); W = w; H = h;
+      depthRT = new T.WebGLRenderTarget(w, h, { minFilter: T.NearestFilter, magFilter: T.NearestFilter, depthBuffer: true, stencilBuffer: true });
+      depthRT.depthTexture = new T.DepthTexture(w, h); depthRT.depthTexture.format = T.DepthStencilFormat; depthRT.depthTexture.type = T.UnsignedInt248Type;
+      aoRT = new T.WebGLRenderTarget(w, h, { minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false });
+      blurRT = new T.WebGLRenderTarget(w, h, { minFilter: T.LinearFilter, magFilter: T.LinearFilter, depthBuffer: false });
+    }
+    function depthMat(m) {
+      let d = depthMats.get(m);
+      if (!d) { d = new T.MeshBasicMaterial({ colorWrite: false }); depthMats.set(m, d); }
+      d.side = m.side; d.clippingPlanes = m.clippingPlanes; d.clipIntersection = m.clipIntersection; d.polygonOffset = m.polygonOffset; d.polygonOffsetFactor = m.polygonOffsetFactor; d.polygonOffsetUnits = m.polygonOffsetUnits;
+      return d;
+    }
+    // solid standard materials read the occlusion; chained after any hook the material already has
+    function patch(m) {
+      const prev = m.onBeforeCompile, ownKey = Object.prototype.hasOwnProperty.call(m, 'customProgramCacheKey'), prevKey = m.customProgramCacheKey, prevStr = prev.toString();
+      m.onBeforeCompile = function (sh, r) {
+        prev.call(this, sh, r);
+        Object.assign(sh.uniforms, { dkAO: tex, dkAOInv: inv, dkAOOn: on });
+        sh.fragmentShader = 'uniform sampler2D dkAO; uniform vec2 dkAOInv; uniform float dkAOOn;\n' + sh.fragmentShader.replace('#include <aomap_fragment>',
+          `#include <aomap_fragment>
+          { float dkA = mix(1.0, texture2D(dkAO, gl_FragCoord.xy * dkAOInv).r, dkAOOn * step(0.98, diffuseColor.a));
+            reflectedLight.indirectDiffuse *= dkA; reflectedLight.indirectSpecular *= dkA;
+            reflectedLight.directDiffuse *= mix(1.0, dkA, 0.45); reflectedLight.directSpecular *= mix(1.0, dkA, 0.3); }`);
+      };
+      m.onBeforeCompile.dkAO = true;   // on the hook itself: a clone that copies the hook is already patched, one that drops it is not
+      m.customProgramCacheKey = function () { return (ownKey ? prevKey.call(this) : prevStr) + '|dkao'; };
+      m.needsUpdate = true;
+    }
+    const showMat = new T.MeshBasicMaterial({ map: null, depthTest: false, depthWrite: false });
+    // change detection: the last frame's inputs, compared value by value (reused buffer, no per-frame allocation)
+    let sig = new Float64Array(4096), n = 0, changed = true;
+    const put = v => { if (n >= sig.length) { const g = new Float64Array(sig.length * 2); g.set(sig); sig = g; changed = true; } if (sig[n] !== v) { sig[n] = v; changed = true; } n++; };
+    const swapped = [], hidden = [];
+    return {
+      set enabled(v) { on.value = v ? 1 : 0; }, get enabled() { return on.value > 0; },
+      tune(radius, intensity) { if (radius) aoMat.uniforms.radius.value = radius; if (intensity) aoMat.uniforms.intensity.value = intensity; sig.fill(NaN); },
+      show() { showMat.map = tex.value; showMat.needsUpdate = true; quad.material = showMat; renderer.setRenderTarget(null); renderer.render(quadScene, quadCam); },
+      // Recomputed only when something the occlusion depends on changed (camera, sizes, any visible mesh's transform, visibility,
+      // opacity, vertex edits, clipping): the kit redraws every frame, but a still figure costs one cheap traversal.
+      pass(scene, camera) {
+        if (!on.value) return;
+        const sz = renderer.getDrawingBufferSize(v2);
+        const k = Math.min(0.5, AO_MAX / Math.max(sz.x, sz.y));
+        scene.updateMatrixWorld(); camera.updateMatrixWorld();   // this frame's positions (render() would otherwise update them only afterwards)
+        n = 0; changed = false;
+        put(sz.x); put(sz.y); camera.matrixWorld.elements.forEach(put); camera.projectionMatrix.elements.forEach(put);
+        scene.traverseVisible(o => {
+          if (!o.isMesh) return;
+          const m = o.material; if (Array.isArray(m)) return;
+          o.matrixWorld.elements.forEach(put); put(m.visible ? 1 : 0); put(m.opacity); put(m.transparent ? 1 : 0); put(o.geometry.attributes.position.version);
+          if (m.clippingPlanes) m.clippingPlanes.forEach(pl => put(pl.constant));
+        });
+        put(n); if (!changed && depthRT) return;
+        targets(Math.max(1, Math.round(sz.x * k)), Math.max(1, Math.round(sz.y * k)));
+        inv.value.set(1 / sz.x, 1 / sz.y);
+        swapped.length = 0; hidden.length = 0;
+        scene.traverse(o => {
+          if (!o.visible || o.userData.isStencil) return;   // stencil volumes and caps draw as they are, so cut faces have depth
+          if (o.isMesh) {
+            const m = o.material;
+            if (Array.isArray(m) || m.visible === false) return;
+            // overlays, markers and anything see-through never occlude
+            if (m.transparent || m.isShaderMaterial || m.depthWrite === false || m.depthTest === false || m.colorWrite === false) { o.visible = false; hidden.push(o); return; }
+            if (m.isMeshStandardMaterial && !m.onBeforeCompile.dkAO) patch(m);
+            swapped.push(o, m); o.material = depthMat(m);
+          } else if (o.isLine || o.isPoints || o.isSprite) { o.visible = false; hidden.push(o); }
+        });
+        const bg = scene.background; scene.background = null;
+        const prevRT = renderer.getRenderTarget();
+        renderer.setRenderTarget(depthRT); renderer.clear(true, true, true); renderer.render(scene, camera);
+        scene.background = bg;
+        for (let i = 0; i < swapped.length; i += 2) swapped[i].material = swapped[i + 1];
+        hidden.forEach(o => { o.visible = true; });
+        [aoMat, blurMat].forEach(mm => { const u = mm.uniforms; u.tDepth.value = depthRT.depthTexture; u.resolution.value.set(W, H); u.cameraProjection.value.copy(camera.projectionMatrix); u.cameraInverseProjection.value.copy(camera.projectionMatrixInverse); u.cameraNear.value = camera.near; u.cameraFar.value = camera.far; });
+        quad.material = aoMat; renderer.setRenderTarget(aoRT); renderer.render(quadScene, quadCam);
+        quad.material = blurMat;
+        blurMat.uniforms.tAO.value = aoRT.texture; blurMat.uniforms.dir.value.set(1, 0); renderer.setRenderTarget(blurRT); renderer.render(quadScene, quadCam);
+        blurMat.uniforms.tAO.value = blurRT.texture; blurMat.uniforms.dir.value.set(0, 1); renderer.setRenderTarget(aoRT); renderer.render(quadScene, quadCam);
+        renderer.setRenderTarget(prevRT);
+        tex.value = aoRT.texture;
+      }
+    };
+  }
+
   const ASPECTS = { '16:9': 16 / 9, '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '4:3': 4 / 3 };
   const STORY_KEYS = ['theta', 'phi', 'zoom', 'fov', 'explode', 'offset', 'xray', 'focusX', 'focusY', 'focusZ'];
   const figureFov = v => Number.isFinite(v) ? clamp(v, 12, 60) : 32;
@@ -821,7 +989,13 @@
     const rim = new T.DirectionalLight(0xeeeae2, 0.32); rim.position.set(-20, 40, -80); scene.add(rim);
     // PCFSoft provides the portable soft contact edge; shadow.radius is ignored by this r128 filter.
     renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
-    function renderFrame() { if (section) section.prepass(renderer, camera); renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera); }
+    const ao = qs.get('ao') !== '0' && o.ao !== false ? makeAO(renderer) : null;
+    if (ao) ao.tune(Number(qs.get('aor')) || 0, Number(qs.get('aoi')) || 0);   // tuning knobs for checking a figure; leave unset
+    function renderFrame() {
+      if (section) section.prepass(renderer, camera); if (ao) ao.pass(scene, camera);
+      if (ao && qs.get('ao') === 'show') { ao.show(); return; }   // the occlusion buffer alone, for checking
+      renderer.shadowMap.needsUpdate = true; renderer.render(scene, camera);
+    }
 
     const world = new T.Group(); scene.add(world);
     const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;

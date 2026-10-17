@@ -666,6 +666,19 @@ Extends §9. Appliance sizes are **nominal**; measured slots run oversized (5–
 - **Rate** [V, meta-analysis of canine retraction, 50 RCTs]: about **1 mm in the first month**, ~0.8 mm/month over three months (0.7–1.9 mm/month across studies); "~1 mm a month" is the usual summary.
 - **Bone remodels, it is not pushed aside** [U, standard teaching]: the socket follows the root by resorption ahead of it and apposition behind it; the surrounding bone keeps its volume. Teeth relapse until ligament and bone reorganise, hence retention.
 
+### Retention and relapse
+- **Why teeth move back** [V, histology reviews of Reitan's work]: when the brackets come off, the fibres stretched during treatment pull the teeth toward where they were. PDL fibres anchored in bone reorganise within weeks (about 28 days); gingival collagen fibres over about **4–6 months**; the **supracrestal (gingival and transseptal) fibres** stay stretched far longer, still displaced after **232 days** of retention and more than 7 months after movement. Rotated teeth relapse most, because those fibres are wound up around them [U, standard teaching].
+- **Late change never stops entirely** [U, standard teaching]: lower incisors tend to crowd with age even in untreated people, so retention is usually long-term or lifelong, especially for the lower front teeth.
+- **What relapse looks like** [U]: crowding and rotation return first in the **lower incisors**, closed spaces (a midline diastema, extraction spaces) reopen, and corrected rotations turn back. It is gradual and partial (typically a few millimetres of irregularity), not a full return to the starting malocclusion.
+- **Retainers** [U, standard teaching]: removable (clear vacuum-formed, Hawley) or fixed. A **fixed (bonded) lingual retainer** is a thin wire bonded to the lingual surfaces of the lower canines and incisors (33–43; upper 13–23 is also used), on the middle third of the lingual surface, clear of the gingiva and of the opposing teeth. Either bonded to **every tooth** with a flexible multistrand stainless-steel wire (commonly **0.0175 in = 0.44 mm**) or fibre-reinforced composite, or to the **canines only** with a thicker round wire.
+- **Failure** [V]: bond failures (a pad coming loose) are common: **12–50 %** across studies of multistrand retainers (Iliadi 2015), pooled **35 %** (24 % short-term, 54 % long-term; Eur J Orthod 2023 meta-analysis); 31 % at 12 months for 0.0175 in multistrand canine-to-canine in one RCT (Nagani 2020). A loose pad lets that tooth drift while the wire still looks attached, so retainers are checked at recalls.
+
+### Common AI mistakes (retention)
+1. "Teeth are set once the braces come off" or "the bone hardens around them". The fibres keep pulling for months and the lower incisors keep changing for life; that is why retention exists.
+2. "A retainer is only needed for a few months." Retention is usually long-term, often lifelong for the lower front teeth.
+3. Drawing relapse as the teeth springing all the way back. It is gradual and partial, worst in the lower incisors.
+4. A bonded retainer on the facial surface or at the gum line. It sits on the lingual middle third, behind the teeth.
+
 ### Clear aligners
 - **Material and thickness** [V]: thermoformed single-layer **PET-G** or **polyurethane (TPU)** and multilayer TPU sheets, nominally **0.75 mm** (0.5–1.0 mm sheets exist; 0.75 mm sheets exert markedly more force than 0.5 mm). After thermoforming a shell is only **44–95 % of the sheet**: about **0.40–0.55 mm** over crowns (incisor ~0.51, canine ~0.39–0.52, molar ~0.44–0.49 mm) with a 0.3–0.5 mm gap to the tooth in micro-CT [V]. The kit draws 0.5 mm.
 - **Staging and wear** [V]: each aligner is built about **0.25 mm** (or 2° rotation, 1° torque) ahead of the teeth and worn **~22 h a day** for **7–14 days**; a 7-day change gave clinically similar accuracy to 14 days in half the time in one RCT [V].
@@ -714,6 +727,8 @@ Extends §9. Appliance sizes are **nominal**; measured slots run oversized (5–
 - Wear protocol 22 h, 0.25 mm per aligner, 7–14 days (Australasian Orthod J 2023): https://reference-global.com/download/article/10.2478/aoj-2023-0002.pdf ; 7- vs 14-day RCT (Angle Orthod 2021): https://angle-orthodontist.kglmeridian.com/view/journals/angl/91/2/article-p157.xml
 - Attachment dimensions and shapes (3.5 × 1.5 × 1 mm rectangles, 3 × 2 × 1 mm ellipsoids): https://scholarscompass.vcu.edu/etd/6904 ; optimized vs conventional: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11078502/
 - Attachment guidance per movement (rotation, extrusion, bodily): https://www.cdocs.com/resources/articles/maximizing-clear-aligner-efficiency-with-attachments/ ; bevelled vs plain rectangles (OHSU 2026 pilot): https://digitalcollections.ohsu.edu/record/44853/files/Gibbons.Spencer.2026.pdf
+- Supracrestal fibres still displaced after 232 days, bone-anchored fibres ~28 days (systematic review citing Reitan): https://revistas.unbosque.edu.co/index.php/RSB/article/download/31/17/37 ; gingival collagen 4–6 months, elastic fibres longer (fibrotomy review): https://reference-global.com/download/article/10.2478/aoj-2008-0002.pdf ; supracrestal fibre histology after movement: https://open.bu.edu/items/0e6d6323-e48f-4a10-8d92-cbe3e4d2d7b9
+- Fixed retainer failure, multistrand 12–50 % (Iliadi 2015 systematic review): https://boris-portal.unibe.ch/entities/publication/3c1ce5b9-3cbe-406b-a854-8e3cc7140c7c ; pooled 35 % (Eur J Orthod 2023): https://academic.oup.com/ejo/article/45/6/645/7310812 ; 0.0175 in multistrand vs fibre-reinforced, canine to canine (Nagani 2020 RCT), as summarised in: https://pmc.ncbi.nlm.nih.gov/articles/PMC8306281
 <!-- end topic: ortho -->
 
 ---

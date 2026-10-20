@@ -112,8 +112,25 @@ Write the figure script (plain JS, `figure.js`) against the kit, starting from t
 - **Highlight only the difference** with `fig.accent` (the teeth that moved, the crack, the lesion); everything else stays in normal tissue colours. Labels: the device on the "with" side, the consequence on the "without" side, ≤ 4 per frame.
 - Title the answer, not the question ("Why a retainer: teeth drift back"). If the subject is too big to show twice (a whole mouth), use one copy with a `fig.toggle('Without X', …)` that eases the param between the two outcomes instead.
 
-**Assemble the page**: `python3 scripts/build.py figure.js -o <name>.html --mode <image|interactive> [--aspect 16:9|1:1|4:5|9:16] --title "<title>"`.
-Without code execution, write the HTML yourself: `<!doctype html>…<body>`, then `<script>window.DK_MODE = 'image';</script>` (the chosen mode), then `<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>`, then a `<script>` holding **the full, unmodified contents of `assets/dentkit.js`**, then a `<script>` with your figure code. Never abridge the kit.
+**Every figure is a `DK.figure` script running on `dentkit.js`.** Never write your own three.js page: no scene, camera, lights, materials, controls or page layout of your own, however simple the request. A page without the kit is wrong even if it renders; it has none of the anatomy, palette or footer.
+
+**Assemble the page** one of two ways:
+- **The skill folder is on disk and you can run code** (Claude Code, Codex, Claude with code execution): `python3 scripts/build.py figure.js -o <name>.html --mode <image|interactive> [--aspect 16:9|1:1|4:5|9:16] --title "<title>"`.
+- **Otherwise** (ChatGPT, where you read the skill through `skills://…` and its scripts can't run, or no code execution at all): write exactly this page, filling in the title, the mode, the aspect and your figure code. The kit loads from the CDN at this skill's version; don't change that URL, and never paste or retype the kit yourself.
+
+```html
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TITLE</title></head>
+<body>
+<script>window.DK_MODE = 'interactive'; window.DK_ASPECT = '16:9';</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/sixmonth-ai/dental-explainer@v1.4.2/skills/dental-explainer/assets/dentkit.js"></script>
+<script>
+// your figure script (copied from the closest example, then changed)
+</script>
+</body></html>
+```
 
 ## 5. Verify
 
@@ -193,5 +210,5 @@ When the figure is about one of these, read its topic file (what to copy, what t
 ## Platform notes
 - **Claude (web, desktop):** needs code execution for `build.py`. `render.py` and `check.py` need Playwright, which is often missing; they then print `SKIP` and you deliver the HTML page (its Download button makes the PNG in the viewer's browser). three.js loads from cdnjs, which artifacts allow.
 - **Claude Code:** everything runs locally; install Playwright (`pip install playwright && playwright install chromium`) for direct PNG output. The scripts use the GPU when there is one and cache three.js after the first run.
-- **ChatGPT:** same workflow. If canvas preview doesn't run the CDN script, deliver the `.html` file for download.
-- **No file tools at all:** output the full HTML (see "Assemble the page") in one code block and tell the user to save it as `.html` and open it in a browser.
+- **ChatGPT:** the skill's files are read through `skills://`, so `build.py`, `check.py` and `render.py` can't run. Read the closest example and `references/kit-api.md` as usual, write the figure script, and assemble it with the CDN page in "Assemble the page"; then go through the `SKIP` checklist under Verify. Deliver it as an `.html` file. An image request gets the same page in `image` mode (its **Download PNG** button makes the PNG).
+- **No file tools at all:** output the CDN page (see "Assemble the page") in one code block and tell the user to save it as `.html` and open it in a browser.

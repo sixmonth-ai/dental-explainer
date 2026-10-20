@@ -76,6 +76,13 @@ def main():
     if run([sys.executable, str(SKILL / "scripts" / "build.py"), str(scripts[0]), "-o", str(out / "v.html"), "--mode", "video"])[0] == 0:
         fail("build.py --mode video should refuse (video is coming soon)")
 
+    # pages built without build.py (ChatGPT) load the kit from the CDN at the release tag, so the tag must be this version
+    import json
+    version = json.loads((ROOT / "plugin.json").read_text())["version"]
+    tags = set(re.findall(r"cdn\.jsdelivr\.net/gh/sixmonth-ai/dental-explainer@(v[\d.]+)/", (SKILL / "SKILL.md").read_text()))
+    if tags != {f"v{version}"}:
+        fail(f"SKILL.md loads the kit from the CDN at {sorted(tags) or 'no tag'}, but this is version {version} (want v{version})")
+
     browser_jobs = []
     for js in scripts:
         name = js.stem; page = js.with_suffix(".html")

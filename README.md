@@ -23,7 +23,7 @@
   <a href="#gallery">Gallery</a> ·
   <a href="#why-it-exists">Why</a> ·
   <a href="#how-it-works">How it works</a> ·
-  <a href="https://sixmonth.ai/offchair">Newsletter</a>
+  <a href="https://sixmonth.ai/newsletter">Newsletter</a>
 </p>
 
 <br>
@@ -186,6 +186,6 @@ dental-explainer/
 
 ## Stay up to date
 
-`dental-explainer` is made by **[Sixmonth](https://sixmonth.ai)**. Get a weekly briefing on AI in dentistry at **[sixmonth.ai/offchair](https://sixmonth.ai/offchair)**.
+`dental-explainer` is made by **[Sixmonth](https://sixmonth.ai)**. Get a weekly briefing on AI in dentistry at **[sixmonth.ai/newsletter](https://sixmonth.ai/newsletter)**.
 
 <sub>MIT licensed. Concept inspired by the open-source <a href="https://github.com/wheresryan22/anatomy">Anatomy</a> skill by @wheresryan22; the dental kit, facts file and figures here are original work. three.js © its authors, MIT.</sub>
